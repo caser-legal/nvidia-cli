@@ -5,6 +5,7 @@
 
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
+import { FolderOpen } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
@@ -26,13 +27,16 @@ interface AgentEvent {
 
 interface CLIChatProps {
   projectDir?: string;
+  onProjectDirChange?: (dir: string) => void;
   className?: string;
 }
 
-export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps) {
+export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, className }: CLIChatProps) {
+  const [currentDir, setCurrentDir] = React.useState(projectDir);
   const [events, setEvents] = React.useState<AgentEvent[]>([]);
   const [input, setInput] = React.useState("");
   const [isRunning, setIsRunning] = React.useState(false);
+  const folderInputRef = React.useRef<HTMLInputElement>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -68,7 +72,7 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: userMessage }],
-          projectDir,
+          projectDir: currentDir,
         }),
       });
 
@@ -198,6 +202,15 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
 
       default:
         return null;
+  const handleFolderSelect = () => {
+    const newDir = prompt("Enter project directory path:", currentDir);
+    if (newDir && newDir.trim()) {
+      setCurrentDir(newDir.trim());
+      onProjectDirChange?.(newDir.trim());
+      setEvents(prev => [...prev, { 
+        type: "status", 
+        status: `switched to ${newDir.trim()}` 
+      }]);
     }
   };
 
@@ -210,7 +223,16 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
           <div className="w-3 h-3 rounded-full bg-yellow-500" />
           <div className="w-3 h-3 rounded-full bg-green-500" />
         </div>
-        <span className="text-gray-400 text-sm ml-2">dory — {projectDir}</span>
+        <button
+          onClick={handleFolderSelect}
+          className="flex items-center gap-2 ml-2 px-2 py-1 rounded hover:bg-gray-700 transition-colors group"
+          title="Change project directory"
+        >
+          <FolderOpen className="h-4 w-4 text-gray-400 group-hover:text-[#76B900]" />
+          <span className="text-gray-400 text-sm truncate max-w-[300px] group-hover:text-white">
+            {currentDir}
+          </span>
+        </button>
         {isRunning && (
           <span className="ml-auto text-green-400 text-sm animate-pulse">● running</span>
         )}
