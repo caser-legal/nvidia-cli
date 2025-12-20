@@ -72,19 +72,34 @@ Switch modes from the header dropdown or input mode selector.
 
 ### 💬 Dory (Chat)
 General-purpose assistant with full CLI file and command access.
-```
-[you] What files are in this directory?
-⚡ file_read({"path": ".", "operation": "list"})
-[dory] Found 12 files including package.json, src/, ...
-```
+- **Memory System** - Remembers facts, decisions, and entities across sessions
+- **Entity Tracking** - Automatically tracks people, projects, companies mentioned
 
 ### 💻 Coder Mode
 **Autonomous coding agent** - Build entire apps from start to finish.
+- **GitHub Analyzer** - Clone and analyze any public repository
+- **Mermaid Diagrams** - Auto-generate architecture diagrams
+- **Memory** - Remembers project context
 
 **iOS Development Support:**
 - Build: `xcodebuild -project *.xcodeproj -scheme * -destination 'generic/platform=iOS'`
 - Codesign fix: `xattr -cr .` to strip extended attributes
 - Team ID: 672RKF28YZ, Bundle prefix: caserlegal.[AppName]
+
+### 📄 Docs Mode (NEW)
+**Code documentation generator** - Analyze codebases and generate comprehensive docs.
+- **GitHub Analyzer** - Clone and analyze any public repo
+- **README Generator** - Comprehensive project documentation
+- **Architecture Docs** - System design with mermaid diagrams
+- **API Documentation** - Endpoint references
+
+```
+[you] Document https://github.com/owner/repo
+⚡ github_analyzer({"operation": "analyze", "repo_url": "..."})
+⚡ code_documentation({"operation": "full", "repo_url": "..."})
+⚡ mermaid_generator({"diagram_type": "flowchart", ...})
+[dory] Generated README.md, ARCHITECTURE.md, API.md with diagrams
+```
 
 ### 🖥️ Controller Mode
 Computer automation - open apps, run scripts, system commands.
@@ -94,6 +109,7 @@ Web browsing with Tavily (deep content) and Google (quick lookups).
 
 ### 🔬 Research Mode
 Deep research with all search tools: Tavily, Google, parallel search, local docs.
+- **Memory** - Stores key findings for later recall
 
 ### 👥 Coordinator Mode (Multi-Agent)
 **Full multi-agent research system.** See [Multi-Agent Coordinator](#multi-agent-coordinator) below.
@@ -322,6 +338,25 @@ data: {"type":"done"}
 | `think` | Internal reasoning |
 | `google_search` | Quick web search |
 | `tavily_search` | Deep web search |
+| `memory` | Remember/recall facts across sessions |
+| `entity_memory` | Track people, projects, companies |
+
+### Coder Mode (Additional)
+| Tool | Description |
+|------|-------------|
+| `github_analyzer` | Clone and analyze GitHub repos |
+| `github_file_reader` | Read files from cloned repos |
+| `mermaid_generator` | AI-powered diagram generation |
+| `quick_diagram` | Template-based diagrams |
+
+### Docs Mode (Additional)
+| Tool | Description |
+|------|-------------|
+| `github_analyzer` | Clone and analyze GitHub repos |
+| `github_file_reader` | Read files from cloned repos |
+| `code_documentation` | Generate README, architecture, API docs |
+| `mermaid_generator` | AI-powered diagram generation |
+| `quick_diagram` | Template-based diagrams |
 
 ### Research Mode (Additional)
 | Tool | Description |
@@ -341,6 +376,132 @@ data: {"type":"done"}
 | `report_extender` | Integrates new findings |
 | `report_compiler` | Assembles final report |
 | `deduplicate_sources` | Cleans up citations |
+| `documentation_specialist` | Generate code documentation |
+| `mermaid_generator` | Architecture diagrams |
+
+---
+
+## New Tools Reference
+
+### GitHub Analyzer
+Clone and analyze any public GitHub repository.
+
+```typescript
+// Clone a repository
+github_analyzer({ operation: "clone", repo_url: "https://github.com/owner/repo" })
+
+// Get directory structure
+github_analyzer({ operation: "structure", repo_url: "..." })
+
+// Read README
+github_analyzer({ operation: "readme", repo_url: "..." })
+
+// List key files
+github_analyzer({ operation: "files", repo_url: "..." })
+
+// Analyze dependencies
+github_analyzer({ operation: "dependencies", repo_url: "..." })
+
+// Full analysis
+github_analyzer({ operation: "analyze", repo_url: "..." })
+```
+
+### Mermaid Diagram Generator
+AI-powered diagram generation from descriptions.
+
+```typescript
+// Generate flowchart
+mermaid_generator({
+  diagram_type: "flowchart",
+  description: "User authentication flow with OAuth"
+})
+
+// Generate sequence diagram
+mermaid_generator({
+  diagram_type: "sequenceDiagram",
+  description: "API request handling"
+})
+
+// Supported types: flowchart, sequenceDiagram, classDiagram, erDiagram, stateDiagram
+```
+
+### Quick Diagram Templates
+Pre-built diagram templates for common patterns.
+
+```typescript
+// API flow diagram
+quick_diagram({ template: "api_flow", title: "User API" })
+
+// CRUD operations
+quick_diagram({ template: "crud_flow", title: "Posts" })
+
+// Authentication flow
+quick_diagram({ template: "auth_flow", title: "OAuth" })
+
+// Microservices architecture
+quick_diagram({ template: "microservices", title: "E-commerce" })
+
+// Class hierarchy
+quick_diagram({ template: "class_hierarchy", title: "Vehicles" })
+
+// State machine
+quick_diagram({ template: "state_machine", title: "Order Status" })
+```
+
+### Memory System
+Persistent memory across sessions.
+
+```typescript
+// Remember a fact
+memory({ operation: "remember", content: "User prefers dark mode" })
+
+// Recall memories
+memory({ operation: "recall", query: "user preferences" })
+
+// List all memories
+memory({ operation: "list" })
+
+// Summarize session
+memory({ operation: "summarize" })
+
+// Promote to long-term
+memory({ operation: "promote", memory_id: "..." })
+```
+
+### Entity Memory
+Track named entities mentioned in conversations.
+
+```typescript
+entity_memory({
+  operation: "track",
+  entity_type: "person",  // person, project, company, technology
+  name: "John Smith",
+  context: "Lead developer on the project"
+})
+```
+
+### Code Documentation Generator
+Generate comprehensive documentation for codebases.
+
+```typescript
+// Analyze codebase
+code_documentation({ operation: "analyze", repo_url: "..." })
+
+// Create documentation plan
+code_documentation({ operation: "plan", repo_url: "..." })
+
+// Generate README
+code_documentation({ operation: "readme", repo_url: "..." })
+
+// Generate architecture docs
+code_documentation({ operation: "architecture", repo_url: "..." })
+
+// Generate API docs
+code_documentation({ operation: "api", repo_url: "..." })
+
+// Full documentation suite
+code_documentation({ operation: "full", repo_url: "..." })
+```
 
 ---
 

@@ -5,7 +5,7 @@
 
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { Monitor, Globe, Headphones, MessageSquare, Code, Square, Users } from "lucide-react";
+import { Monitor, Globe, Headphones, MessageSquare, Code, Square, Users, FileText } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ interface AgentEvent {
   message?: string;
 }
 
-type AgentMode = "chat" | "computer" | "browser" | "research" | "coder" | "coordinator";
+type AgentMode = "chat" | "computer" | "browser" | "research" | "coder" | "coordinator" | "docs";
 
 interface AgentChatProps {
   mode: AgentMode;
@@ -131,6 +131,25 @@ const MODE_CONFIG = {
         "✅ Quality Reviewer - evaluates completeness, identifies gaps",
         "🔄 Reflection Loop - iterates until quality score ≥ 8/10",
         "📚 Source Deduplication - clean, numbered citations",
+      ],
+    },
+  },
+  docs: {
+    name: "Documentation",
+    icon: FileText,
+    color: "text-cyan-400",
+    bgColor: "bg-cyan-500",
+    placeholder: "Paste a GitHub URL or describe what to document...",
+    welcome: {
+      title: "Code Documentation Generator",
+      description: "I analyze codebases and generate comprehensive documentation",
+      features: [
+        "📦 GitHub Analyzer - clone and analyze any public repo",
+        "📊 Mermaid Diagrams - auto-generate architecture diagrams",
+        "📖 README Generator - comprehensive project documentation",
+        "🏗️ Architecture Docs - system design with diagrams",
+        "📡 API Documentation - endpoint references",
+        "🧠 Memory System - remembers context across sessions",
       ],
     },
   },

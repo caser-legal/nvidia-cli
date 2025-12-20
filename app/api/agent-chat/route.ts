@@ -1,5 +1,5 @@
 // API Route: Multi-mode Agent Chat
-// Supports: chat, computer, browser, research, coder, coordinator (multi-agent with full workflow)
+// Supports: chat, computer, browser, research, coder, coordinator, docs (multi-agent with full workflow)
 // Integrated with Data Flywheel for continuous model improvement
 
 import { Agent } from "@/lib/agents/agent";
@@ -21,6 +21,10 @@ import {
   ReportCompilerTool,
   SourceDeduplicatorTool 
 } from "@/lib/agents/tools/specialist-agents";
+import { GitHubAnalyzerTool, GitHubFileReaderTool } from "@/lib/agents/tools/github-analyzer";
+import { MermaidGeneratorTool, QuickDiagramTool } from "@/lib/agents/tools/mermaid-generator";
+import { MemoryTool, EntityMemoryTool } from "@/lib/agents/tools/memory";
+import { CodeDocumentationTool, DocumentationSpecialistTool } from "@/lib/agents/tools/code-documentation";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
 
 export const runtime = "nodejs";
@@ -124,6 +128,8 @@ No task is too large. Don't stop until complete.`,
 6. **report_extender** - Integrates new findings into existing reports
 7. **report_compiler** - Assembles sections into final report
 8. **deduplicate_sources** - Cleans up citation lists
+9. **documentation_specialist** - Generate docs for codebases
+10. **mermaid_generator** - Create architecture diagrams
 
 ## WORKFLOW OPTIONS:
 
@@ -142,6 +148,11 @@ No task is too large. Don't stop until complete.`,
 6. quality_reviewer → evaluate
 7. If NEEDS_MORE_RESEARCH → search_specialist + report_extender
 8. Deliver final APPROVED report
+
+### Option C: Code Documentation
+1. documentation_specialist → analyze and document codebase
+2. mermaid_generator → create architecture diagrams
+3. quality_reviewer → check completeness
 
 ## QUALITY LOOP (max 3 iterations):
 - If quality_reviewer returns NEEDS_MORE_RESEARCH:
@@ -163,7 +174,36 @@ When delivering final report, include:
 - The full report
 - Quality scores from final review
 - Number of sources used
-- Workflow used (Quick/Structured)`
+- Workflow used (Quick/Structured)`,
+
+  // DOCS MODE - Code documentation generation
+  docs: `You are dory in documentation mode. You analyze codebases and generate comprehensive documentation.
+
+TOOLS YOU HAVE:
+- github_analyzer: Clone and analyze GitHub repositories
+- github_file_reader: Read specific files from cloned repos
+- code_documentation: Generate README, architecture docs, API docs
+- mermaid_generator: Create architecture and flow diagrams
+- quick_diagram: Fast diagram templates
+- memory: Store and recall information
+- file_write: Save generated documentation
+- bash: Run commands
+
+WORKFLOW:
+1. Use github_analyzer to clone and analyze the repo
+2. Read key files with github_file_reader
+3. Use code_documentation to generate docs
+4. Add diagrams with mermaid_generator
+5. Save results with file_write
+
+DOCUMENTATION TYPES:
+- readme: Generate README.md
+- architecture: System architecture docs with diagrams
+- api: API reference documentation
+- full: Complete documentation suite
+
+Always include mermaid diagrams for architecture visualization.
+Save generated docs to the project directory.`
 };
 
 export async function POST(request: Request) {
@@ -178,7 +218,7 @@ export async function POST(request: Request) {
     } = body as {
       messages: { role: string; content: string }[];
       projectDir?: string;
-      mode?: "chat" | "computer" | "browser" | "research" | "coder" | "coordinator";
+      mode?: "chat" | "computer" | "browser" | "research" | "coder" | "coordinator" | "docs";
     };
 
     const apiKey = request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY;
@@ -216,10 +256,26 @@ export async function POST(request: Request) {
         new ReportExtenderTool(apiKey),
         new ReportCompilerTool(),
         new SourceDeduplicatorTool(),
+        new DocumentationSpecialistTool(apiKey),
+        new MermaidGeneratorTool(apiKey),
+        new ThinkTool(),
+      ];
+    } else if (mode === "docs") {
+      // Documentation mode - GitHub analysis and doc generation
+      tools = [
+        new GitHubAnalyzerTool(),
+        new GitHubFileReaderTool(),
+        new CodeDocumentationTool(apiKey),
+        new MermaidGeneratorTool(apiKey),
+        new QuickDiagramTool(),
+        new MemoryTool(),
+        new FileReadTool(projectDir),
+        new FileWriteTool(projectDir),
+        new BashTool(projectDir),
         new ThinkTool(),
       ];
     } else if (mode === "research") {
-      // Research mode gets all search tools
+      // Research mode gets all search tools + memory
       tools = [
         new FileReadTool(projectDir),
         new FileWriteTool(projectDir),
@@ -230,6 +286,7 @@ export async function POST(request: Request) {
         new ParallelSearchTool(),
         new ParallelTavilySearchTool(),
         new LocalDocsSearchTool(),
+        new MemoryTool(),
       ];
     } else if (mode === "browser") {
       // Browser mode gets search tools
@@ -241,8 +298,8 @@ export async function POST(request: Request) {
         new GoogleSearchTool(),
         new TavilySearchTool(),
       ];
-    } else {
-      // Standard tools for chat/computer/coder
+    } else if (mode === "coder") {
+      // Coder mode gets GitHub tools + diagrams
       tools = [
         new FileReadTool(projectDir),
         new FileWriteTool(projectDir),
@@ -250,6 +307,22 @@ export async function POST(request: Request) {
         new ThinkTool(),
         new GoogleSearchTool(),
         new TavilySearchTool(),
+        new GitHubAnalyzerTool(),
+        new MermaidGeneratorTool(apiKey),
+        new QuickDiagramTool(),
+        new MemoryTool(),
+      ];
+    } else {
+      // Standard tools for chat/computer + memory
+      tools = [
+        new FileReadTool(projectDir),
+        new FileWriteTool(projectDir),
+        new BashTool(projectDir),
+        new ThinkTool(),
+        new GoogleSearchTool(),
+        new TavilySearchTool(),
+        new MemoryTool(),
+        new EntityMemoryTool(),
       ];
     }
 
