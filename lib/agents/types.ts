@@ -40,6 +40,7 @@ export interface AgentConfig {
   model: string;
   maxTokens: number;
   temperature: number;
+  topP: number;
   contextWindowTokens: number;
 }
 

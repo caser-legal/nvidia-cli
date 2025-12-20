@@ -162,7 +162,8 @@ export async function POST(request: Request) {
           config: {
             model: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
             maxTokens: 16384,
-            temperature: mode === "research" ? 0.5 : 0.7, // Lower temp for research
+            temperature: 1.0, // Required for thinking/reasoning models
+            topP: 1.0,        // Required for thinking/reasoning models
             contextWindowTokens: 128000,
           },
           onEvent: (event) => {

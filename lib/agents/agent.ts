@@ -14,7 +14,8 @@ import type {
 const DEFAULT_CONFIG: AgentConfig = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
   maxTokens: 16384,
-  temperature: 1,
+  temperature: 1.0,
+  topP: 1.0,
   contextWindowTokens: 128000,
 };
 
@@ -146,6 +147,7 @@ export class Agent {
         messages: apiMessages,
         max_tokens: this.config.maxTokens,
         temperature: this.config.temperature,
+        top_p: this.config.topP,
         tools: this.tools.size > 0 ? this.getToolDefinitions() : undefined,
       });
 
@@ -237,6 +239,7 @@ export class Agent {
         messages: apiMessages,
         max_tokens: this.config.maxTokens,
         temperature: this.config.temperature,
+        top_p: this.config.topP,
         tools: this.tools.size > 0 ? this.getToolDefinitions() : undefined,
         stream: true,
       });
