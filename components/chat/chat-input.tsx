@@ -4,7 +4,7 @@
 "use client";
 
 import * as React from "react";
-import { Send, Paperclip, Square, Loader2, MessageSquare, Code, Terminal, Monitor, Globe, Headphones } from "lucide-react";
+import { Send, Paperclip, Square, Loader2, MessageSquare, Code, Terminal, Monitor, Globe, Headphones, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -23,7 +23,7 @@ const modes = [
   { id: "coder" as const, name: "Code", icon: Code },
   { id: "computer" as const, name: "Control", icon: Monitor },
   { id: "browser" as const, name: "Browse", icon: Globe },
-  { id: "coordinator" as const, name: "Research Team", icon: Headphones },
+  { id: "coordinator" as const, name: "Research Team", icon: Users },
   { id: "terminal" as const, name: "Terminal", icon: Terminal },
 ];
 

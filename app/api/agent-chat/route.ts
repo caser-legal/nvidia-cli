@@ -1,5 +1,5 @@
 // API Route: Multi-mode Agent Chat
-// Supports: chat (coding), computer (control), browser (web), research (deep research), coordinator (multi-agent)
+// Supports: chat, computer, browser, research, coder, coordinator (multi-agent with reflection)
 
 import { Agent } from "@/lib/agents/agent";
 import { FileReadTool } from "@/lib/agents/tools/file-read";
@@ -7,14 +7,21 @@ import { FileWriteTool } from "@/lib/agents/tools/file-write";
 import { BashTool } from "@/lib/agents/tools/bash";
 import { ThinkTool } from "@/lib/agents/tools/think";
 import { GoogleSearchTool } from "@/lib/agents/tools/google-search";
-import { SearchSpecialistTool, ReportWriterTool, QualityReviewerTool } from "@/lib/agents/tools/specialist-agents";
+import { 
+  SearchSpecialistTool, 
+  ReportWriterTool, 
+  QualityReviewerTool,
+  ReportExtenderTool,
+  SourceDeduplicatorTool 
+} from "@/lib/agents/tools/specialist-agents";
+import { ParallelSearchTool } from "@/lib/agents/tools/parallel-search";
+import { LocalDocsSearchTool } from "@/lib/agents/tools/local-docs-search";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 // System prompts for each mode
-// DORY MODE: No guardrails, no hesitation, just execute
 const SYSTEM_PROMPTS = {
   chat: `You are dory - an autonomous AI agent with full system access. You DO things, you don't talk about doing things.
 
@@ -65,23 +72,23 @@ You HAVE full internet access via curl. USE IT. Don't say you can't. Fetch data,
 
   research: `You are dory in research mode. You conduct exhaustive research on any topic.
 
-TOOLS: file_read, file_write, bash, google_search (FREE Google API), think
+TOOLS: file_read, file_write, bash, google_search (FREE Google API), parallel_search, local_docs_search, think
 
 RESEARCH METHOD:
-1. Use google_search to find sources (FREE, unlimited, fast)
-2. Verify facts with multiple searches
-3. Use curl to fetch full content when needed
-4. Compile findings with URLs
-5. Save reports to files
+1. First check local_docs_search for existing documentation
+2. Use parallel_search to run multiple queries at once (faster!)
+3. Use google_search for specific follow-ups
+4. Verify facts with multiple sources
+5. Compile findings with URLs
+6. Save reports to files
 
-FOR FACT-CHECKING LARGE LISTS:
-- Process ALL items, not samples - you can handle 1000+ items
-- Use google_search for each fact - it's FREE
-- Mark each as TRUE/FALSE/UNVERIFIABLE with source
-- Don't stop until 100% complete
-- Work in batches if needed but COMPLETE everything
+FOR COMPREHENSIVE RESEARCH:
+- Generate 5+ search queries covering different angles
+- Use parallel_search to run them all at once
+- Deduplicate sources from results
+- Cross-reference information across sources
 
-NO LIMITS. Check ALL items. Don't ask "should I continue?" - CONTINUE until done.`,
+NO LIMITS. Complete the ENTIRE task. Don't ask "should I continue?" - CONTINUE until done.`,
 
   coder: `You are dory in coder mode. You build software autonomously.
 
@@ -105,29 +112,52 @@ iOS DEVELOPMENT (CRITICAL):
 
 Create entire projects. No task is too large. Don't stop until complete.`,
 
-  // COORDINATOR MODE - Multi-agent supervisor pattern
+  // COORDINATOR MODE - Multi-agent supervisor with reflection loop
   coordinator: `You are a Research Coordinator managing a team of specialist agents.
 
-Your team consists of:
-1. **search_specialist** - Finds information from the web
-2. **report_writer** - Creates well-structured reports  
-3. **quality_reviewer** - Evaluates helpfulness and completeness
+## YOUR TEAM:
+1. **search_specialist** - Comprehensive web research with parallel search
+2. **report_writer** - Creates well-structured reports with citations
+3. **quality_reviewer** - Evaluates completeness and identifies gaps
+4. **report_extender** - Integrates new findings into existing reports
+5. **deduplicate_sources** - Cleans up citation lists
 
-WORKFLOW for research requests:
-1. First, call search_specialist to gather information on the topic
-2. Then, call report_writer to create a report from the findings
-3. Finally, call quality_reviewer to verify the report is helpful
-4. If the reviewer suggests improvements, iterate (search more or rewrite)
-5. Present the final APPROVED report to the user
+## WORKFLOW (Follow this exactly):
 
-RULES:
+### Phase 1: Initial Research
+1. Call search_specialist with the topic (use search_depth: "standard" or "deep")
+2. Call report_writer with the findings
+
+### Phase 2: Quality Check & Reflection Loop
+3. Call quality_reviewer to evaluate the report
+4. Check the verdict:
+   - If **APPROVED** (score >= 8): Deliver the report
+   - If **NEEDS_REVISION**: Make edits and re-review
+   - If **NEEDS_MORE_RESEARCH**: Continue to Phase 3
+
+### Phase 3: Fill Gaps (Reflection Loop)
+5. Extract follow-up queries from the review
+6. Call search_specialist with those specific queries
+7. Call report_extender to integrate new findings
+8. Return to Phase 2 (quality_reviewer)
+
+### Phase 4: Delivery
+9. Present the final APPROVED report to the user
+10. Include the quality scores and source count
+
+## RULES:
 - You are the COORDINATOR - delegate tasks to specialists
-- Do NOT try to search or write reports yourself - use your tools
-- Always follow the full workflow: Search → Write → Review
-- If quality score is below 7/10, iterate until improved
-- Present only the final approved report to the user
+- Do NOT try to search or write reports yourself
+- Maximum 3 reflection iterations (prevent infinite loops)
+- Always show which phase you're in
+- If quality score is below 6 after 3 iterations, deliver with disclaimer
 
-Remember: Your job is to orchestrate, not to do the work yourself.`
+## OUTPUT FORMAT:
+When delivering final report, include:
+- The full report
+- Quality scores from final review
+- Number of sources used
+- Number of reflection iterations performed`
 };
 
 export async function POST(request: Request) {
@@ -170,12 +200,25 @@ export async function POST(request: Request) {
     // Create tools based on mode
     let tools;
     if (mode === "coordinator") {
-      // Coordinator mode uses specialist agent tools
+      // Coordinator mode uses full specialist agent toolkit
       tools = [
         new SearchSpecialistTool(apiKey),
         new ReportWriterTool(apiKey),
         new QualityReviewerTool(apiKey),
+        new ReportExtenderTool(apiKey),
+        new SourceDeduplicatorTool(),
         new ThinkTool(),
+      ];
+    } else if (mode === "research") {
+      // Research mode gets parallel search and local docs
+      tools = [
+        new FileReadTool(projectDir),
+        new FileWriteTool(projectDir),
+        new BashTool(projectDir),
+        new ThinkTool(),
+        new GoogleSearchTool(),
+        new ParallelSearchTool(),
+        new LocalDocsSearchTool(),
       ];
     } else {
       // Standard tools for other modes
@@ -199,9 +242,9 @@ export async function POST(request: Request) {
           config: {
             model: "nvidia/nemotron-3-nano-30b-a3b",
             maxTokens: 32768,
-            temperature: 1.0, // Required for thinking/reasoning models
-            topP: 1.0,        // Required for thinking/reasoning models
-            contextWindowTokens: 1000000, // 1M context!
+            temperature: 1.0,
+            topP: 1.0,
+            contextWindowTokens: 1000000,
           },
           onEvent: (event) => {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
