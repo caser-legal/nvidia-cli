@@ -5,7 +5,7 @@
 <h1 align="center">NVIDIA CLI</h1>
 
 <p align="center">
-  <strong>A powerful, privacy-first AI assistant powered by NVIDIA NIM</strong>
+  <strong>A powerful, privacy-first assistant powered by NVIDIA NIM</strong>
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 
 ## Overview
 
-NVIDIA CLI [codename: **dory**] is a full-featured AI application powered by NVIDIA's NIM (NVIDIA Inference Microservices) API. It provides a terminal-like interface with multiple agent modes, real tool execution, and multi-model support.
+NVIDIA CLI [codename: **dory**] is a full-featured application powered by NVIDIA's NIM (NVIDIA Inference Microservices) API. It provides a terminal-like interface with multiple agent modes, real tool execution, and multi-model support.
 
 **Default Model:** Nemotron Super 49B - 128K context, optimized for agentic coding tasks
 
@@ -45,7 +45,7 @@ NVIDIA CLI [codename: **dory**] is a full-featured AI application powered by NVI
 - **Code blocks** - Syntax highlighted with 50+ languages
 - **HTML/CSS** - Live preview with sandboxed iframe
 - **React components** - Live rendering
-- **Mermaid diagrams** - Flowcharts, sequence diagrams
+- **Mermd diagrams** - Flowcharts, sequence diagrams
 - **SVG graphics** - Vector graphics preview
 
 ### ⚙️ Advanced
@@ -73,13 +73,13 @@ General-purpose coding assistant with file and command access.
 
 - Never overflows context window
 - Never gets dumb—compact memory across sessions
-- Never say "just do it" again
+- Never say "just do it" agn
 - Picks up exactly where it left off, everytime
 
 **Task Options:**
 | Task | Description |
 |------|-------------|
-| **Create App Spec** | Generate a detailed specification and feature list |
+| **Create App Spec** | Generate a detled specification and feature list |
 | **Continue Work** | Pick up where you left off, implement next features |
 | **QA & Test** | Run tests, find bugs, verify implementations |
 | **Refactor & Improve** | Clean up code, improve performance, fix issues |
@@ -140,7 +140,7 @@ Direct terminal access for manual commands.
 
 ## Models
 
-### Available Models (December 2024)
+### Avlable Models (December 2024)
 
 | Model | Context | Best For |
 |-------|---------|----------|
@@ -271,9 +271,9 @@ Standard chat completion without tools.
 ## Tech Stack
 
 - **Framework:** Next.js 15 (App Router)
-- **UI:** React 19, Tailwind CSS, shadcn/ui
+- **UI:** React 19, Tlwind CSS, shadcn/ui
 - **State:** Zustand with localStorage persistence
-- **API:** NVIDIA NIM (OpenAI-compatible)
+- **API:** NVIDIA NIM (Open-compatible)
 
 ---
 
@@ -286,7 +286,7 @@ nvidia-cli/
 │   │   ├── chat/          # Chat completion
 │   │   ├── agent-chat/    # Multi-mode agent
 │   │   └── agents/        # Agent management
-│   ├── page.tsx           # Main page
+│   ├── page.tsx           # Mn page
 │   └── globals.css
 ├── components/
 │   ├── agents/
@@ -300,7 +300,7 @@ nvidia-cli/
 │   └── ui/                # Radix primitives
 ├── lib/
 │   ├── agents/
-│   │   ├── agent.ts       # Main agent loop
+│   │   ├── agent.ts       # Mn agent loop
 │   │   ├── types.ts       # TypeScript types
 │   │   └── tools/         # file-read, file-write, bash, think
 │   ├── store/             # Zustand stores
