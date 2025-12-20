@@ -23,6 +23,7 @@ import {
   Monitor,
   Globe,
   Headphones,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,7 @@ export function Sidebar({ onNewChat }: SidebarProps) {
   const [dateFilter, setDateFilter] = React.useState("");
   const [modelFilter, setModelFilter] = React.useState("");
   const [mounted, setMounted] = React.useState(false);
+  const [stoppingSessionId, setStoppingSessionId] = React.useState<string | null>(null);
 
   // Prevent hydration mismatch from date calculations
   React.useEffect(() => {
@@ -72,7 +74,12 @@ export function Sidebar({ onNewChat }: SidebarProps) {
   const { currentProjectId } = useProjectStore();
   
   // Agent sessions
-  const { sessions, activeSessionId, setActiveSession, deleteSession, stopSession } = useAgentSessionsStore();
+  const { sessions, activeSessionId, setActiveSession, deleteSession, stopSession, resetStaleSessions } = useAgentSessionsStore();
+
+  // Reset stale running sessions on mount (they can't be running after page refresh)
+  React.useEffect(() => {
+    resetStaleSessions();
+  }, [resetStaleSessions]);
 
   // Filter conversations
   const filteredConversations = React.useMemo(() => {
@@ -237,6 +244,7 @@ export function Sidebar({ onNewChat }: SidebarProps) {
                     </div>
                     {sessions.filter(s => s.status === "running" || s.status === "starting").map((session) => {
                       const Icon = getAgentIcon(session.type);
+                      const isStopping = stoppingSessionId === session.id;
                       return (
                         <div
                           key={session.id}
@@ -250,25 +258,55 @@ export function Sidebar({ onNewChat }: SidebarProps) {
                           <div className="flex-1 min-w-0">
                             <span className="truncate text-sm">{session.name}</span>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              // Call API to stop the process
-                              try {
-                                await fetch("/api/agents/run", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ action: "stop", sessionId: session.id }),
-                                });
-                              } catch {}
-                              stopSession(session.id);
-                            }}
-                          >
-                            <Square className="h-3 w-3 text-destructive" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={isStopping}
+                              >
+                                {isStopping ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <MoreHorizontal className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                disabled={isStopping}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setStoppingSessionId(session.id);
+                                  try {
+                                    await fetch("/api/agents/run", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ action: "stop", sessionId: session.id }),
+                                    });
+                                  } catch {}
+                                  stopSession(session.id);
+                                  setStoppingSessionId(null);
+                                }}
+                              >
+                                <Square className="h-4 w-4 mr-2 text-destructive" />
+                                {isStopping ? "Stopping..." : "Stop"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteSession(session.id);
+                                }}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       );
                     })}
@@ -296,17 +334,30 @@ export function Sidebar({ onNewChat }: SidebarProps) {
                           <div className="flex-1 min-w-0">
                             <span className="truncate text-sm text-muted-foreground">{session.name}</span>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSession(session.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteSession(session.id);
+                                }}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       );
                     })}

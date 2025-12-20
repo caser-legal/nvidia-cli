@@ -11,20 +11,20 @@ const runningProcesses = new Map<string, ChildProcess>();
 
 // Cleanup on process exit
 process.on("exit", () => {
-  for (const [id, proc] of runningProcesses) {
-    proc.kill("SIGTERM");
+  for (const [, proc] of runningProcesses) {
+    try { process.kill(-proc.pid!, "SIGKILL"); } catch { proc.kill("SIGKILL"); }
   }
 });
 
 process.on("SIGTERM", () => {
-  for (const [id, proc] of runningProcesses) {
-    proc.kill("SIGTERM");
+  for (const [, proc] of runningProcesses) {
+    try { process.kill(-proc.pid!, "SIGKILL"); } catch { proc.kill("SIGKILL"); }
   }
   process.exit(0);
 });
 
 // Agent configurations
-const AGENTS_BASE_PATH = "/Users/home/Desktop/nvidia-quickstarts-main";
+const AGENTS_BASE_PATH = process.env.NVIDIA_AGENTS_PATH || "/Users/home/Desktop/nvidia-quickstarts-main";
 
 const AGENT_CONFIGS = {
   coder: {
@@ -54,6 +54,17 @@ const AGENT_CONFIGS = {
     commandArgs: () => ["run", "dev"],
   },
 };
+
+// Check if directory exists
+async function directoryExists(dirPath: string): Promise<boolean> {
+  try {
+    const fs = await import("fs/promises");
+    await fs.access(dirPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -87,6 +98,21 @@ export async function POST(request: NextRequest) {
     const agentDir = path.join(AGENTS_BASE_PATH, config.dir);
     const scriptPath = path.join(agentDir, config.script);
 
+    // Check if agent directory exists
+    if (!(await directoryExists(agentDir))) {
+      await sendEvent("error", { 
+        message: `Agent directory not found: ${agentDir}. Set NVIDIA_AGENTS_PATH env var or clone nvidia-quickstarts to ~/Desktop/nvidia-quickstarts-main` 
+      });
+      await writer.close();
+      return new Response(stream.readable, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
     // Determine command and args
     let command: string;
     let args: string[];
@@ -110,6 +136,7 @@ export async function POST(request: NextRequest) {
           PYTHONUNBUFFERED: "1", // Disable Python output buffering
         },
         stdio: ["pipe", "pipe", "pipe"],
+        detached: true, // Create new process group so we can kill all children
       });
 
       runningProcesses.set(sessionId, proc);
@@ -157,8 +184,16 @@ export async function POST(request: NextRequest) {
 
   if (action === "stop") {
     const proc = runningProcesses.get(sessionId);
-    if (proc) {
-      proc.kill("SIGTERM");
+    if (proc && proc.pid) {
+      try {
+        // Kill entire process group (handles npm/node child processes)
+        process.kill(-proc.pid, "SIGKILL");
+      } catch {
+        // Fallback: kill just the process
+        try {
+          proc.kill("SIGKILL");
+        } catch {}
+      }
       runningProcesses.delete(sessionId);
       await sendEvent("status", { status: "stopped" });
     } else {

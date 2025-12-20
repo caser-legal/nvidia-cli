@@ -243,17 +243,14 @@ export function ChatInput({
             )}
           </div>
 
-          {/* Keyboard hint */}
-          <div className="mt-2 text-xs text-muted-foreground text-center flex items-center justify-center gap-4">
-            <span>
-              <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">↵</kbd> send · <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">⇧↵</kbd> new line
-            </span>
-            {streamingMetrics && streamingMetrics.tokensPerSec > 0 && (
+          {/* Streaming metrics only */}
+          {streamingMetrics && streamingMetrics.tokensPerSec > 0 && (
+            <div className="mt-2 text-xs text-muted-foreground text-center">
               <span className="text-[10px] text-muted-foreground/70 font-mono tabular-nums">
                 {streamingMetrics.tokensPerSec} tok/s
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </TooltipProvider>

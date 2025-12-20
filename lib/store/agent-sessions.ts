@@ -34,6 +34,7 @@ interface AgentSessionsState {
   deleteSession: (id: string) => void;
   getSession: (id: string) => AgentSession | undefined;
   getActiveSessions: () => AgentSession[];
+  resetStaleSessions: () => void;
 }
 
 export const useAgentSessionsStore = create<AgentSessionsState>()(
@@ -110,6 +111,16 @@ export const useAgentSessionsStore = create<AgentSessionsState>()(
           (s) => s.status === "running" || s.status === "starting"
         );
       },
+
+      // Reset stale running sessions (call on app mount)
+      resetStaleSessions: () => {
+        set((state) => ({
+          sessions: state.sessions.map((s) => ({
+            ...s,
+            status: s.status === "running" || s.status === "starting" ? "stopped" : s.status,
+          })),
+        }));
+      },
     }),
     {
       name: "nvidia-agent-sessions",
@@ -118,7 +129,7 @@ export const useAgentSessionsStore = create<AgentSessionsState>()(
         sessions: state.sessions.map((s) => ({
           ...s,
           // Don't persist running status - reset to stopped on reload
-          status: s.status === "running" ? "stopped" : s.status,
+          status: s.status === "running" || s.status === "starting" ? "stopped" : s.status,
           // Limit output history
           output: s.output.slice(-100),
         })),
