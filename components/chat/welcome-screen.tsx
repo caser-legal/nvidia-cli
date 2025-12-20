@@ -7,7 +7,7 @@ import * as React from "react";
 import { Code, Monitor, Globe, Search, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type AgentType = "chat" | "coder" | "computer" | "browser" | "research";
+export type AgentType = "chat" | "coder" | "computer" | "browser" | "research" | "coordinator";
 
 interface WelcomeScreenProps {
   onAgentSelect: (agent: AgentType) => void;

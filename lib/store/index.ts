@@ -287,7 +287,7 @@ interface UIState {
   artifactPanelWidth: number;
   
   // Agent Mode
-  agentMode: "chat" | "coder" | "computer" | "browser" | "research" | "terminal";
+  agentMode: "chat" | "coder" | "computer" | "browser" | "research" | "terminal" | "coordinator";
   coderProjectDir: string;
   
   // Modals

@@ -16,13 +16,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, estimateTokens } from "@/lib/utils";
 
-type AgentMode = "chat" | "coder" | "computer" | "browser" | "research" | "terminal";
+type AgentMode = "chat" | "coder" | "computer" | "browser" | "research" | "terminal" | "coordinator";
 
 const modes = [
   { id: "chat" as const, name: "Talk", icon: MessageSquare },
   { id: "coder" as const, name: "Code", icon: Code },
   { id: "computer" as const, name: "Control", icon: Monitor },
   { id: "browser" as const, name: "Browse", icon: Globe },
+  { id: "coordinator" as const, name: "Research Team", icon: Headphones },
   { id: "terminal" as const, name: "Terminal", icon: Terminal },
 ];
 

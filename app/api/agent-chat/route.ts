@@ -1,5 +1,5 @@
 // API Route: Multi-mode Agent Chat
-// Supports: chat (coding), computer (control), browser (web), research (deep research)
+// Supports: chat (coding), computer (control), browser (web), research (deep research), coordinator (multi-agent)
 
 import { Agent } from "@/lib/agents/agent";
 import { FileReadTool } from "@/lib/agents/tools/file-read";
@@ -7,6 +7,7 @@ import { FileWriteTool } from "@/lib/agents/tools/file-write";
 import { BashTool } from "@/lib/agents/tools/bash";
 import { ThinkTool } from "@/lib/agents/tools/think";
 import { GoogleSearchTool } from "@/lib/agents/tools/google-search";
+import { SearchSpecialistTool, ReportWriterTool, QualityReviewerTool } from "@/lib/agents/tools/specialist-agents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -102,7 +103,31 @@ iOS DEVELOPMENT (CRITICAL):
 - Install: xcrun devicectl device install app --device "DEVICE_UUID" "path/to/App.app"
 - Team ID: 672RKF28YZ, Bundle prefix: caserlegal.[AppName]
 
-Create entire projects. No task is too large. Don't stop until complete.`
+Create entire projects. No task is too large. Don't stop until complete.`,
+
+  // COORDINATOR MODE - Multi-agent supervisor pattern
+  coordinator: `You are a Research Coordinator managing a team of specialist agents.
+
+Your team consists of:
+1. **search_specialist** - Finds information from the web
+2. **report_writer** - Creates well-structured reports  
+3. **quality_reviewer** - Evaluates helpfulness and completeness
+
+WORKFLOW for research requests:
+1. First, call search_specialist to gather information on the topic
+2. Then, call report_writer to create a report from the findings
+3. Finally, call quality_reviewer to verify the report is helpful
+4. If the reviewer suggests improvements, iterate (search more or rewrite)
+5. Present the final APPROVED report to the user
+
+RULES:
+- You are the COORDINATOR - delegate tasks to specialists
+- Do NOT try to search or write reports yourself - use your tools
+- Always follow the full workflow: Search → Write → Review
+- If quality score is below 7/10, iterate until improved
+- Present only the final approved report to the user
+
+Remember: Your job is to orchestrate, not to do the work yourself.`
 };
 
 export async function POST(request: Request) {
@@ -117,7 +142,7 @@ export async function POST(request: Request) {
     } = body as {
       messages: { role: string; content: string }[];
       projectDir?: string;
-      mode?: "chat" | "computer" | "browser" | "research" | "coder";
+      mode?: "chat" | "computer" | "browser" | "research" | "coder" | "coordinator";
     };
 
     const apiKey = request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY;
@@ -142,14 +167,26 @@ export async function POST(request: Request) {
       .filter(m => m.role === "user" || m.role === "assistant")
       .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-    // Create tools (same for all modes, but system prompt changes behavior)
-    const tools = [
-      new FileReadTool(projectDir),
-      new FileWriteTool(projectDir),
-      new BashTool(projectDir),
-      new ThinkTool(),
-      new GoogleSearchTool(),
-    ];
+    // Create tools based on mode
+    let tools;
+    if (mode === "coordinator") {
+      // Coordinator mode uses specialist agent tools
+      tools = [
+        new SearchSpecialistTool(apiKey),
+        new ReportWriterTool(apiKey),
+        new QualityReviewerTool(apiKey),
+        new ThinkTool(),
+      ];
+    } else {
+      // Standard tools for other modes
+      tools = [
+        new FileReadTool(projectDir),
+        new FileWriteTool(projectDir),
+        new BashTool(projectDir),
+        new ThinkTool(),
+        new GoogleSearchTool(),
+      ];
+    }
 
     const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.chat;
 

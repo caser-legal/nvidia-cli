@@ -5,7 +5,7 @@
 
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { Monitor, Globe, Headphones, MessageSquare, Code, Square } from "lucide-react";
+import { Monitor, Globe, Headphones, MessageSquare, Code, Square, Users } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ interface AgentEvent {
   message?: string;
 }
 
-type AgentMode = "chat" | "computer" | "browser" | "research" | "coder";
+type AgentMode = "chat" | "computer" | "browser" | "research" | "coder" | "coordinator";
 
 interface AgentChatProps {
   mode: AgentMode;
@@ -113,6 +113,23 @@ const MODE_CONFIG = {
         "Never gets dumb—compact memory across sessions",
         "Never say \"just do it\" again",
         "Picks up exactly where it left off, every time",
+      ],
+    },
+  },
+  coordinator: {
+    name: "Coordinator",
+    icon: Users,
+    color: "text-yellow-400",
+    bgColor: "bg-yellow-500",
+    placeholder: "What would you like me to research and report on?",
+    welcome: {
+      title: "Multi-Agent Coordinator",
+      description: "I orchestrate a team of specialist agents for deep research",
+      features: [
+        "Search Specialist - finds information from the web",
+        "Report Writer - creates well-structured reports",
+        "Quality Reviewer - verifies helpfulness and completeness",
+        "Automatic workflow: Search → Write → Review → Deliver",
       ],
     },
   },
