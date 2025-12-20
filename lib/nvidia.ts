@@ -253,25 +253,28 @@ export interface ChatCompletionChunk {
 }
 
 // Build extra body params for Nemotron reasoning features
+// Per NVIDIA docs: these params MUST be nested inside chat_template_kwargs
 function buildReasoningParams(options: ChatCompletionOptions, modelConfig: typeof NVIDIA_MODELS[ModelId]) {
-  const extra: Record<string, unknown> = {};
+  const chatTemplateKwargs: Record<string, unknown> = {};
   
   // Nemotron 3 Nano parallel reasoning mode
   if (modelConfig.supportsParallelReasoning && options.parallelReasoningMode) {
-    extra.parallel_reasoning_mode = options.parallelReasoningMode;
+    chatTemplateKwargs.parallel_reasoning_mode = options.parallelReasoningMode;
   }
   
-  // Nemotron Nano 9B v2 thinking budget control
+  // Nemotron 3 Nano / Nano 9B v2 thinking budget control
   if (modelConfig.supportsThinkingBudget) {
     if (options.reasoningBudget !== undefined) {
-      extra.reasoning_budget = options.reasoningBudget;
+      chatTemplateKwargs.reasoning_budget = options.reasoningBudget;
     }
     if (options.enableThinking !== undefined) {
-      extra.enable_thinking = options.enableThinking;
+      chatTemplateKwargs.enable_thinking = options.enableThinking;
     }
   }
   
-  return Object.keys(extra).length > 0 ? extra : undefined;
+  return Object.keys(chatTemplateKwargs).length > 0 
+    ? { chat_template_kwargs: chatTemplateKwargs } 
+    : undefined;
 }
 
 // Main chat completion function

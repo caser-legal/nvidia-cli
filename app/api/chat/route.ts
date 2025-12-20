@@ -17,6 +17,9 @@ export async function POST(request: Request) {
       topP = 1,
       systemPrompt,
       stream = true,
+      parallelReasoningMode,
+      reasoningBudget,
+      enableThinking,
     } = body as {
       messages: ChatMessage[];
       model?: ModelId;
@@ -25,6 +28,9 @@ export async function POST(request: Request) {
       topP?: number;
       systemPrompt?: string;
       stream?: boolean;
+      parallelReasoningMode?: "low" | "medium" | "heavy";
+      reasoningBudget?: number;
+      enableThinking?: boolean;
     };
 
     // Check rate limit (40 RPM for free tier)
@@ -87,6 +93,9 @@ export async function POST(request: Request) {
                 maxTokens,
                 topP,
                 stream: true,
+                parallelReasoningMode,
+                reasoningBudget,
+                enableThinking,
               },
               apiKey
             )) {
@@ -148,6 +157,9 @@ export async function POST(request: Request) {
           maxTokens,
           topP,
           stream: false,
+          parallelReasoningMode,
+          reasoningBudget,
+          enableThinking,
         },
         apiKey
       );
