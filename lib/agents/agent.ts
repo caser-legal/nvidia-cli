@@ -1,5 +1,6 @@
 // Agent Core
 // Main agent loop using NVIDIA NIM API with tool execution
+// Integrated with Data Flywheel for continuous model improvement
 
 import OpenAI from "openai";
 import type {
@@ -10,6 +11,7 @@ import type {
   AgentConfig,
   AgentEvent,
 } from "./types";
+import { FlywheelLogger, ToolCallRecord } from "./flywheel";
 
 const DEFAULT_CONFIG: AgentConfig = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
@@ -26,6 +28,9 @@ export class Agent {
   private messages: AgentMessage[];
   private systemPrompt: string;
   private onEvent?: (event: AgentEvent) => void;
+  private flywheelLogger?: FlywheelLogger;
+  private toolCallRecords: ToolCallRecord[] = [];
+  private mode: string = "chat";
 
   constructor(options: {
     apiKey?: string;
@@ -34,6 +39,8 @@ export class Agent {
     tools?: Tool[];
     config?: Partial<AgentConfig>;
     onEvent?: (event: AgentEvent) => void;
+    flywheelLogger?: FlywheelLogger;
+    mode?: string;
   }) {
     const apiKey = options.apiKey || process.env.NVIDIA_API_KEY;
     if (!apiKey) {
@@ -54,6 +61,10 @@ export class Agent {
     for (const tool of options.tools || []) {
       this.tools.set(tool.name, tool);
     }
+    
+    // Initialize flywheel logging
+    this.flywheelLogger = options.flywheelLogger;
+    this.mode = options.mode || "chat";
   }
 
   private emit(event: AgentEvent) {
@@ -66,8 +77,19 @@ export class Agent {
 
   private async executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
     const tool = this.tools.get(toolCall.function.name);
+    const startTime = Date.now();
     
     if (!tool) {
+      const record: ToolCallRecord = {
+        toolName: toolCall.function.name,
+        arguments: {},
+        result: `Tool '${toolCall.function.name}' not found`,
+        durationMs: Date.now() - startTime,
+        success: false,
+        error: "Tool not found",
+      };
+      this.toolCallRecords.push(record);
+      
       return {
         tool_call_id: toolCall.id,
         content: `Tool '${toolCall.function.name}' not found`,
@@ -82,6 +104,16 @@ export class Agent {
       const result = await tool.execute(args);
       this.emit({ type: "tool_result", name: tool.name, result });
       
+      // Log to flywheel
+      const record: ToolCallRecord = {
+        toolName: tool.name,
+        arguments: args,
+        result: result.substring(0, 5000), // Truncate for storage
+        durationMs: Date.now() - startTime,
+        success: true,
+      };
+      this.toolCallRecords.push(record);
+      
       return {
         tool_call_id: toolCall.id,
         content: result,
@@ -89,6 +121,17 @@ export class Agent {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       this.emit({ type: "tool_result", name: tool.name, result: errorMsg, is_error: true });
+      
+      // Log error to flywheel
+      const record: ToolCallRecord = {
+        toolName: tool.name,
+        arguments: {},
+        result: errorMsg,
+        durationMs: Date.now() - startTime,
+        success: false,
+        error: errorMsg,
+      };
+      this.toolCallRecords.push(record);
       
       return {
         tool_call_id: toolCall.id,
@@ -99,6 +142,9 @@ export class Agent {
   }
 
   async run(userMessage: string, conversationHistory?: AgentMessage[]): Promise<string> {
+    const startTime = Date.now();
+    this.toolCallRecords = []; // Reset for this run
+    
     this.emit({ type: "status", status: "running" });
     this.emit({ type: "message", role: "user", content: userMessage });
 
@@ -112,6 +158,9 @@ export class Agent {
 
     let iterations = 0;
     const maxIterations = 50; // Safety limit
+    let finalResponse = "";
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
 
     while (iterations < maxIterations) {
       iterations++;
@@ -151,6 +200,12 @@ export class Agent {
         tools: this.tools.size > 0 ? this.getToolDefinitions() : undefined,
       });
 
+      // Track token usage
+      if (response.usage) {
+        totalPromptTokens += response.usage.prompt_tokens || 0;
+        totalCompletionTokens += response.usage.completion_tokens || 0;
+      }
+
       const choice = response.choices[0];
       const message = choice.message;
 
@@ -164,6 +219,7 @@ export class Agent {
 
       if (message.content) {
         this.emit({ type: "message", role: "assistant", content: message.content });
+        finalResponse = message.content;
       }
 
       // Check if we need to execute tools
@@ -188,6 +244,31 @@ export class Agent {
 
       // No tool calls - we're done
       this.emit({ type: "status", status: "completed" });
+      
+      // Log to flywheel
+      if (this.flywheelLogger) {
+        const historyForLog = (conversationHistory || []).map(m => ({
+          role: m.role,
+          content: m.content || "",
+        }));
+        
+        this.flywheelLogger.logInteraction({
+          userMessage,
+          assistantResponse: finalResponse,
+          systemPrompt: this.systemPrompt,
+          conversationHistory: historyForLog,
+          toolCalls: this.toolCallRecords,
+          model: this.config.model,
+          mode: this.mode,
+          tokenUsage: {
+            promptTokens: totalPromptTokens,
+            completionTokens: totalCompletionTokens,
+            totalTokens: totalPromptTokens + totalCompletionTokens,
+          },
+          latencyMs: Date.now() - startTime,
+        });
+      }
+      
       return message.content || "";
     }
 

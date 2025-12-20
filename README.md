@@ -348,7 +348,7 @@ data: {"type":"done"}
 
 This project implements patterns from official NVIDIA AI Blueprints.
 
-### Data Flywheel Blueprint
+### Data Flywheel Blueprint ✅ IMPLEMENTED
 
 Process that uses production data to continuously improve AI models.
 
@@ -360,6 +360,37 @@ flowchart TD
   orch --> exp2["Experiment 2"]
   exp1 --> results
   exp2 --> results
+```
+
+**Implementation Status:**
+- ✅ **FlywheelLogger** - Captures all agent interactions
+- ✅ **ToolCallRecord** - Logs tool usage with timing
+- ✅ **DatasetCreator** - Creates train/eval/test splits
+- ✅ **FlywheelEvaluator** - LLM-as-Judge quality scoring
+- ✅ **API Endpoint** - `/api/flywheel` for data access
+
+**Usage:**
+```typescript
+// Automatic logging (enabled by default)
+// Every agent interaction is logged with:
+// - User message & assistant response
+// - Tool calls with arguments and results
+// - Token usage and latency
+// - Quality signals
+
+// Get stats
+GET /api/flywheel?action=stats
+
+// Export training data
+GET /api/flywheel?action=export&format=jsonl
+
+// Add user feedback
+POST /api/flywheel
+{ "action": "feedback", "recordId": "...", "rating": 5 }
+
+// Run LLM-as-Judge evaluation
+POST /api/flywheel
+{ "action": "evaluate" }
 ```
 
 **Key Concepts:**

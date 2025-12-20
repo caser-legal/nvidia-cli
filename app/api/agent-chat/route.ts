@@ -1,5 +1,6 @@
 // API Route: Multi-mode Agent Chat
 // Supports: chat, computer, browser, research, coder, coordinator (multi-agent with full workflow)
+// Integrated with Data Flywheel for continuous model improvement
 
 import { Agent } from "@/lib/agents/agent";
 import { FileReadTool } from "@/lib/agents/tools/file-read";
@@ -20,6 +21,7 @@ import {
   ReportCompilerTool,
   SourceDeduplicatorTool 
 } from "@/lib/agents/tools/specialist-agents";
+import { getFlywheelLogger } from "@/lib/agents/flywheel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -252,6 +254,13 @@ export async function POST(request: Request) {
     }
 
     const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.chat;
+    
+    // Initialize flywheel logger for this session
+    const flywheelLogger = getFlywheelLogger({
+      clientId: "nvidia-cli",
+      workloadId: `session-${Date.now()}`,
+      enabled: true,
+    });
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -269,6 +278,8 @@ export async function POST(request: Request) {
           onEvent: (event) => {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
           },
+          flywheelLogger,
+          mode,
         });
 
         try {
