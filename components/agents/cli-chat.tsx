@@ -174,11 +174,16 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
           <div key={index} className="flex items-center gap-2 py-1 text-sm">
             <span className={cn(
               "w-2 h-2 rounded-full",
-              event.status === "running" && "bg-green-500 animate-pulse",
-              event.status === "completed" && "bg-blue-500",
+              event.status === "running" && "bg-yellow-500 animate-pulse",
+              event.status === "completed" && "bg-green-500",
               event.status === "error" && "bg-red-500"
             )} />
-            <span className="text-gray-500 font-mono">{event.status}</span>
+            <span className={cn(
+              "font-mono",
+              event.status === "running" && "text-yellow-500",
+              event.status === "completed" && "text-green-500",
+              event.status === "error" && "text-red-500"
+            )}>{event.status}</span>
           </div>
         );
 
