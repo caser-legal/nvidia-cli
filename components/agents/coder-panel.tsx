@@ -4,7 +4,7 @@
 "use client";
 
 import * as React from "react";
-import { Play, Pause, Square, RefreshCw, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Play, Pause, Square, RefreshCw, CheckCircle, XCircle, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
@@ -13,6 +13,7 @@ import type { AgentEvent } from "@/lib/agents/types";
 
 interface CoderPanelProps {
   projectDir: string;
+  onBack?: () => void;
   onClose?: () => void;
 }
 
@@ -24,7 +25,7 @@ interface LogEntry {
   isError?: boolean;
 }
 
-export function CoderPanel({ projectDir, onClose }: CoderPanelProps) {
+export function CoderPanel({ projectDir, onBack, onClose }: CoderPanelProps) {
   const [status, setStatus] = React.useState<"idle" | "running" | "paused" | "completed" | "error">("idle");
   const [logs, setLogs] = React.useState<LogEntry[]>([]);
   const [progress, setProgress] = React.useState({ passing: 0, total: 0 });
@@ -146,9 +147,16 @@ export function CoderPanel({ projectDir, onClose }: CoderPanelProps) {
     <div className="flex flex-col h-full border-l bg-background">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
-        <div>
-          <h3 className="font-semibold">Autonomous Coder</h3>
-          <p className="text-xs text-muted-foreground">{projectDir}</p>
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <div>
+            <h3 className="font-semibold">Autonomous Coder</h3>
+            <p className="text-xs text-muted-foreground">{projectDir}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {status === "running" ? (

@@ -22,11 +22,11 @@ import { cn } from "@/lib/utils";
 
 // Agent modes
 const MODES = [
-  { id: "chat", name: "Talk", icon: MessageSquare, color: "#76B900" },
-  { id: "coder", name: "Code", icon: Code, color: "#3B82F6" },
-  { id: "computer", name: "Control", icon: Monitor, color: "#8B5CF6" },
-  { id: "browser", name: "Browse", icon: Globe, color: "#F97316" },
-  { id: "research", name: "Research", icon: Headphones, color: "#EC4899" },
+  { id: "chat", name: "Dory", icon: MessageSquare, color: "#76B900" },
+  { id: "coder", name: "Coder", icon: Code, color: "#3B82F6" },
+  { id: "computer", name: "Controller", icon: Monitor, color: "#8B5CF6" },
+  { id: "browser", name: "Browser", icon: Globe, color: "#F97316" },
+  { id: "research", name: "Researcher", icon: Headphones, color: "#EC4899" },
 ] as const;
 
 type AgentMode = typeof MODES[number]["id"];

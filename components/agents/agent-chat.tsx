@@ -5,7 +5,7 @@
 
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { Monitor, Globe, Headphones, MessageSquare } from "lucide-react";
+import { Monitor, Globe, Headphones, MessageSquare, Code } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ interface AgentEvent {
   message?: string;
 }
 
-type AgentMode = "chat" | "computer" | "browser" | "research";
+type AgentMode = "chat" | "computer" | "browser" | "research" | "coder";
 
 interface AgentChatProps {
   mode: AgentMode;
@@ -30,10 +30,10 @@ interface AgentChatProps {
 
 const MODE_CONFIG = {
   chat: {
-    name: "Talk",
+    name: "Dory",
     icon: MessageSquare,
-    color: "text-green-400",
-    bgColor: "bg-green-500",
+    color: "text-[#76B900]",
+    bgColor: "bg-[#76B900]",
     placeholder: "Ask dory anything...",
     welcome: {
       title: "NVIDIA CLI [codename: dory]",
@@ -46,7 +46,7 @@ const MODE_CONFIG = {
     },
   },
   computer: {
-    name: "Control",
+    name: "Controller",
     icon: Monitor,
     color: "text-purple-400",
     bgColor: "bg-purple-500",
@@ -63,7 +63,7 @@ const MODE_CONFIG = {
     },
   },
   browser: {
-    name: "Browse",
+    name: "Browser",
     icon: Globe,
     color: "text-orange-400",
     bgColor: "bg-orange-500",
@@ -80,7 +80,7 @@ const MODE_CONFIG = {
     },
   },
   research: {
-    name: "Research",
+    name: "Researcher",
     icon: Headphones,
     color: "text-pink-400",
     bgColor: "bg-pink-500",
@@ -93,6 +93,23 @@ const MODE_CONFIG = {
         "Structured reports with citations",
         "Analysis and synthesis of findings",
         "Save research notes to files",
+      ],
+    },
+  },
+  coder: {
+    name: "Coder",
+    icon: Code,
+    color: "text-blue-400",
+    bgColor: "bg-blue-500",
+    placeholder: "What would you like me to build or work on?",
+    welcome: {
+      title: "Autonomous Coder Mode",
+      description: "I build and modify code projects autonomously",
+      features: [
+        "Create new projects from scratch",
+        "Continue existing projects",
+        "Refactor and improve code",
+        "Fix bugs and add features",
       ],
     },
   },

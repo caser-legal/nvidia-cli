@@ -13,9 +13,8 @@ import { CommandPalette } from "@/components/command-palette";
 import { ShareDialog } from "@/components/share-dialog";
 import { ProjectSettingsPanel } from "@/components/project-settings";
 import { UsageDashboard } from "@/components/usage-dashboard";
-import { CoderPanel, Terminal } from "@/components/agents";
+import { CoderPanel, CoderSetup, Terminal } from "@/components/agents";
 import { AgentChat } from "@/components/agents/agent-chat";
-import { FolderOpen } from "lucide-react";
 import type { Artifact } from "@/lib/store/conversations";
 import type { AgentType } from "@/components/chat/welcome-screen";
 
@@ -96,34 +95,16 @@ export default function ChatPage() {
           <AgentChat mode={getAgentChatMode()} className="flex-1 min-h-0" />
         )}
 
-        {/* Code mode - needs project directory */}
+        {/* Coder mode - uses CoderPanel with project selector */}
         {agentMode === "coder" && (
           coderProjectDir ? (
-            <>
-              <CoderPanel projectDir={coderProjectDir} />
-              <div className="border-t p-2 flex items-center gap-2 bg-background/80">
-                <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                <code className="text-sm bg-muted px-2 py-1 rounded flex-1 truncate">{coderProjectDir}</code>
-                <button onClick={() => startAgentSession("coder", coderProjectDir)} className="px-3 py-1 text-sm bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-md">Start Agent</button>
-                <button onClick={() => setCoderProjectDir("")} className="text-xs text-muted-foreground hover:text-foreground">Change</button>
-              </div>
-            </>
+            <CoderPanel projectDir={coderProjectDir} onBack={() => setCoderProjectDir("")} />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                <FolderOpen className="h-10 w-10 text-white" />
-              </div>
-              <div className="text-center">
-                <h2 className="text-xl font-semibold mb-2">Code Mode</h2>
-                <p className="text-muted-foreground">Select a project directory to start the autonomous coder</p>
-              </div>
-              <div className="flex items-center gap-2 w-full max-w-md">
-                <input type="text" placeholder="/Users/home/project" value={coderProjectDir} onChange={(e) => setCoderProjectDir(e.target.value)} className="flex-1 px-3 py-2 border rounded-md bg-background focus:border-[#76B900] outline-none" />
-                <button onClick={() => { const p = prompt("Enter path:", "/Users/home/"); if (p) setCoderProjectDir(p); }} className="p-2 border rounded-md hover:bg-accent"><FolderOpen className="h-5 w-5" /></button>
-              </div>
-              {coderProjectDir && <button onClick={() => startAgentSession("coder", coderProjectDir)} className="px-6 py-2 bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-md font-medium">Start Autonomous Coder</button>}
-              <button onClick={handleNewChat} className="text-sm text-muted-foreground hover:text-foreground">← Back to Chat</button>
-            </div>
+            <CoderSetup onStart={(dir, task) => {
+              setCoderProjectDir(dir);
+              // Task is passed to CoderPanel via the dir for now
+              // Could extend to pass task type
+            }} />
           )
         )}
 
