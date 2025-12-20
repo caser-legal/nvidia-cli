@@ -161,7 +161,7 @@ export async function POST(request: Request) {
           tools,
           config: {
             model: "nvidia/nemotron-3-nano-30b-a3b",
-            maxTokens: 16384,
+            maxTokens: 32768,
             temperature: 1.0, // Required for thinking/reasoning models
             topP: 1.0,        // Required for thinking/reasoning models
             contextWindowTokens: 1000000, // 1M context!
