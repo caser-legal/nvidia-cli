@@ -5,7 +5,7 @@
 <h1 align="center">NVIDIA CLI</h1>
 
 <p align="center">
-  <strong>A powerful, privacy-first AI chat interface powered by NVIDIA NIM</strong>
+  <strong>A powerful, privacy-first chat interface powered by NVIDIA NIM</strong>
 </p>
 
 <p align="center">
@@ -56,11 +56,11 @@ NVIDIA CLI [codename: dory] is a full-featured application that connects to NVID
 - **Search** - Full-text search across all conversations
 
 ### 🤖 Agent Modes
-- **Chat** - Standard conversational AI
-- **Coder** - Autonomous coding agent with file system access
-- **Computer Use** - Desktop automation agent
-- **Web Browser** - Web research and scraping agent
-- **Deep Research** - Multi-step research with citations
+- **Talk** - Standard conversational assistant
+- **Code** - Autonomous coding agent with file system access
+- **Control** - Desktop automation agent
+- **Browse** - Web research and scraping agent
+- **Research** - Multi-step deep research with citations
 
 ### 🎨 Artifacts
 - **Code blocks** - Syntax highlighted with 50+ languages
@@ -403,33 +403,33 @@ sequenceDiagram
     end
 ```
 
-### Available Agents
+### Available Modes
 
-#### 💬 Chat Agent
-Standard conversational AI with optional thinking modes.
+#### 💬 Talk
+Standard conversational assistant with optional thinking modes.
 
-#### 💻 Coder Agent
+#### 💻 Code
 Autonomous coding agent with:
 - File system read/write
 - Shell command execution
 - Code analysis and refactoring
 - Test generation
 
-#### 🖥️ Computer Use Agent
+#### 🖥️ Control
 Desktop automation with:
 - Screenshot capture
 - Mouse/keyboard control
 - Application interaction
 
-#### 🌐 Web Browser Agent
+#### 🌐 Browse
 Web research with:
 - Page navigation
 - Content extraction
 - Form interaction
 - Screenshot capture
 
-#### 🔬 Deep Research Agent
-Multi-step research with:
+#### 🔬 Research
+Multi-step deep research with:
 - Query decomposition
 - Source gathering
 - Citation tracking
