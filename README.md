@@ -60,8 +60,8 @@ NVIDIA CLI [codename: **dory**] is a full-featured application powered by NVIDIA
 
 Switch modes from the header dropdown. All modes use the same underlying tools but with specialized system prompts.
 
-### 💬 Dory Mode
-General-purpose coding assistant with file and command access.
+### 💬 Dory
+General-purpose anything assistant with full CLI file and command access. Ask Dory to do ANYTHING!
 ```
 [you] What files are in this directory?
 ⚡ file_read({"path": ".", "operation": "list"})
