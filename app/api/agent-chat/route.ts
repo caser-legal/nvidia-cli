@@ -160,11 +160,11 @@ export async function POST(request: Request) {
           systemPrompt,
           tools,
           config: {
-            model: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+            model: "nvidia/nemotron-3-nano-30b-a3b",
             maxTokens: 16384,
             temperature: 1.0, // Required for thinking/reasoning models
             topP: 1.0,        // Required for thinking/reasoning models
-            contextWindowTokens: 128000,
+            contextWindowTokens: 1000000, // 1M context!
           },
           onEvent: (event) => {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
