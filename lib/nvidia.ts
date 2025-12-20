@@ -21,6 +21,7 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: true,
     supportsThinkingBudget: true,
+    disabled: false,
   },
   // Nemotron Super 49B v1.5 - Best for agentic tasks
   "nvidia/llama-3.3-nemotron-super-49b-v1.5": {
@@ -35,6 +36,7 @@ export const NVIDIA_MODELS = {
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
     thinkingPrompt: "/no_think",
+    disabled: true,
   },
   // Nemotron Ultra 253B - Largest reasoning model
   "nvidia/llama-3.1-nemotron-ultra-253b-v1": {
@@ -49,6 +51,7 @@ export const NVIDIA_MODELS = {
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
     thinkingPrompt: "detailed thinking off",
+    disabled: true,
   },
   // Qwen3 Coder 480B - Massive coding specialist
   "qwen/qwen3-coder-480b-a35b-instruct": {
@@ -62,6 +65,7 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
+    disabled: true,
   },
   // Devstral 2 123B - Excellent coding model
   "mistralai/devstral-2-123b-instruct-2512": {
@@ -75,6 +79,7 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
+    disabled: true,
   },
   // DeepSeek R1 - Strong reasoning
   "deepseek-ai/deepseek-r1": {
@@ -88,6 +93,7 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
+    disabled: true,
   },
   // DeepSeek V3.2 - Latest DeepSeek
   "deepseek-ai/deepseek-v3.2": {
@@ -101,6 +107,7 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
+    disabled: true,
   },
   // Llama 3.3 70B
   "meta/llama-3.3-70b-instruct": {
@@ -114,6 +121,7 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
+    disabled: true,
   },
   // Qwen3 235B - Large general model
   "qwen/qwen3-235b-a22b": {
@@ -127,6 +135,7 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
+    disabled: true,
   },
   // Vision Model
   "nvidia/llama-3.1-nemotron-nano-vl-8b-v1": {
@@ -140,6 +149,7 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
+    disabled: true,
   },
 } as const;
 

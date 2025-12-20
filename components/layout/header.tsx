@@ -183,24 +183,35 @@ export function Header() {
           {Object.entries(NVIDIA_MODELS).map(([id, model]) => (
             <DropdownMenuItem
               key={id}
-              onClick={() => handleModelChange(id as ModelId)}
-              className="flex flex-col items-start py-3 cursor-pointer"
+              onClick={() => !model.disabled && handleModelChange(id as ModelId)}
+              className={cn(
+                "flex flex-col items-start py-3",
+                model.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+              )}
+              disabled={model.disabled}
             >
               <div className="flex items-center gap-2 w-full">
-                <span className="font-medium">{model.name}</span>
-                {currentModel === id && (
+                <span className={cn("font-medium", model.disabled && "line-through")}>
+                  {model.name}
+                </span>
+                {currentModel === id && !model.disabled && (
                   <Check className="h-4 w-4 ml-auto text-primary" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground whitespace-normal">
-                {model.description}
+              <span className={cn(
+                "text-xs whitespace-normal",
+                model.disabled ? "text-muted-foreground/50" : "text-muted-foreground"
+              )}>
+                {model.disabled ? "Intentionally disabled" : model.description}
               </span>
               {/* Feature 88: Context window indicator */}
-              <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
-                <span>{(model.contextWindow / 1000).toFixed(0)}K ctx</span>
-                {model.supportsTools && <span>• Tools</span>}
-                {model.supportsImages && <span>• Vision</span>}
-              </div>
+              {!model.disabled && (
+                <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
+                  <span>{(model.contextWindow / 1000).toFixed(0)}K ctx</span>
+                  {model.supportsTools && <span>• Tools</span>}
+                  {model.supportsImages && <span>• Vision</span>}
+                </div>
+              )}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
