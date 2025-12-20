@@ -4,6 +4,7 @@
 "use client";
 
 import * as React from "react";
+import ReactMarkdown from "react-markdown";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
@@ -111,51 +112,58 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
     }
   };
 
+  // Strip <think>...</think> tags from content
+  const stripThinking = (content: string) => {
+    return content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  };
+
   const renderEvent = (event: AgentEvent, index: number) => {
     switch (event.type) {
       case "message":
         if (event.role === "user") {
           return (
             <div key={index} className="flex items-start gap-2 py-1">
-              <span className="text-cyan-400 font-mono">[user]</span>
+              <span className="text-cyan-400 font-mono shrink-0">[user]</span>
               <span className="text-white">{event.content}</span>
             </div>
           );
         }
-        // Assistant message - show as dory
+        // Assistant message - render markdown, strip thinking
+        const cleanContent = stripThinking(event.content || "");
+        if (!cleanContent) return null;
         return (
-          <div key={index} className="flex items-start gap-2 py-1">
-            <span className="text-green-400 font-mono">[dory]</span>
-            <span className="text-gray-300 whitespace-pre-wrap flex-1">{event.content}</span>
+          <div key={index} className="flex items-start gap-2 py-2">
+            <span className="text-green-400 font-mono shrink-0">[dory]</span>
+            <div className="text-gray-200 flex-1 prose prose-invert prose-sm max-w-none prose-pre:bg-gray-800 prose-pre:text-gray-200 prose-code:text-green-400 prose-headings:text-white prose-strong:text-white prose-li:text-gray-200">
+              <ReactMarkdown>{cleanContent}</ReactMarkdown>
+            </div>
           </div>
         );
 
       case "tool_call":
         return (
-          <div key={index} className="flex items-start gap-2 py-1 font-mono">
+          <div key={index} className="flex items-start gap-2 py-1 font-mono text-sm">
             <span className="text-yellow-400">⚡</span>
             <span className="text-yellow-400">{event.name}</span>
-            <span className="text-gray-500">(</span>
-            <span className="text-green-400 text-sm max-w-[600px] truncate">{event.args}</span>
-            <span className="text-gray-500">)</span>
+            <span className="text-gray-500 truncate max-w-[500px]">({event.args})</span>
           </div>
         );
 
       case "tool_result":
         const isError = event.is_error;
         const resultLines = (event.result || "").split("\n");
-        const truncated = resultLines.length > 20;
-        const displayLines = truncated ? resultLines.slice(0, 20) : resultLines;
+        const truncated = resultLines.length > 10;
+        const displayLines = truncated ? resultLines.slice(0, 10) : resultLines;
         
         return (
-          <div key={index} className="py-1 pl-6 border-l-2 border-gray-700 ml-2">
+          <div key={index} className="py-1 pl-4 border-l-2 border-gray-700 ml-4 text-xs">
             <div className={cn(
-              "font-mono text-sm whitespace-pre-wrap",
-              isError ? "text-red-400" : "text-gray-400"
+              "font-mono whitespace-pre-wrap",
+              isError ? "text-red-400" : "text-gray-500"
             )}>
               {displayLines.join("\n")}
               {truncated && (
-                <div className="text-gray-600 italic">... ({resultLines.length - 20} more lines)</div>
+                <div className="text-gray-600 italic">... ({resultLines.length - 10} more lines)</div>
               )}
             </div>
           </div>
