@@ -32,8 +32,13 @@ Use for: curl, wget, open, python, node, git, npm, or any other command.`;
   }
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    const command = args.command as string;
+    let command = args.command as string;
     const timeout = (args.timeout as number) || 120000; // 2 min default
+
+    // Fix common command issues on macOS
+    if (command.startsWith("python ") || command.startsWith("python\"") || command === "python") {
+      command = command.replace(/^python(?=\s|"|$)/, "python3");
+    }
 
     try {
       const { stdout, stderr } = await execAsync(command, {
