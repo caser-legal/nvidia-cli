@@ -1,0 +1,404 @@
+// NVIDIA NIM API Client - Complete Implementation
+// Supports all NVIDIA NIM features as of December 2025
+
+import OpenAI from "openai";
+
+// API Configuration
+const NVIDIA_API_BASE = "https://integrate.api.nvidia.com/v1";
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || "";
+
+// Available Models (December 2025)
+export const NVIDIA_MODELS = {
+  // Nemotron 3 Nano - Flagship reasoning model with parallel reasoning
+  "nvidia/nemotron-3-nano": {
+    id: "nvidia/nemotron-3-nano",
+    name: "Nemotron 3 Nano",
+    description: "30B params, 3.5B active, hybrid Mamba-Transformer MoE, 1M context, parallel reasoning",
+    contextWindow: 1000000,
+    maxTokens: 32768,
+    supportsTools: true,
+    supportsImages: false,
+    supportsStreaming: true,
+    supportsParallelReasoning: true,
+    supportsThinkingBudget: true,
+  },
+  // Nemotron Nano 9B v2 - Efficient model with thinking budget control
+  "nvidia/nemotron-nano-9b-v2": {
+    id: "nvidia/nemotron-nano-9b-v2",
+    name: "Nemotron Nano 9B v2",
+    description: "High-efficiency LLM with hybrid Transformer-Mamba design, thinking budget control",
+    contextWindow: 128000,
+    maxTokens: 32768,
+    supportsTools: true,
+    supportsImages: false,
+    supportsStreaming: true,
+    supportsParallelReasoning: false,
+    supportsThinkingBudget: true,
+  },
+  // Llama Nemotron Super 49B V1.5 - Best for agentic tasks
+  "nvidia/llama-3.3-nemotron-super-49b-v1.5": {
+    id: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+    name: "Nemotron Super 49B v1.5",
+    description: "Top reasoning model, 97.4% MATH500, agentic tasks, /no_think support",
+    contextWindow: 128000,
+    maxTokens: 32768,
+    supportsTools: true,
+    supportsImages: false,
+    supportsStreaming: true,
+    supportsParallelReasoning: false,
+    supportsThinkingBudget: false,
+    thinkingPrompt: "/no_think", // Use system prompt to disable thinking
+  },
+  // Llama Nemotron Super 49B V1 - Original version
+  "nvidia/llama-3.3-nemotron-super-49b-v1": {
+    id: "nvidia/llama-3.3-nemotron-super-49b-v1",
+    name: "Nemotron Super 49B v1",
+    description: "Reasoning model with detailed thinking on/off via system prompt",
+    contextWindow: 128000,
+    maxTokens: 32768,
+    supportsTools: true,
+    supportsImages: false,
+    supportsStreaming: true,
+    supportsParallelReasoning: false,
+    supportsThinkingBudget: false,
+    thinkingPrompt: "detailed thinking off", // Use system prompt
+  },
+  // Llama Nemotron Ultra 253B - Largest reasoning model
+  "nvidia/llama-3.1-nemotron-ultra-253b-v1": {
+    id: "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+    name: "Nemotron Ultra 253B",
+    description: "Largest Nemotron model, detailed thinking on/off via system prompt",
+    contextWindow: 128000,
+    maxTokens: 32768,
+    supportsTools: true,
+    supportsImages: false,
+    supportsStreaming: true,
+    supportsParallelReasoning: false,
+    supportsThinkingBudget: false,
+    thinkingPrompt: "detailed thinking off",
+  },
+  // DeepSeek models
+  "deepseek-ai/deepseek-v3.1": {
+    id: "deepseek-ai/deepseek-v3.1",
+    name: "DeepSeek V3.1",
+    description: "Hybrid inference LLM with Think/Non-Think modes, 128K context",
+    contextWindow: 128000,
+    maxTokens: 16384,
+    supportsTools: true,
+    supportsImages: false,
+    supportsStreaming: true,
+    supportsParallelReasoning: false,
+    supportsThinkingBudget: false,
+  },
+  "deepseek-ai/deepseek-r1": {
+    id: "deepseek-ai/deepseek-r1",
+    name: "DeepSeek R1",
+    description: "State-of-the-art reasoning, math, and coding",
+    contextWindow: 128000,
+    maxTokens: 16384,
+    supportsTools: false,
+    supportsImages: false,
+    supportsStreaming: true,
+    supportsParallelReasoning: false,
+    supportsThinkingBudget: false,
+  },
+  // Llama 3.3
+  "meta/llama-3.3-70b-instruct": {
+    id: "meta/llama-3.3-70b-instruct",
+    name: "Llama 3.3 70B",
+    description: "Advanced LLM with superior reasoning and text generation",
+    contextWindow: 128000,
+    maxTokens: 8192,
+    supportsTools: true,
+    supportsImages: false,
+    supportsStreaming: true,
+    supportsParallelReasoning: false,
+    supportsThinkingBudget: false,
+  },
+  // Vision Models
+  "nvidia/llama-3.1-nemotron-nano-vl-8b": {
+    id: "nvidia/llama-3.1-nemotron-nano-vl-8b",
+    name: "Nemotron Nano VL 8B",
+    description: "Multimodal vision-language model for image understanding",
+    contextWindow: 128000,
+    maxTokens: 4096,
+    supportsTools: false,
+    supportsImages: true,
+    supportsStreaming: true,
+    supportsParallelReasoning: false,
+    supportsThinkingBudget: false,
+  },
+  "nvidia/neva-22b": {
+    id: "nvidia/neva-22b",
+    name: "NEVA 22B",
+    description: "Multimodal model for image + text reasoning",
+    contextWindow: 4096,
+    maxTokens: 2048,
+    supportsTools: false,
+    supportsImages: true,
+    supportsStreaming: true,
+    supportsParallelReasoning: false,
+    supportsThinkingBudget: false,
+  },
+} as const;
+
+export type ModelId = keyof typeof NVIDIA_MODELS;
+
+// Create OpenAI-compatible client for NVIDIA NIM
+export function createNvidiaClient(apiKey?: string) {
+  return new OpenAI({
+    baseURL: NVIDIA_API_BASE,
+    apiKey: apiKey || NVIDIA_API_KEY,
+  });
+}
+
+// Message types
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string | ContentPart[];
+}
+
+export interface ContentPart {
+  type: "text" | "image_url";
+  text?: string;
+  image_url?: {
+    url: string;
+    detail?: "auto" | "low" | "high";
+  };
+}
+
+// Tool/Function calling types (Feature 118+)
+export interface Tool {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
+// Parallel reasoning mode for Nemotron 3 Nano
+export type ParallelReasoningMode = "low" | "medium" | "heavy";
+
+// Chat completion options
+export interface ChatCompletionOptions {
+  model: ModelId;
+  messages: ChatMessage[];
+  temperature?: number; // Feature 118
+  maxTokens?: number; // Feature 119
+  topP?: number; // Feature 120
+  stream?: boolean; // Feature 2
+  tools?: Tool[];
+  toolChoice?: "none" | "auto" | { type: "function"; function: { name: string } };
+  stop?: string[];
+  // Nemotron 3 Nano parallel reasoning (Dec 2025)
+  parallelReasoningMode?: ParallelReasoningMode;
+  // Nemotron Nano 9B v2 thinking budget control
+  reasoningBudget?: number; // -1 to 32768
+  enableThinking?: boolean;
+}
+
+// Response types
+export interface ChatCompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: {
+    index: number;
+    message: {
+      role: string;
+      content: string | null;
+      tool_calls?: {
+        id: string;
+        type: string;
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }[];
+    };
+    finish_reason: string;
+  }[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+// Streaming chunk type
+export interface ChatCompletionChunk {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: {
+    index: number;
+    delta: {
+      role?: string;
+      content?: string;
+      tool_calls?: {
+        index: number;
+        id?: string;
+        type?: string;
+        function?: {
+          name?: string;
+          arguments?: string;
+        };
+      }[];
+    };
+    finish_reason: string | null;
+  }[];
+}
+
+// Build extra body params for Nemotron reasoning features
+function buildReasoningParams(options: ChatCompletionOptions, modelConfig: typeof NVIDIA_MODELS[ModelId]) {
+  const extra: Record<string, unknown> = {};
+  
+  // Nemotron 3 Nano parallel reasoning mode
+  if (modelConfig.supportsParallelReasoning && options.parallelReasoningMode) {
+    extra.parallel_reasoning_mode = options.parallelReasoningMode;
+  }
+  
+  // Nemotron Nano 9B v2 thinking budget control
+  if (modelConfig.supportsThinkingBudget) {
+    if (options.reasoningBudget !== undefined) {
+      extra.reasoning_budget = options.reasoningBudget;
+    }
+    if (options.enableThinking !== undefined) {
+      extra.enable_thinking = options.enableThinking;
+    }
+  }
+  
+  return Object.keys(extra).length > 0 ? extra : undefined;
+}
+
+// Main chat completion function
+export async function createChatCompletion(
+  options: ChatCompletionOptions,
+  apiKey?: string
+): Promise<ChatCompletionResponse> {
+  const client = createNvidiaClient(apiKey);
+  const modelConfig = NVIDIA_MODELS[options.model];
+  const reasoningParams = buildReasoningParams(options, modelConfig);
+
+  const response = await client.chat.completions.create({
+    model: options.model,
+    messages: options.messages as OpenAI.ChatCompletionMessageParam[],
+    temperature: options.temperature ?? 1,
+    max_tokens: options.maxTokens ?? modelConfig.maxTokens,
+    top_p: options.topP ?? 1,
+    stream: false,
+    tools: modelConfig.supportsTools ? options.tools as OpenAI.ChatCompletionTool[] : undefined,
+    tool_choice: modelConfig.supportsTools ? options.toolChoice as OpenAI.ChatCompletionToolChoiceOption : undefined,
+    stop: options.stop,
+    ...reasoningParams,
+  } as OpenAI.ChatCompletionCreateParamsNonStreaming);
+
+  return response as unknown as ChatCompletionResponse;
+}
+
+// Streaming chat completion (Feature 2)
+export async function* streamChatCompletion(
+  options: ChatCompletionOptions,
+  apiKey?: string
+): AsyncGenerator<ChatCompletionChunk> {
+  const client = createNvidiaClient(apiKey);
+  const modelConfig = NVIDIA_MODELS[options.model];
+  const reasoningParams = buildReasoningParams(options, modelConfig);
+
+  const stream = await client.chat.completions.create({
+    model: options.model,
+    messages: options.messages as OpenAI.ChatCompletionMessageParam[],
+    temperature: options.temperature ?? 1,
+    max_tokens: options.maxTokens ?? modelConfig.maxTokens,
+    top_p: options.topP ?? 1,
+    stream: true,
+    tools: modelConfig.supportsTools ? options.tools as OpenAI.ChatCompletionTool[] : undefined,
+    tool_choice: modelConfig.supportsTools ? options.toolChoice as OpenAI.ChatCompletionToolChoiceOption : undefined,
+    stop: options.stop,
+    ...reasoningParams,
+  } as OpenAI.ChatCompletionCreateParamsStreaming);
+
+  for await (const chunk of stream) {
+    yield chunk as unknown as ChatCompletionChunk;
+  }
+}
+
+// Token estimation (Feature 15)
+export function estimateTokens(text: string): number {
+  // Rough estimation: ~4 characters per token for English
+  return Math.ceil(text.length / 4);
+}
+
+// Cost estimation (Feature 156) - Free tier, but track for display
+export function estimateCost(inputTokens: number, outputTokens: number, model: ModelId): number {
+  // NVIDIA free tier - no cost, but we track for display purposes
+  // In production, this would use actual pricing
+  return 0;
+}
+
+// Check if model supports images (Feature 123)
+export function modelSupportsImages(model: ModelId): boolean {
+  return NVIDIA_MODELS[model]?.supportsImages ?? false;
+}
+
+// Check if model supports tools (Feature 118+)
+export function modelSupportsTools(model: ModelId): boolean {
+  return NVIDIA_MODELS[model]?.supportsTools ?? false;
+}
+
+// Check if model supports parallel reasoning (Nemotron 3 Nano)
+export function modelSupportsParallelReasoning(model: ModelId): boolean {
+  return NVIDIA_MODELS[model]?.supportsParallelReasoning ?? false;
+}
+
+// Check if model supports thinking budget control (Nemotron Nano 9B v2)
+export function modelSupportsThinkingBudget(model: ModelId): boolean {
+  return NVIDIA_MODELS[model]?.supportsThinkingBudget ?? false;
+}
+
+// Get model info
+export function getModelInfo(model: ModelId) {
+  return NVIDIA_MODELS[model];
+}
+
+// List all available models
+export function listModels() {
+  return Object.values(NVIDIA_MODELS);
+}
+
+// Validate API key format
+export function isValidApiKey(key: string): boolean {
+  return key.startsWith("nvapi-") && key.length > 20;
+}
+
+// Rate limit tracking (40 RPM for free tier)
+const rateLimitState = {
+  requests: [] as number[],
+  limit: 40,
+  window: 60000, // 1 minute in ms
+};
+
+export function checkRateLimit(): { allowed: boolean; remaining: number; resetIn: number } {
+  const now = Date.now();
+  // Remove requests older than 1 minute
+  rateLimitState.requests = rateLimitState.requests.filter(
+    (time) => now - time < rateLimitState.window
+  );
+  
+  const remaining = rateLimitState.limit - rateLimitState.requests.length;
+  const oldestRequest = rateLimitState.requests[0];
+  const resetIn = oldestRequest ? rateLimitState.window - (now - oldestRequest) : 0;
+  
+  return {
+    allowed: remaining > 0,
+    remaining,
+    resetIn,
+  };
+}
+
+export function recordRequest(): void {
+  rateLimitState.requests.push(Date.now());
+}

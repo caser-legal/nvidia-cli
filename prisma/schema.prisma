@@ -1,0 +1,338 @@
+// Prisma Schema for NVIDIA Chat App - ALL 11 Database Tables (Features 249-259)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Feature 249: users table
+model User {
+  id                  String    @id @default(cuid())
+  email               String?   @unique
+  name                String?
+  avatar              String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Settings & Preferences (Features 103-117)
+  theme               String    @default("system") // light, dark, system
+  fontSize            Int       @default(16)
+  messageDensity      String    @default("comfortable") // compact, comfortable, spacious
+  codeTheme           String    @default("github-dark")
+  language            String    @default("en")
+  reducedMotion       Boolean   @default(false)
+  highContrast        Boolean   @default(false)
+  
+  // Custom Instructions (Features 95-102)
+  globalInstructions  String?
+  
+  // Onboarding (Features 165-172)
+  onboardingComplete  Boolean   @default(false)
+  onboardingStep      Int       @default(0)
+  
+  // Relations
+  projects            Project[]
+  conversations       Conversation[]
+  apiKeys             ApiKey[]
+  usageTracking       UsageTracking[]
+  promptLibrary       PromptLibrary[]
+  folders             ConversationFolder[]
+}
+
+// Feature 250: projects table (Features 68-82)
+model Project {
+  id                  String    @id @default(cuid())
+  name                String
+  description         String?
+  color               String    @default("#76B900") // NVIDIA Green
+  icon                String?
+  
+  // Project-specific settings
+  customInstructions  String?
+  defaultModel        String    @default("nvidia/nemotron-3-nano-30b-a3b")
+  
+  // Status
+  isPinned            Boolean   @default(false)
+  isArchived          Boolean   @default(false)
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations       Conversation[]
+  
+  @@index([userId])
+}
+
+// Feature 251: conversations table (Features 46-67)
+model Conversation {
+  id                  String    @id @default(cuid())
+  title               String    @default("New Conversation")
+  
+  // Model settings (Features 83-94)
+  model               String    @default("nvidia/nemotron-3-nano-30b-a3b")
+  
+  // Advanced settings (Features 118-132)
+  temperature         Float     @default(1.0)
+  maxTokens           Int       @default(16384)
+  topP                Float     @default(1.0)
+  systemPrompt        String?
+  thinkingMode        Boolean   @default(false)
+  
+  // Status flags
+  isPinned            Boolean   @default(false)
+  isArchived          Boolean   @default(false)
+  hasUnread           Boolean   @default(false)
+  
+  // Branching (Features 127-132)
+  parentMessageId     String?
+  branchName          String?
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  lastMessageAt       DateTime  @default(now())
+  
+  // Relations
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId           String?
+  project             Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  
+  messages            Message[]
+  artifacts           Artifact[]
+  sharedConversations SharedConversation[]
+  folderItems         ConversationFolderItem[]
+  
+  @@index([userId])
+  @@index([projectId])
+  @@index([lastMessageAt])
+}
+
+// Feature 252: messages table
+model Message {
+  id                  String    @id @default(cuid())
+  role                String    // user, assistant, system
+  content             String
+  
+  // Token tracking (Features 155-164)
+  inputTokens         Int       @default(0)
+  outputTokens        Int       @default(0)
+  
+  // Message features (Features 10-11)
+  isEdited            Boolean   @default(false)
+  isRegenerated       Boolean   @default(false)
+  originalContent     String?
+  
+  // Multimodal (Features 7-8, 123)
+  images              String?   // JSON array of image URLs/base64
+  
+  // Branching
+  branchId            String?
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  conversationId      String
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  artifacts           Artifact[]
+  
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+// Feature 253: artifacts table (Features 26-45)
+model Artifact {
+  id                  String    @id @default(cuid())
+  title               String
+  type                String    // code, html, svg, react, mermaid, text, markdown
+  language            String?   // For code artifacts: javascript, python, etc.
+  content             String
+  
+  // Versioning (Features 38-39)
+  version             Int       @default(1)
+  previousVersionId   String?
+  
+  // Status
+  isForked            Boolean   @default(false)
+  forkedFromId        String?
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  conversationId      String
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messageId           String?
+  message             Message?  @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  
+  @@index([conversationId])
+  @@index([type])
+}
+
+// Feature 254: shared_conversations table (Features 133-142)
+model SharedConversation {
+  id                  String    @id @default(cuid())
+  shareToken          String    @unique @default(cuid())
+  
+  // Share settings
+  isPublic            Boolean   @default(false)
+  expiresAt           DateTime?
+  viewCount           Int       @default(0)
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  
+  // Relations
+  conversationId      String
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@index([shareToken])
+}
+
+// Feature 255: prompt_library table (Features 138, 147-148)
+model PromptLibrary {
+  id                  String    @id @default(cuid())
+  title               String
+  content             String
+  description         String?
+  category            String    @default("general")
+  tags                String?   // JSON array
+  
+  // Usage tracking
+  useCount            Int       @default(0)
+  
+  // Status
+  isPublic            Boolean   @default(false)
+  isFavorite          Boolean   @default(false)
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([category])
+}
+
+// Feature 256: conversation_folders table (Features 54, 67)
+model ConversationFolder {
+  id                  String    @id @default(cuid())
+  name                String
+  color               String?
+  icon                String?
+  
+  // Hierarchy
+  parentId            String?
+  parent              ConversationFolder? @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children            ConversationFolder[] @relation("FolderHierarchy")
+  
+  // Order
+  sortOrder           Int       @default(0)
+  
+  // Status
+  isExpanded          Boolean   @default(true)
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items               ConversationFolderItem[]
+  
+  @@index([userId])
+  @@index([parentId])
+}
+
+// Feature 257: conversation_folder_items table
+model ConversationFolderItem {
+  id                  String    @id @default(cuid())
+  sortOrder           Int       @default(0)
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  
+  // Relations
+  folderId            String
+  folder              ConversationFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  conversationId      String
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@unique([folderId, conversationId])
+  @@index([folderId])
+  @@index([conversationId])
+}
+
+// Feature 258: usage_tracking table (Features 155-164)
+model UsageTracking {
+  id                  String    @id @default(cuid())
+  
+  // Usage data
+  model               String
+  inputTokens         Int
+  outputTokens        Int
+  totalTokens         Int
+  
+  // Cost estimation
+  estimatedCost       Float     @default(0)
+  
+  // Context
+  conversationId      String?
+  messageId           String?
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  date                String    // YYYY-MM-DD for daily aggregation
+  
+  // Relations
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([date])
+  @@index([model])
+}
+
+// Feature 259: api_keys table (Feature 116)
+model ApiKey {
+  id                  String    @id @default(cuid())
+  name                String
+  keyHash             String    // Hashed API key
+  keyPrefix           String    // First 8 chars for display
+  
+  // Permissions
+  permissions         String    @default("all") // JSON array or "all"
+  
+  // Usage limits
+  rateLimit           Int       @default(40) // RPM
+  
+  // Status
+  isActive            Boolean   @default(true)
+  lastUsedAt          DateTime?
+  
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  expiresAt           DateTime?
+  
+  // Relations
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([keyHash])
+}

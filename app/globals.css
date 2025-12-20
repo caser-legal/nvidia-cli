@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Feature 215-224: Design System CSS Variables */
+@layer base {
+  :root {
+    /* Light Mode (Feature 216, 218, 220, 222) */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 79 100% 36%; /* NVIDIA Green #76B900 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 79 100% 36%;
+    --radius: 0.5rem;
+    
+    /* Sidebar (Feature 196) */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 79 100% 36%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 79 100% 36%;
+  }
+
+  .dark {
+    /* Dark Mode (Feature 217, 219, 221, 223) */
+    --background: 0 0% 10%;
+    --foreground: 0 0% 90%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 90%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 90%;
+    --primary: 79 100% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 17%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 0 0% 17%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 17%;
+    --accent-foreground: 0 0% 90%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 25%;
+    --input: 0 0% 25%;
+    --ring: 79 100% 36%;
+    
+    /* Sidebar Dark */
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 79 100% 36%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 79 100% 36%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Feature 179: Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  /* Feature 181: Focus visible indicators */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+  
+  /* Feature 177: High contrast mode */
+  .high-contrast {
+    --foreground: 0 0% 0%;
+    --background: 0 0% 100%;
+    --border: 0 0% 0%;
+  }
+  
+  .dark.high-contrast {
+    --foreground: 0 0% 100%;
+    --background: 0 0% 0%;
+    --border: 0 0% 100%;
+  }
+}
+
+@layer components {
+  /* Feature 1: Clean, centered chat layout */
+  .chat-container {
+    @apply max-w-4xl mx-auto px-4 py-6;
+  }
+  
+  /* Feature 18-19: Message alignment */
+  .message-user {
+    @apply flex justify-end;
+  }
+  
+  .message-assistant {
+    @apply flex justify-start;
+  }
+  
+  .message-bubble-user {
+    @apply bg-primary/10 rounded-2xl rounded-br-md px-4 py-3 max-w-[85%];
+  }
+  
+  .message-bubble-assistant {
+    @apply bg-transparent max-w-[85%];
+  }
+  
+  /* Feature 20: Inline code styling */
+  .prose code:not(pre code) {
+    @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+  
+  /* Feature 4-5: Code blocks with syntax highlighting */
+  .code-block {
+    @apply relative rounded-lg overflow-hidden my-4;
+  }
+  
+  .code-block-header {
+    @apply flex items-center justify-between px-4 py-2 bg-muted/50 border-b text-sm;
+  }
+  
+  .code-block pre {
+    @apply p-4 overflow-x-auto text-sm;
+  }
+  
+  /* Feature 22: Typing indicator */
+  .typing-indicator {
+    @apply flex items-center gap-1 px-4 py-2;
+  }
+  
+  .typing-dot {
+    @apply w-2 h-2 bg-muted-foreground/50 rounded-full;
+  }
+  
+  .typing-dot:nth-child(1) { animation-delay: 0s; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  
+  /* Feature 24: Skeleton loaders */
+  .skeleton {
+    @apply bg-gradient-to-r from-muted via-muted/50 to-muted bg-[length:200%_100%] animate-shimmer rounded;
+  }
+  
+  /* Feature 194: Touch-friendly buttons (44px min) */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  /* Feature 43: Artifact panel slides in from right */
+  .artifact-panel {
+    @apply fixed right-0 top-0 h-full w-[500px] max-w-full bg-background border-l shadow-xl;
+    @apply transform transition-transform duration-300 ease-out;
+  }
+  
+  .artifact-panel.closed {
+    @apply translate-x-full;
+  }
+  
+  .artifact-panel.open {
+    @apply translate-x-0;
+  }
+  
+  /* Feature 182: Skip to content link */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50;
+    @apply bg-primary text-primary-foreground px-4 py-2 rounded-md;
+  }
+}
+
+@layer utilities {
+  /* Feature 236: Textarea auto-resize */
+  .textarea-autosize {
+    field-sizing: content;
+    min-height: 44px;
+    max-height: 200px;
+  }
+  
+  /* Feature 21: Proper spacing in markdown */
+  .prose-chat {
+    @apply prose prose-sm dark:prose-invert max-w-none;
+    @apply prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2;
+    @apply prose-pre:my-0 prose-pre:p-0 prose-pre:bg-transparent;
+  }
+  
+  /* Scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted));
+    border-radius: 3px;
+  }
+  
+  /* Feature 178: Focus management */
+  .focus-trap {
+    @apply outline-none;
+  }
+}
+
+/* Feature 224: Monaco editor theme */
+.monaco-editor {
+  font-family: "JetBrains Mono", "Menlo", "Monaco", "Consolas", monospace !important;
+}
+
+/* Feature 6: LaTeX/math equation rendering */
+.katex-display {
+  @apply my-4 overflow-x-auto;
+}
+
+.katex {
+  font-size: 1.1em;
+}
+
+/* Feature 32: Mermaid diagram rendering */
+.mermaid {
+  @apply my-4 flex justify-center;
+}
+
+/* Feature 336-350: xterm.js terminal styling */
+.xterm {
+  @apply h-full;
+}
+
+.xterm-viewport {
+  @apply scrollbar-thin;
+}
