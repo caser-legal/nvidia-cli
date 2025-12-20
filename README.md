@@ -60,7 +60,7 @@ NVIDIA CLI [codename: **dory**] is a full-featured AI application powered by NVI
 
 Switch modes from the header dropdown. All modes use the same underlying tools but with specialized system prompts.
 
-### 💬 Talk Mode
+### 💬 Dory Mode
 General-purpose coding assistant with file and command access.
 ```
 [you] What files are in this directory?
@@ -68,7 +68,26 @@ General-purpose coding assistant with file and command access.
 [dory] Found 12 files including package.json, src/, ...
 ```
 
-### 🖥️ Control Mode
+### 💻 Coder Mode
+**Autonomous coding agent** - Build entire apps from start to finish. Watch it work.
+
+- Never overflows context window
+- Never gets dumb—compact memory across sessions
+- Never say "just do it" again
+- Picks up exactly where it left off, everytime
+
+**Task Options:**
+| Task | Description |
+|------|-------------|
+| **Create App Spec** | Generate a detailed specification and feature list |
+| **Continue Work** | Pick up where you left off, implement next features |
+| **QA & Test** | Run tests, find bugs, verify implementations |
+| **Refactor & Improve** | Clean up code, improve performance, fix issues |
+| **Custom Task** | Describe what you want to build or fix |
+
+Features progress tracking, iteration counter, timestamped logs, and start/stop controls.
+
+### 🖥️ Controller Mode
 Computer automation - open apps, run scripts, system commands.
 ```
 [you] Open Safari and go to github.com
@@ -76,7 +95,15 @@ Computer automation - open apps, run scripts, system commands.
 [dory] Opened Safari with GitHub.
 ```
 
-### 🌐 Browse Mode
+Common commands:
+- `open -a "Safari"` - Open applications
+- `open "https://url.com"` - Open URLs
+- `osascript -e '...'` - AppleScript for UI automation
+- `say "text"` - Text to speech
+- `screencapture -x screenshot.png` - Screenshots
+- `pbcopy / pbpaste` - Clipboard operations
+
+### 🌐 Browser Mode
 Web browsing assistant - search, fetch URLs, save content.
 ```
 [you] Search for Next.js 15 release notes
@@ -84,7 +111,12 @@ Web browsing assistant - search, fetch URLs, save content.
 [dory] Opened Google search. Key changes include...
 ```
 
-### 🔬 Research Mode
+Search URL formats:
+- Google: `https://www.google.com/search?q=your+search+terms`
+- DuckDuckGo: `https://duckduckgo.com/?q=your+search+terms`
+- YouTube: `https://www.youtube.com/results?search_query=terms`
+
+### 🔬 Researcher Mode
 Deep research with structured reports and citations.
 ```
 [you] Research the latest developments in quantum computing
@@ -94,8 +126,12 @@ Deep research with structured reports and citations.
 - IBM announced 1000+ qubit processor...
 ```
 
-### 💻 Code Mode
-Autonomous coder with project directory selection.
+Research methodology:
+1. **UNDERSTAND** - Clarify the research question
+2. **PLAN** - Outline what information is needed
+3. **GATHER** - Use curl to fetch data, open URLs for visual inspection
+4. **ANALYZE** - Use think tool to synthesize findings
+5. **REPORT** - Provide structured findings with sources
 
 ### 🖥️ Terminal Mode
 Direct terminal access for manual commands.
@@ -131,7 +167,7 @@ Direct terminal access for manual commands.
 
 ```bash
 # Clone
-git clone https://github.com/yourusername/nvidia-cli.git
+git clone https://github.com/caser-legal/nvidia-cli.git
 cd nvidia-cli
 
 # Install
@@ -170,7 +206,7 @@ Supports all modes with real tool execution.
 {
   messages: [{ role: "user", content: "List files" }],
   projectDir: "/path/to/project",
-  mode: "chat" | "computer" | "browser" | "research"
+  mode: "chat" | "coder" | "computer" | "browser" | "research"
 }
 
 // Response (SSE)
@@ -253,13 +289,17 @@ nvidia-cli/
 │   ├── page.tsx           # Main page
 │   └── globals.css
 ├── components/
-│   ├── agents/            # AgentChat, Terminal, CoderPanel
+│   ├── agents/
+│   │   ├── agent-chat.tsx    # Terminal UI for Dory/Controller/Browser/Researcher
+│   │   ├── coder-setup.tsx   # Coder mode setup screen
+│   │   ├── coder-panel.tsx   # Coder progress & logs
+│   │   └── terminal.tsx      # Direct terminal access
 │   ├── chat/              # Chat input, messages
 │   ├── sidebar/           # Conversation list, sessions
 │   ├── layout/            # Header with mode selector
 │   └── ui/                # Radix primitives
 ├── lib/
-│   ├── agents/            # Agent core, tools
+│   ├── agents/
 │   │   ├── agent.ts       # Main agent loop
 │   │   ├── types.ts       # TypeScript types
 │   │   └── tools/         # file-read, file-write, bash, think
