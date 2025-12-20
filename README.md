@@ -36,33 +36,32 @@ NVIDIA CLI [codename: **dory**] is a full-featured application powered by NVIDIA
 - **Conversation management** - Create, rename, pin, archive, search
 - **Conversation memory** - Maintains context across messages in session
 
+### 🔍 Search Tools
+- **Tavily Search** - AI-optimized search with full content extraction (primary)
+- **Google Search** - FREE Google Custom Search API (fallback)
+- **Parallel Search** - Multiple queries executed concurrently
+- **Local Docs Search** - Search dev-docs before falling back to web
+
 ### 🤖 Real Tool Execution
 - **File operations** - Read, write, list directories
 - **Shell commands** - Execute bash commands
-- **Google Search** - FREE Google Custom Search API integration
-- **Parallel Search** - Multiple queries executed concurrently
-- **Local Docs Search** - Search dev-docs before falling back to web
 - **Thinking** - Internal reasoning for complex problems
 
 ### 🔄 Multi-Agent Coordinator
-- **Specialist Agents** - Search, Report Writer, Quality Reviewer, Report Extender
+- **8 Specialist Agents** - Search, Planner, Section Author, Writer, Reviewer, Extender, Compiler, Deduplicator
+- **Two Workflow Options** - Quick Report or Structured Report with planning
 - **Reflection Loop** - Iterates until quality score ≥ 8/10
-- **Parallel Search** - Multiple queries run concurrently
-- **Source Deduplication** - Clean, numbered citations
-- **Quality Scoring** - Completeness, Accuracy, Clarity, Citations, Depth
+- **Quality Scoring** - Completeness, Accuracy, Clarity, Citations, Depth (0-10 each)
 
 ### 🎨 Artifacts
 - **Code blocks** - Syntax highlighted with 50+ languages
 - **HTML/CSS** - Live preview with sandboxed iframe
 - **React components** - Live rendering
 - **Mermaid diagrams** - Flowcharts, sequence diagrams
-- **SVG graphics** - Vector graphics preview
 
 ### ⚙️ Advanced
 - **Command palette** - Quick actions (Cmd+K)
 - **Keyboard shortcuts** - Full keyboard navigation
-- **Settings** - API key, theme, default model
-- **Session management** - Running agents sidebar
 - **Stop button** - Abort running agents at any time
 
 ---
@@ -82,10 +81,6 @@ General-purpose assistant with full CLI file and command access.
 ### 💻 Coder Mode
 **Autonomous coding agent** - Build entire apps from start to finish.
 
-- Never overflows context window
-- Compact memory across sessions
-- Picks up exactly where it left off
-
 **iOS Development Support:**
 - Build: `xcodebuild -project *.xcodeproj -scheme * -destination 'generic/platform=iOS'`
 - Codesign fix: `xattr -cr .` to strip extended attributes
@@ -93,26 +88,15 @@ General-purpose assistant with full CLI file and command access.
 
 ### 🖥️ Controller Mode
 Computer automation - open apps, run scripts, system commands.
-```
-[you] Open Safari and go to github.com
-⚡ bash({"command": "open -a Safari https://github.com"})
-```
 
 ### 🌐 Browser Mode
-Web browsing assistant - search, fetch URLs, save content.
+Web browsing with Tavily (deep content) and Google (quick lookups).
 
 ### 🔬 Research Mode
-Deep research with parallel search and local docs.
-
-**Tools available:**
-- `google_search` - Single query search
-- `parallel_search` - Multiple queries at once
-- `local_docs_search` - Search dev-docs folder first
+Deep research with all search tools: Tavily, Google, parallel search, local docs.
 
 ### 👥 Coordinator Mode (Multi-Agent)
-**Multi-agent research coordinator with reflection loop.**
-
-See [Multi-Agent Coordinator](#multi-agent-coordinator) section below.
+**Full multi-agent research system.** See [Multi-Agent Coordinator](#multi-agent-coordinator) below.
 
 ---
 
@@ -126,27 +110,36 @@ The Coordinator mode orchestrates a team of specialist agents for comprehensive 
 flowchart TD
     User[User Query] --> Coordinator
     
-    subgraph "Phase 1: Initial Research"
+    subgraph "Phase 1: Research"
         Coordinator --> SearchSpecialist[🔍 Search Specialist]
-        SearchSpecialist --> |Parallel Search + Local Docs| Findings[Research Findings]
-        Findings --> ReportWriter[📝 Report Writer]
-        ReportWriter --> Draft[Report Draft]
+        SearchSpecialist --> |Tavily + Google + Local| Findings[Research Findings]
     end
     
-    subgraph "Phase 2: Quality Check"
+    subgraph "Phase 2: Planning"
+        Findings --> ReportPlanner[📋 Report Planner]
+        ReportPlanner --> Outline[Section Outline]
+    end
+    
+    subgraph "Phase 3: Writing"
+        Outline --> SectionAuthor1[✍️ Section Author 1]
+        Outline --> SectionAuthor2[✍️ Section Author 2]
+        Outline --> SectionAuthorN[✍️ Section Author N]
+        SectionAuthor1 --> Sections
+        SectionAuthor2 --> Sections
+        SectionAuthorN --> Sections
+        Sections --> ReportCompiler[📄 Report Compiler]
+    end
+    
+    subgraph "Phase 4: Quality Loop"
+        ReportCompiler --> Draft[Report Draft]
         Draft --> QualityReviewer[✅ Quality Reviewer]
         QualityReviewer --> |Score 0-10| Decision{Score ≥ 8?}
+        Decision --> |No| MoreResearch[More Research]
+        MoreResearch --> ReportExtender[📝 Report Extender]
+        ReportExtender --> Draft
     end
     
-    subgraph "Phase 3: Reflection Loop"
-        Decision --> |No + iterations < 3| FollowUp[Follow-up Queries]
-        FollowUp --> SearchSpecialist2[🔍 Search Specialist]
-        SearchSpecialist2 --> NewFindings[New Findings]
-        NewFindings --> ReportExtender[📄 Report Extender]
-        ReportExtender --> |Integrate| Draft
-    end
-    
-    Decision --> |Yes or max iterations| FinalReport[📋 Final Report]
+    Decision --> |Yes| FinalReport[📋 Final Report]
     FinalReport --> User
 ```
 
@@ -154,11 +147,26 @@ flowchart TD
 
 | Agent | Role | Tools |
 |-------|------|-------|
-| **Search Specialist** | Comprehensive web research | `parallel_search`, `local_docs_search`, `google_search` |
-| **Report Writer** | Creates structured reports with citations | None (pure writing) |
-| **Quality Reviewer** | Evaluates completeness, identifies gaps | None (pure evaluation) |
-| **Report Extender** | Integrates new findings into existing reports | None (pure editing) |
-| **Source Deduplicator** | Cleans up citation lists | None (utility) |
+| **Search Specialist** | Comprehensive research | `parallel_tavily_search`, `parallel_search`, `local_docs_search` |
+| **Report Planner** | Creates structured outline | None (pure planning) |
+| **Section Author** | Writes individual sections | None (pure writing) |
+| **Report Writer** | Quick full reports | None (pure writing) |
+| **Quality Reviewer** | Evaluates completeness | None (pure evaluation) |
+| **Report Extender** | Integrates new findings | None (pure editing) |
+| **Report Compiler** | Assembles final report | None (utility) |
+| **Source Deduplicator** | Cleans citations | None (utility) |
+
+### Workflow Options
+
+#### Option A: Quick Report (Simple Topics)
+```
+Search → Write → Review → [If approved] Deliver
+```
+
+#### Option B: Structured Report (Complex Topics) - RECOMMENDED
+```
+Search → Plan → [For each section] Research + Write → Compile → Review → [Loop if needed] → Deliver
+```
 
 ### Quality Scoring
 
@@ -183,50 +191,54 @@ When the Quality Reviewer identifies gaps:
 
 1. Extracts specific follow-up queries from the review
 2. Search Specialist runs those queries
-3. Report Extender integrates new findings (doesn't rewrite entire report)
+3. Report Extender integrates new findings
 4. Quality Reviewer re-evaluates
 5. Repeats until APPROVED or max 3 iterations
 
-### Parallel Search
+---
 
-The `parallel_search` tool executes multiple queries concurrently:
+## Search Tools
 
-```mermaid
-flowchart LR
-    Topic[Research Topic] --> Generator[Query Generator]
-    Generator --> Q1[Query 1]
-    Generator --> Q2[Query 2]
-    Generator --> Q3[Query 3]
-    Generator --> Q4[Query 4]
-    Generator --> Q5[Query 5]
-    
-    Q1 --> |Concurrent| Results
-    Q2 --> |Concurrent| Results
-    Q3 --> |Concurrent| Results
-    Q4 --> |Concurrent| Results
-    Q5 --> |Concurrent| Results
-    
-    Results --> Dedup[Deduplicate by URL]
-    Dedup --> |Sort by relevance| Final[Unified Results]
+### Tavily Search (Primary)
+AI-optimized search API with full content extraction.
+
+```typescript
+tavily_search({
+  query: "AI agents 2025",
+  topic: "general" | "news" | "finance",
+  days: 7,  // Only last 7 days
+  include_raw_content: true
+})
+```
+
+**Features:**
+- Full article content extraction
+- Topic-aware search (general, news, finance)
+- Date filtering
+- Relevance scoring
+
+### Parallel Tavily Search
+Execute multiple queries concurrently:
+
+```typescript
+parallel_tavily_search({
+  queries: ["query 1", "query 2", "query 3"],
+  topic: "news"
+})
 ```
 
 **Benefits:**
-- 5x faster than sequential searches
+- 5x faster than sequential
 - Results deduplicated by URL
 - Sources found by multiple queries ranked higher
-- Formatted citation block included
+
+### Google Search (Fallback)
+FREE Google Custom Search API for quick lookups.
 
 ### Local Docs Search
-
-Before searching the web, the system checks local documentation:
-
-**Default paths searched:**
-- `/Users/home/Documents/iOS/dev-docs` - iOS development docs
-- `/Users/home/nvidia-cli/dev-docs.rtf` - NVIDIA NIM documentation
-
-**Supported file types:** `.md`, `.txt`, `.swift`, `.ts`, `.py`, `.json`
-
-This ensures existing knowledge is used before falling back to web search.
+Searches local documentation before web:
+- `/Users/home/Documents/iOS/dev-docs`
+- `/Users/home/nvidia-cli/dev-docs.rtf`
 
 ---
 
@@ -239,20 +251,16 @@ This ensures existing knowledge is used before falling back to web search.
 | **Nemotron 3 Nano 30B** (default) | 1M | Fast reasoning, 3.3x throughput |
 | **Nemotron Super 49B** | 128K | Agentic coding tasks |
 | **Nemotron Ultra 253B** | 128K | Maximum capability |
-| **Qwen3 Coder 480B** | 128K | Code generation specialist |
-| **Devstral 2 123B** | 128K | Development tasks |
+| **Qwen3 Coder 480B** | 128K | Code generation |
 | **DeepSeek R1** | 128K | Math, reasoning |
-| **DeepSeek V3.2** | 128K | Hybrid inference |
 | **Llama 3.3 70B** | 128K | General purpose |
-| **Qwen3 235B** | 128K | Strong reasoning |
-| **Nemotron Nano VL 8B** | 128K | Vision/images |
 
 ### Model Configuration
 
 For thinking/reasoning models (Nemotron):
 - `temperature: 1.0` (required)
 - `top_p: 1.0` (required)
-- `maxTokens: 32768` (maximum for full reasoning output)
+- `maxTokens: 32768` (maximum)
 
 ---
 
@@ -265,28 +273,15 @@ For thinking/reasoning models (Nemotron):
 ### Installation
 
 ```bash
-# Clone
 git clone https://github.com/caser-legal/nvidia-cli.git
 cd nvidia-cli
-
-# Install
 npm install
-
-# Configure
 cp .env.example .env.local
 # Add your NVIDIA_API_KEY to .env.local
-
-# Run
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
-
-### Environment Variables
-
-```env
-NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
 
 ---
 
@@ -297,8 +292,6 @@ NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 POST /api/agent-chat
 ```
-
-Supports all modes with real tool execution.
 
 ```typescript
 // Request
@@ -316,58 +309,147 @@ data: {"type":"message","role":"assistant","content":"..."}
 data: {"type":"done"}
 ```
 
-### Chat Endpoint
-
-```
-POST /api/chat
-```
-
-Standard chat completion without tools.
-
 ---
 
-## Tools
+## Tools by Mode
 
-### Standard Tools (All Modes)
-
+### All Modes
 | Tool | Description |
 |------|-------------|
 | `file_read` | Read files, list directories |
 | `file_write` | Create/edit files |
 | `bash` | Execute shell commands |
 | `think` | Internal reasoning |
-| `google_search` | Search Google (FREE API) |
+| `google_search` | Quick web search |
+| `tavily_search` | Deep web search |
 
-### Research Mode Tools
-
+### Research Mode (Additional)
 | Tool | Description |
 |------|-------------|
-| `parallel_search` | Execute multiple queries concurrently |
-| `local_docs_search` | Search local dev-docs folder |
+| `parallel_tavily_search` | Multiple Tavily queries at once |
+| `parallel_search` | Multiple Google queries at once |
+| `local_docs_search` | Search local dev-docs |
 
-### Coordinator Mode Tools
-
+### Coordinator Mode
 | Tool | Description |
 |------|-------------|
 | `search_specialist` | Comprehensive research agent |
-| `report_writer` | Creates structured reports |
+| `report_planner` | Creates structured outline |
+| `section_author` | Writes individual sections |
+| `report_writer` | Quick full reports |
 | `quality_reviewer` | Evaluates report quality |
 | `report_extender` | Integrates new findings |
+| `report_compiler` | Assembles final report |
 | `deduplicate_sources` | Cleans up citations |
 
 ---
 
-## Keyboard Shortcuts
+## NVIDIA Blueprints Reference
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd + K` | Command palette |
-| `Cmd + N` | New conversation |
-| `Cmd + /` | Toggle sidebar |
-| `Cmd + ,` | Settings |
-| `Enter` | Send message |
-| `Shift + Enter` | New line |
-| `Escape` | Close modal |
+This project implements patterns from official NVIDIA AI Blueprints.
+
+### Data Flywheel Blueprint
+
+Process that uses production data to continuously improve AI models.
+
+```mermaid
+flowchart TD
+  app[Your App] --prompts/responses--> logs[Log service]
+  logs --Create Datasets--> orch["Orchestrator"]
+  orch --> exp1["Experiment 1"]
+  orch --> exp2["Experiment 2"]
+  exp1 --> results
+  exp2 --> results
+```
+
+**Key Concepts:**
+- Log every LLM call with `workload_id`
+- Automated experiments: base, ICL (few-shot), fine-tuned
+- LLM-as-Judge evaluation
+- **Result:** Up to 98.6% cost reduction
+
+**Reference:** [NVIDIA Data Flywheel Blueprint](https://github.com/NVIDIA-AI-Blueprints/data-flywheel)
+
+---
+
+### AI-Q Research Assistant Blueprint
+
+Deep research reports using on-premise data and web search.
+
+```mermaid
+flowchart TD
+    Topic --> GenerateQueries
+    GenerateQueries --> ParallelSearch
+    ParallelSearch --> RAG{RAG Relevant?}
+    RAG --> |Yes| UseRAG
+    RAG --> |No| WebSearch
+    UseRAG --> Summarize
+    WebSearch --> Summarize
+    Summarize --> Reflect{Gaps?}
+    Reflect --> |Yes| GenerateQueries
+    Reflect --> |No| Finalize
+```
+
+**Key Features:**
+- Plan → Search → Write → Reflect → Finalize
+- RAG + Web fallback
+- Parallel search
+- Reflection loop
+
+**Reference:** [NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)
+
+---
+
+### RAG Blueprint
+
+Retrieval-Augmented Generation with multimodal support.
+
+```mermaid
+flowchart LR
+    Docs --> Extract --> Embed --> VectorDB
+    Query --> Search --> VectorDB
+    VectorDB --> Rerank --> Context --> LLM --> Response
+```
+
+**Reference:** [NVIDIA RAG Blueprint](https://github.com/NVIDIA-AI-Blueprints/rag)
+
+---
+
+### Agent Workshop Patterns
+
+From NVIDIA's LangGraph Agent Workshop:
+
+**Four Key Components:**
+1. **Model** - LLM as the brain (Nemotron via NIM)
+2. **Tools** - Functions for actions (Tavily, file ops, bash)
+3. **Memory/State** - Information across conversations
+4. **Routing** - Logic for next actions
+
+**ReAct Pattern:**
+```
+Think → Act → Observe → Think → Act → ... → Done
+```
+
+**Report Generation Flow:**
+```mermaid
+flowchart LR
+    Research[Initial Research] --> Plan[Outline Planning]
+    Plan --> Write[Section Writing]
+    Write --> Compile[Final Compilation]
+```
+
+**Key Code Pattern (Tavily with async):**
+```python
+search_jobs = []
+for query in queries:
+    search_jobs.append(
+        asyncio.create_task(
+            tavily_client.search(query, topic=topic)
+        )
+    )
+search_docs = await asyncio.gather(*search_jobs)
+return _deduplicate_and_format_sources(search_docs)
+```
 
 ---
 
@@ -377,198 +459,26 @@ Standard chat completion without tools.
 nvidia-cli/
 ├── app/
 │   ├── api/
-│   │   ├── chat/              # Chat completion
-│   │   └── agent-chat/        # Multi-mode agent with coordinator
-│   ├── page.tsx
-│   └── globals.css
+│   │   └── agent-chat/        # Multi-mode agent endpoint
+│   └── page.tsx
 ├── components/
 │   ├── agents/
-│   │   ├── agent-chat.tsx     # Terminal UI for all modes
-│   │   ├── coder-setup.tsx    # Coder mode setup
-│   │   ├── coder-panel.tsx    # Coder progress & logs
-│   │   └── terminal.tsx       # Direct terminal access
+│   │   └── agent-chat.tsx     # Terminal UI
 │   ├── chat/
-│   │   ├── chat-input.tsx     # Input with mode selector
-│   │   └── welcome-screen.tsx
-│   ├── sidebar/
 │   └── ui/
 ├── lib/
 │   ├── agents/
 │   │   ├── agent.ts           # Main agent loop
-│   │   ├── types.ts           # TypeScript types
 │   │   └── tools/
-│   │       ├── google-search.ts
-│   │       ├── parallel-search.ts      # NEW: Concurrent search
-│   │       ├── local-docs-search.ts    # NEW: Dev-docs search
-│   │       ├── specialist-agents.ts    # Multi-agent tools
-│   │       ├── file-read.ts
-│   │       ├── file-write.ts
-│   │       ├── bash.ts
-│   │       └── think.ts
-│   ├── store/
-│   │   ├── index.ts           # UI state
-│   │   └── agent-sessions.ts  # Session management
-│   └── nvidia.ts              # NIM client & models
+│   │       ├── tavily-search.ts       # Tavily API
+│   │       ├── parallel-search.ts     # Concurrent Google
+│   │       ├── local-docs-search.ts   # Dev-docs search
+│   │       ├── specialist-agents.ts   # All specialist tools
+│   │       ├── report-planner.ts      # Planning tools
+│   │       └── ...
+│   └── store/
 └── public/
 ```
-
----
-
-## NVIDIA Blueprints Reference
-
-This project implements patterns from official NVIDIA AI Blueprints. Below is reference documentation for the underlying concepts.
-
-### Data Flywheel Blueprint
-
-The Data Flywheel is a process that uses production data to continuously improve AI models.
-
-```mermaid
-flowchart TD
-  app[Your App] --prompts/responses/feedback--> logs[Log service]
-  logs --Create Datasets--> orch["Orchestrator"]
-  orch --> exp1["Exp #1"]
-  orch --> exp2["Exp #2"]
-  orch --> expN["Exp #N"]
-  exp1 --> results
-  exp2 --> results
-  expN --> results
-```
-
-**Key Concepts:**
-- **Log Schema**: Every LLM call logs `timestamp`, `workload_id`, `client_id`, `request`, `response`
-- **Workload Tagging**: Each agent node/route gets a unique `workload_id`
-- **Automated Experiments**: System tests base models, ICL (few-shot), and fine-tuned variants
-- **LLM-as-Judge**: Evaluates model outputs for quality scoring
-
-**Real-World Results:** NVIDIA found instances where a fine-tuned 1B model matched 70B quality for simple tool routing, reducing inference costs by 98.6%.
-
-**NeMo Microservices Integration:**
-
-```mermaid
-flowchart TD
-app["Your application"] --Prompt/completion logs--> log_store["Log Store"]
-log_store --Datasets--> datasets["NeMo Datastore"]
-datasets --"Fine-tuning datasets"--> customizer["NeMo Customizer"]
-datasets --"Eval datasets"--> evaluator["NeMo Evaluator"]
-
-subgraph NIMs["Loop across ALL NIMs"]
-  customizer --"Customized model"--> NIM
-  evaluator --> NIM
-  NIM --> evaluator
-end
-
-evaluator --> results["Flywheel Results"]
-```
-
-**Reference:** [NVIDIA Data Flywheel Blueprint](https://github.com/NVIDIA-AI-Blueprints/data-flywheel)
-
----
-
-### AI-Q Research Assistant Blueprint
-
-The AI-Q Research Assistant creates deep research reports using on-premise data and web search.
-
-**Key Features:**
-- **Deep Research**: Plan → Search → Write → Reflect → Finalize
-- **Parallel Search**: Multiple queries searched concurrently
-- **RAG + Web Fallback**: Internal docs first, web search if needed
-- **LLM-as-Judge Relevancy**: Scores if RAG results are relevant
-- **Human-in-the-loop**: User can edit plan before execution
-
-**Workflow:**
-
-```mermaid
-flowchart TD
-    Topic[Topic + Report Structure] --> GenerateQueries[Generate Queries]
-    GenerateQueries --> ParallelSearch[Parallel Search]
-    
-    subgraph "For Each Query"
-        ParallelSearch --> RAG[RAG Search]
-        RAG --> Relevancy{Relevant?}
-        Relevancy --> |Yes| UseRAG[Use RAG Results]
-        Relevancy --> |No| WebSearch[Web Search Fallback]
-    end
-    
-    UseRAG --> Summarize[Summarize Sources]
-    WebSearch --> Summarize
-    Summarize --> Reflect[Reflect on Gaps]
-    Reflect --> |Gaps Found| GenerateQueries
-    Reflect --> |Complete| Finalize[Finalize Report]
-```
-
-**Software Components:**
-- NVIDIA NeMo Agent Toolkit (LangGraph)
-- NVIDIA RAG Blueprint (multimodal document search)
-- NVIDIA NIM Microservices (LLM inference)
-- Tavily (web search)
-
-**Reference:** [NVIDIA AI-Q Research Assistant](https://github.com/NVIDIA-AI-Blueprints/aiq-research-assistant)
-
----
-
-### RAG Blueprint
-
-Retrieval-Augmented Generation combines LLM reasoning with real-time retrieval from trusted data sources.
-
-**Key Features:**
-- **Multimodal Ingestion**: Text, tables, charts, images, audio
-- **Hybrid Search**: Dense + sparse search with reranking
-- **Query Decomposition**: Breaks complex queries into sub-queries
-- **GPU-Accelerated**: cuVS for fast vector search
-
-**Architecture:**
-
-```mermaid
-flowchart LR
-    subgraph Ingestion
-        Docs[Documents] --> Extract[NeMo Retriever Extraction]
-        Extract --> Embed[Embedding NIM]
-        Embed --> VectorDB[(Vector DB)]
-    end
-    
-    subgraph Query
-        User[User Query] --> QueryProc[Query Processing]
-        QueryProc --> Search[Vector Search]
-        Search --> VectorDB
-        VectorDB --> Rerank[Reranking NIM]
-        Rerank --> Context[Retrieved Context]
-    end
-    
-    subgraph Generation
-        Context --> LLM[LLM NIM]
-        LLM --> Response[Grounded Response]
-    end
-```
-
-**NIM Microservices Used:**
-- `llama-3.3-nemotron-super-49b-v1.5` - Response generation
-- `llama-3.2-nv-embedqa-1b-v2` - Embeddings
-- `llama-3.2-nv-rerankqa-1b-v2` - Reranking
-- NeMo Retriever Page Elements, Table Structure, Graphic Elements
-
-**Reference:** [NVIDIA RAG Blueprint](https://github.com/NVIDIA-AI-Blueprints/rag)
-
----
-
-### Agentic AI Concepts
-
-From NVIDIA's Agentic AI documentation:
-
-**Four-Step Process:**
-1. **Perceive** - Gather data from sensors, databases, interfaces
-2. **Reason** - LLM orchestrates, uses RAG for context
-3. **Act** - Execute tasks via APIs and tools
-4. **Learn** - Data flywheel improves models over time
-
-**Tool Calling:**
-- LLMs detect when functions should be called
-- Output structured responses with function name and arguments
-- NIM supports OpenAI-compatible tool calling format
-
-**Multi-Agent Patterns:**
-- Coordinator orchestrates specialist agents
-- Each agent has specific tools and expertise
-- Results combined into final deliverable
 
 ---
 
@@ -578,7 +488,7 @@ From NVIDIA's Agentic AI documentation:
 - **UI:** React 19, Tailwind CSS, shadcn/ui
 - **State:** Zustand with localStorage persistence
 - **API:** NVIDIA NIM (OpenAI-compatible)
-- **Search:** Google Custom Search API (FREE)
+- **Search:** Tavily (primary), Google Custom Search (fallback)
 
 ---
 

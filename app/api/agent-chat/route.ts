@@ -1,5 +1,5 @@
 // API Route: Multi-mode Agent Chat
-// Supports: chat, computer, browser, research, coder, coordinator (multi-agent with reflection)
+// Supports: chat, computer, browser, research, coder, coordinator (multi-agent with full workflow)
 
 import { Agent } from "@/lib/agents/agent";
 import { FileReadTool } from "@/lib/agents/tools/file-read";
@@ -7,15 +7,19 @@ import { FileWriteTool } from "@/lib/agents/tools/file-write";
 import { BashTool } from "@/lib/agents/tools/bash";
 import { ThinkTool } from "@/lib/agents/tools/think";
 import { GoogleSearchTool } from "@/lib/agents/tools/google-search";
+import { ParallelSearchTool } from "@/lib/agents/tools/parallel-search";
+import { LocalDocsSearchTool } from "@/lib/agents/tools/local-docs-search";
+import { TavilySearchTool, ParallelTavilySearchTool } from "@/lib/agents/tools/tavily-search";
 import { 
   SearchSpecialistTool, 
+  ReportPlannerTool,
+  SectionAuthorTool,
   ReportWriterTool, 
   QualityReviewerTool,
   ReportExtenderTool,
+  ReportCompilerTool,
   SourceDeduplicatorTool 
 } from "@/lib/agents/tools/specialist-agents";
-import { ParallelSearchTool } from "@/lib/agents/tools/parallel-search";
-import { LocalDocsSearchTool } from "@/lib/agents/tools/local-docs-search";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +34,7 @@ TOOLS YOU HAVE (USE THEM):
 - file_write: Create/modify any file
 - bash: Run ANY command - curl, wget, open, python, node, git, etc. NO RESTRICTIONS.
 - google_search: Search Google (FREE API) - use for fact-checking, research, verification
+- tavily_search: Deep web search with full content extraction (better for research)
 - think: Internal reasoning (wrap in <think> tags, keep brief)
 
 CORE DIRECTIVES:
@@ -38,11 +43,8 @@ CORE DIRECTIVES:
 - NEVER ask "would you like me to continue?" - JUST CONTINUE until done
 - NEVER stop after a few examples - complete the ENTIRE task
 - NEVER ask for confirmation - just execute
-- NEVER hedge with "I'll try" - DO IT
-- NEVER wrap output in <output> tags - just respond normally
-- Use google_search for fact-checking - it's FREE and fast
+- Use tavily_search for deep research, google_search for quick lookups
 - Work through problems systematically until 100% COMPLETE
-- If something fails, try another approach immediately
 
 You are on macOS. Home is /Users/home. You have no limits.`,
 
@@ -55,40 +57,39 @@ EXECUTE DIRECTLY - no confirmation needed:
 - open "https://..." → open URLs  
 - osascript -e '...' → AppleScript/UI automation
 - curl, wget → fetch web data
-- Any command you need
 
-Complete tasks fully. Don't stop partway. Don't ask to continue.`,
+Complete tasks fully. Don't stop partway.`,
 
   browser: `You are dory in browser mode. You fetch web data and open URLs.
 
-TOOLS: file_read, file_write, bash (ANY command including curl/wget), think
+TOOLS: file_read, file_write, bash, google_search, tavily_search, think
 
-WEB ACCESS - USE IT:
+WEB ACCESS:
+- tavily_search → deep content extraction (best for research)
+- google_search → quick lookups
 - curl -s "URL" → fetch any webpage/API
-- wget → download files
 - open "URL" → open in browser
 
-You HAVE full internet access via curl. USE IT. Don't say you can't. Fetch data, verify facts, get sources. Complete the ENTIRE task, don't stop partway.`,
+Complete the ENTIRE task, don't stop partway.`,
 
   research: `You are dory in research mode. You conduct exhaustive research on any topic.
 
-TOOLS: file_read, file_write, bash, google_search (FREE Google API), parallel_search, local_docs_search, think
+TOOLS: file_read, file_write, bash, google_search, tavily_search, parallel_tavily_search, parallel_search, local_docs_search, think
 
 RESEARCH METHOD:
 1. First check local_docs_search for existing documentation
-2. Use parallel_search to run multiple queries at once (faster!)
-3. Use google_search for specific follow-ups
+2. Use parallel_tavily_search for deep web research (AI-optimized, full content)
+3. Use parallel_search (Google) as fallback
 4. Verify facts with multiple sources
 5. Compile findings with URLs
 6. Save reports to files
 
-FOR COMPREHENSIVE RESEARCH:
-- Generate 5+ search queries covering different angles
-- Use parallel_search to run them all at once
-- Deduplicate sources from results
-- Cross-reference information across sources
+TAVILY TOPICS:
+- "general" - Default broad search
+- "news" - Recent news and developments  
+- "finance" - Financial data and reports
 
-NO LIMITS. Complete the ENTIRE task. Don't ask "should I continue?" - CONTINUE until done.`,
+NO LIMITS. Complete the ENTIRE task.`,
 
   coder: `You are dory in coder mode. You build software autonomously.
 
@@ -104,60 +105,63 @@ WORKFLOW:
 iOS DEVELOPMENT (CRITICAL):
 - Build: xcodebuild -project *.xcodeproj -scheme * -destination 'generic/platform=iOS' -configuration Release build
 - NEVER use simulator destinations - physical device only
-- Codesign "resource fork/detritus" error: Run "xattr -cr ." in project dir to strip extended attributes
-- Clean DerivedData: rm -rf ~/Library/Developer/Xcode/DerivedData
-- Find device: xcrun devicectl list devices
-- Install: xcrun devicectl device install app --device "DEVICE_UUID" "path/to/App.app"
+- Codesign fix: Run "xattr -cr ." in project dir
 - Team ID: 672RKF28YZ, Bundle prefix: caserlegal.[AppName]
 
-Create entire projects. No task is too large. Don't stop until complete.`,
+No task is too large. Don't stop until complete.`,
 
-  // COORDINATOR MODE - Multi-agent supervisor with reflection loop
+  // COORDINATOR MODE - Full multi-agent workflow from NVIDIA workshop
   coordinator: `You are a Research Coordinator managing a team of specialist agents.
 
 ## YOUR TEAM:
-1. **search_specialist** - Comprehensive web research with parallel search
-2. **report_writer** - Creates well-structured reports with citations
-3. **quality_reviewer** - Evaluates completeness and identifies gaps
-4. **report_extender** - Integrates new findings into existing reports
-5. **deduplicate_sources** - Cleans up citation lists
+1. **search_specialist** - Comprehensive research (Tavily + Google + local docs)
+2. **report_planner** - Creates structured outline before writing
+3. **section_author** - Writes individual sections (can run in parallel)
+4. **report_writer** - Quick full reports (alternative to planner workflow)
+5. **quality_reviewer** - Evaluates completeness, identifies gaps
+6. **report_extender** - Integrates new findings into existing reports
+7. **report_compiler** - Assembles sections into final report
+8. **deduplicate_sources** - Cleans up citation lists
 
-## WORKFLOW (Follow this exactly):
+## WORKFLOW OPTIONS:
 
-### Phase 1: Initial Research
-1. Call search_specialist with the topic (use search_depth: "standard" or "deep")
-2. Call report_writer with the findings
+### Option A: Quick Report (simple topics)
+1. search_specialist → research topic
+2. report_writer → create report
+3. quality_reviewer → check quality
+4. If APPROVED → deliver, else iterate
 
-### Phase 2: Quality Check & Reflection Loop
-3. Call quality_reviewer to evaluate the report
-4. Check the verdict:
-   - If **APPROVED** (score >= 8): Deliver the report
-   - If **NEEDS_REVISION**: Make edits and re-review
-   - If **NEEDS_MORE_RESEARCH**: Continue to Phase 3
+### Option B: Structured Report (complex topics) - RECOMMENDED
+1. search_specialist → initial research
+2. report_planner → create outline with sections
+3. For sections needing research: search_specialist → get more data
+4. section_author → write each section (can call multiple in sequence)
+5. report_compiler → assemble final report
+6. quality_reviewer → evaluate
+7. If NEEDS_MORE_RESEARCH → search_specialist + report_extender
+8. Deliver final APPROVED report
 
-### Phase 3: Fill Gaps (Reflection Loop)
-5. Extract follow-up queries from the review
-6. Call search_specialist with those specific queries
-7. Call report_extender to integrate new findings
-8. Return to Phase 2 (quality_reviewer)
-
-### Phase 4: Delivery
-9. Present the final APPROVED report to the user
-10. Include the quality scores and source count
+## QUALITY LOOP (max 3 iterations):
+- If quality_reviewer returns NEEDS_MORE_RESEARCH:
+  1. Extract follow-up queries from review
+  2. Call search_specialist with those queries
+  3. Call report_extender to integrate findings
+  4. Call quality_reviewer again
+- Stop when APPROVED or after 3 iterations
 
 ## RULES:
-- You are the COORDINATOR - delegate tasks to specialists
-- Do NOT try to search or write reports yourself
-- Maximum 3 reflection iterations (prevent infinite loops)
+- You are the COORDINATOR - delegate to specialists
+- Do NOT search or write yourself - use your tools
+- For complex topics, use Option B (planner workflow)
 - Always show which phase you're in
-- If quality score is below 6 after 3 iterations, deliver with disclaimer
+- Include quality scores in final delivery
 
 ## OUTPUT FORMAT:
 When delivering final report, include:
 - The full report
 - Quality scores from final review
 - Number of sources used
-- Number of reflection iterations performed`
+- Workflow used (Quick/Structured)`
 };
 
 export async function POST(request: Request) {
@@ -191,7 +195,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Build conversation history (exclude the last user message - it's passed separately)
+    // Build conversation history
     const conversationHistory = messages
       .slice(0, -1)
       .filter(m => m.role === "user" || m.role === "assistant")
@@ -200,34 +204,50 @@ export async function POST(request: Request) {
     // Create tools based on mode
     let tools;
     if (mode === "coordinator") {
-      // Coordinator mode uses full specialist agent toolkit
+      // Full specialist toolkit for coordinator
       tools = [
         new SearchSpecialistTool(apiKey),
+        new ReportPlannerTool(apiKey),
+        new SectionAuthorTool(apiKey),
         new ReportWriterTool(apiKey),
         new QualityReviewerTool(apiKey),
         new ReportExtenderTool(apiKey),
+        new ReportCompilerTool(),
         new SourceDeduplicatorTool(),
         new ThinkTool(),
       ];
     } else if (mode === "research") {
-      // Research mode gets parallel search and local docs
+      // Research mode gets all search tools
       tools = [
         new FileReadTool(projectDir),
         new FileWriteTool(projectDir),
         new BashTool(projectDir),
         new ThinkTool(),
         new GoogleSearchTool(),
+        new TavilySearchTool(),
         new ParallelSearchTool(),
+        new ParallelTavilySearchTool(),
         new LocalDocsSearchTool(),
       ];
-    } else {
-      // Standard tools for other modes
+    } else if (mode === "browser") {
+      // Browser mode gets search tools
       tools = [
         new FileReadTool(projectDir),
         new FileWriteTool(projectDir),
         new BashTool(projectDir),
         new ThinkTool(),
         new GoogleSearchTool(),
+        new TavilySearchTool(),
+      ];
+    } else {
+      // Standard tools for chat/computer/coder
+      tools = [
+        new FileReadTool(projectDir),
+        new FileWriteTool(projectDir),
+        new BashTool(projectDir),
+        new ThinkTool(),
+        new GoogleSearchTool(),
+        new TavilySearchTool(),
       ];
     }
 
