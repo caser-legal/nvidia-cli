@@ -171,14 +171,14 @@ export function Header() {
             <ChevronDown className="h-4 w-4 opacity-50" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuContent align="end" className="w-96 max-h-[400px] overflow-y-auto">
           <DropdownMenuLabel>Models</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {Object.entries(NVIDIA_MODELS).map(([id, model]) => (
             <DropdownMenuItem
               key={id}
               onClick={() => handleModelChange(id as ModelId)}
-              className="flex flex-col items-start py-2"
+              className="flex flex-col items-start py-3 cursor-pointer"
             >
               <div className="flex items-center gap-2 w-full">
                 <span className="font-medium">{model.name}</span>
@@ -186,12 +186,12 @@ export function Header() {
                   <Check className="h-4 w-4 ml-auto text-primary" />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground line-clamp-1">
+              <span className="text-xs text-muted-foreground whitespace-normal">
                 {model.description}
               </span>
               {/* Feature 88: Context window indicator */}
               <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
-                <span>{(model.contextWindow / 1000).toFixed(0)}K context</span>
+                <span>{(model.contextWindow / 1000).toFixed(0)}K ctx</span>
                 {model.supportsTools && <span>• Tools</span>}
                 {model.supportsImages && <span>• Vision</span>}
               </div>
