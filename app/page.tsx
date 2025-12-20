@@ -383,11 +383,11 @@ export default function ChatPage() {
 
             {cliMode ? (
               // CLI Agent Mode - Terminal-like interface with real tool execution
-              <CLIChat projectDir={coderProjectDir || "/Users/home"} className="flex-1" />
+              <CLIChat projectDir={coderProjectDir || "/Users/home"} className="flex-1 min-h-0" />
             ) : (
               <>
                 {/* Feature 1: Clean, centered chat layout */}
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-hidden">
                   {(shouldShowWelcome || (messages.length === 0 && !isStreaming)) ? (
                     // Agent selection welcome screen
                     <WelcomeScreen 
