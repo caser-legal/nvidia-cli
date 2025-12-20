@@ -241,6 +241,11 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
 
     abortControllerRef.current = new AbortController();
 
+    // Build conversation history from events
+    const conversationHistory = events
+      .filter(e => e.type === "message" && (e.role === "user" || e.role === "assistant"))
+      .map(e => ({ role: e.role as string, content: e.content || "" }));
+
     try {
       const response = await fetch("/api/agent-chat", {
         method: "POST",
@@ -251,7 +256,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
           }),
         },
         body: JSON.stringify({
-          messages: [{ role: "user", content: userMessage }],
+          messages: [...conversationHistory, { role: "user", content: userMessage }],
           mode,
           projectDir: "/Users/home",
         }),

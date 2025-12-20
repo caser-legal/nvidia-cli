@@ -136,6 +136,12 @@ export async function POST(request: Request) {
       });
     }
 
+    // Build conversation history (exclude the last user message - it's passed separately)
+    const conversationHistory = messages
+      .slice(0, -1)
+      .filter(m => m.role === "user" || m.role === "assistant")
+      .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
+
     // Create tools (same for all modes, but system prompt changes behavior)
     const tools = [
       new FileReadTool(projectDir),
@@ -165,7 +171,7 @@ export async function POST(request: Request) {
         });
 
         try {
-          const result = await agent.run(lastUserMessage.content);
+          const result = await agent.run(lastUserMessage.content, conversationHistory);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", content: result })}\n\n`));
         } catch (error) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 

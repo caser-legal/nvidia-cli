@@ -97,9 +97,14 @@ export class Agent {
     }
   }
 
-  async run(userMessage: string): Promise<string> {
+  async run(userMessage: string, conversationHistory?: AgentMessage[]): Promise<string> {
     this.emit({ type: "status", status: "running" });
     this.emit({ type: "message", role: "user", content: userMessage });
+
+    // Initialize with conversation history if provided
+    if (conversationHistory && conversationHistory.length > 0) {
+      this.messages = [...conversationHistory];
+    }
 
     // Add user message
     this.messages.push({ role: "user", content: userMessage });
