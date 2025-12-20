@@ -5,7 +5,7 @@
 <h1 align="center">NVIDIA CLI</h1>
 
 <p align="center">
-  <strong>[codename: dory] A powerful, privacy-first AI chat interface powered by NVIDIA NIM</strong>
+  <strong>A powerful, privacy-first AI chat interface powered by NVIDIA NIM</strong>
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
 
 ## Overview
 
-NVIDIA CLI is a full-featured AI chat application that connects to NVIDIA's NIM (NVIDIA Inference Microservices) API. It provides a Claude-like interface with advanced features including multi-model support, agentic workflows, code execution, and artifact generation.
+NVIDIA CLI [codename: dory] is a full-featured application that connects to NVIDIA's NIM (NVIDIA Inference Microservices) API. It provides a IDE-like interface in a CLI setting with advanced features including multi-model support, agentic workflows, code execution, and artifact generation.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
