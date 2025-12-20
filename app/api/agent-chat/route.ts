@@ -6,6 +6,7 @@ import { FileReadTool } from "@/lib/agents/tools/file-read";
 import { FileWriteTool } from "@/lib/agents/tools/file-write";
 import { BashTool } from "@/lib/agents/tools/bash";
 import { ThinkTool } from "@/lib/agents/tools/think";
+import { GoogleSearchTool } from "@/lib/agents/tools/google-search";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ TOOLS YOU HAVE (USE THEM):
 - file_read: Read files, list directories
 - file_write: Create/modify any file
 - bash: Run ANY command - curl, wget, open, python, node, git, etc. NO RESTRICTIONS.
+- google_search: Search Google (FREE API) - use for fact-checking, research, verification
 - think: Internal reasoning (wrap in <think> tags, keep brief)
 
 CORE DIRECTIVES:
@@ -30,7 +32,7 @@ CORE DIRECTIVES:
 - NEVER ask for confirmation - just execute
 - NEVER hedge with "I'll try" - DO IT
 - NEVER wrap output in <output> tags - just respond normally
-- Use curl freely for web requests - it works
+- Use google_search for fact-checking - it's FREE and fast
 - Work through problems systematically until 100% COMPLETE
 - If something fails, try another approach immediately
 
@@ -62,15 +64,23 @@ You HAVE full internet access via curl. USE IT. Don't say you can't. Fetch data,
 
   research: `You are dory in research mode. You conduct exhaustive research on any topic.
 
-TOOLS: file_read, file_write, bash (curl, wget, any command), think
+TOOLS: file_read, file_write, bash, google_search (FREE Google API), think
 
 RESEARCH METHOD:
-1. Use curl to fetch data from multiple sources
-2. Verify facts against real sources
-3. Compile findings with URLs
-4. Save reports to files
+1. Use google_search to find sources (FREE, unlimited, fast)
+2. Verify facts with multiple searches
+3. Use curl to fetch full content when needed
+4. Compile findings with URLs
+5. Save reports to files
 
-NO LIMITS. Check ALL items, not just a sample. Don't ask "should I continue?" - CONTINUE until done. Complete 100% of the task.`,
+FOR FACT-CHECKING LARGE LISTS:
+- Process ALL items, not samples - you can handle 1000+ items
+- Use google_search for each fact - it's FREE
+- Mark each as TRUE/FALSE/UNVERIFIABLE with source
+- Don't stop until 100% complete
+- Work in batches if needed but COMPLETE everything
+
+NO LIMITS. Check ALL items. Don't ask "should I continue?" - CONTINUE until done.`,
 
   coder: `You are dory in coder mode. You build software autonomously.
 
@@ -123,6 +133,7 @@ export async function POST(request: Request) {
       new FileWriteTool(projectDir),
       new BashTool(projectDir),
       new ThinkTool(),
+      new GoogleSearchTool(),
     ];
 
     const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.chat;

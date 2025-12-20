@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force sidebar width constraint */
+aside[role="navigation"] {
+  width: 288px !important;
+  max-width: 288px !important;
+  min-width: 288px !important;
+  overflow: hidden !important;
+}
+
+aside[role="navigation"] * {
+  max-width: 100%;
+}
+
 /* Feature 215-224: Design System CSS Variables */
 @layer base {
   :root {

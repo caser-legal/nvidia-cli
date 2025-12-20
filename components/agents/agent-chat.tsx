@@ -183,7 +183,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
     // Create session if new conversation
     let sid = currentSessionRef.current;
     if (!sid) {
-      const name = userMessage.slice(0, 50) + (userMessage.length > 50 ? "..." : "");
+      const name = userMessage.slice(0, 20) + (userMessage.length > 20 ? "..." : "");
       sid = createSession(mode, name, "/Users/home");
       currentSessionRef.current = sid;
     }

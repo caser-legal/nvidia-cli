@@ -158,7 +158,7 @@ export function Sidebar({ onNewChat }: SidebarProps) {
     <TooltipProvider>
       <aside
         className={cn(
-          "w-72 border-r bg-sidebar flex flex-col transition-all duration-300",
+          "w-72 max-w-72 min-w-72 border-r bg-sidebar flex flex-col transition-all duration-300 overflow-hidden",
           "animate-slide-in-left"
         )}
         role="navigation"
@@ -249,64 +249,24 @@ export function Sidebar({ onNewChat }: SidebarProps) {
                         <div
                           key={session.id}
                           className={cn(
-                            "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors",
+                            "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors overflow-hidden",
                             activeSessionId === session.id ? "bg-accent" : "hover:bg-accent/50"
                           )}
                           onClick={() => setActiveSession(session.id)}
                         >
-                          <Icon className="h-4 w-4 shrink-0 text-[#76B900]" />
-                          <div className="flex-1 min-w-0">
-                            <span className="truncate text-sm">{session.name}</span>
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                                onClick={(e) => e.stopPropagation()}
-                                disabled={isStopping}
-                              >
-                                {isStopping ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <MoreHorizontal className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                disabled={isStopping}
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  setStoppingSessionId(session.id);
-                                  try {
-                                    await fetch("/api/agents/run", {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({ action: "stop", sessionId: session.id }),
-                                    });
-                                  } catch {}
-                                  stopSession(session.id);
-                                  setStoppingSessionId(null);
-                                }}
-                              >
-                                <Square className="h-4 w-4 mr-2 text-destructive" />
-                                {isStopping ? "Stopping..." : "Stop"}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteSession(session.id);
-                                }}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Icon className="h-4 w-4 flex-shrink-0 text-[#76B900]" />
+                          <span className="flex-1 truncate text-sm">{session.name.slice(0, 20)}{session.name.length > 20 ? "..." : ""}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 flex-shrink-0 -mr-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSession(session.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       );
                     })}
@@ -325,39 +285,24 @@ export function Sidebar({ onNewChat }: SidebarProps) {
                         <div
                           key={session.id}
                           className={cn(
-                            "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors",
+                            "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors overflow-hidden",
                             activeSessionId === session.id ? "bg-accent" : "hover:bg-accent/50"
                           )}
                           onClick={() => setActiveSession(session.id)}
                         >
-                          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <div className="flex-1 min-w-0">
-                            <span className="truncate text-sm text-muted-foreground">{session.name}</span>
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteSession(session.id);
-                                }}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          <span className="flex-1 truncate text-sm text-muted-foreground">{session.name.slice(0, 20)}{session.name.length > 20 ? "..." : ""}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 flex-shrink-0 -mr-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSession(session.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       );
                     })}
@@ -469,7 +414,7 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors",
+        "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors overflow-hidden",
         isActive ? "bg-accent" : "hover:bg-accent/50"
       )}
       onClick={onClick}
@@ -478,23 +423,32 @@ function ConversationItem({
       onKeyDown={(e) => e.key === "Enter" && onClick()}
       aria-current={isActive ? "page" : undefined}
     >
-      <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1">
-          <span className="truncate text-sm">{conversation.title}</span>
-          {conversation.hasUnread && (
-            <span className="w-2 h-2 bg-primary rounded-full shrink-0" />
-          )}
-        </div>
-      </div>
+      <MessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+      <span className="flex-1 truncate text-sm overflow-hidden text-ellipsis whitespace-nowrap">{conversation.title}</span>
+      {conversation.hasUnread && (
+        <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
+      )}
 
-      {/* Feature 66: Context menu */}
+      {/* Delete button - always visible on hover */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+
+      {/* More options menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100"
+            className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100"
             onClick={(e) => e.stopPropagation()}
           >
             <MoreHorizontal className="h-4 w-4" />
@@ -508,11 +462,6 @@ function ConversationItem({
           <DropdownMenuItem onClick={onArchive}>
             <Archive className="h-4 w-4 mr-2" />
             Archive
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={onDelete} className="text-destructive">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
