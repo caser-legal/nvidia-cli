@@ -16,14 +16,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, estimateTokens } from "@/lib/utils";
 
-type AgentMode = "chat" | "coder" | "computer" | "browser" | "support" | "terminal";
+type AgentMode = "chat" | "coder" | "computer" | "browser" | "research" | "terminal";
 
 const modes = [
-  { id: "chat" as const, name: "Chat", icon: MessageSquare },
-  { id: "coder" as const, name: "Coder", icon: Code },
-  { id: "computer" as const, name: "Computer", icon: Monitor },
-  { id: "browser" as const, name: "Browser", icon: Globe },
-  { id: "support" as const, name: "Support", icon: Headphones },
+  { id: "chat" as const, name: "Talk", icon: MessageSquare },
+  { id: "coder" as const, name: "Code", icon: Code },
+  { id: "computer" as const, name: "Control", icon: Monitor },
+  { id: "browser" as const, name: "Browse", icon: Globe },
   { id: "terminal" as const, name: "Terminal", icon: Terminal },
 ];
 
@@ -46,7 +45,7 @@ export function ChatInput({
   isLoading = false,
   isStreaming = false,
   disabled = false,
-  placeholder = "Message NVIDIA AI...",
+  placeholder = "Message dory...",
   maxLength = 100000,
   agentMode = "chat",
   onModeChange,

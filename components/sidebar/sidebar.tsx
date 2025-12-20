@@ -115,7 +115,7 @@ export function Sidebar({ onNewChat }: SidebarProps) {
       case "coder": return Code;
       case "computer": return Monitor;
       case "browser": return Globe;
-      case "support": return Headphones;
+      case "research": return Headphones;
       default: return MessageSquare;
     }
   };

@@ -1,53 +1,53 @@
 // Welcome Screen Component
-// Agent selection cards for different NVIDIA agent types
+// Mode selection cards for different dory capabilities
 
 "use client";
 
 import * as React from "react";
-import { Code, Monitor, Globe, Headphones, MessageSquare } from "lucide-react";
+import { Code, Monitor, Globe, Search, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type AgentType = "chat" | "coder" | "computer" | "browser" | "support";
+export type AgentType = "chat" | "coder" | "computer" | "browser" | "research";
 
 interface WelcomeScreenProps {
   onAgentSelect: (agent: AgentType) => void;
   currentAgent?: AgentType;
 }
 
-const AGENTS = [
+const MODES = [
   {
     id: "chat" as const,
-    name: "Chat",
-    description: "General AI assistant powered by Nemotron",
+    name: "Talk",
+    description: "Conversational assistant powered by Nemotron",
     icon: MessageSquare,
     color: "from-[#76B900] to-[#5a8f00]",
   },
   {
     id: "coder" as const,
-    name: "Autonomous Coder",
-    description: "AI builds features from specifications",
+    name: "Code",
+    description: "Autonomous coding — builds features from specs",
     icon: Code,
     color: "from-blue-500 to-blue-600",
   },
   {
     id: "computer" as const,
-    name: "Computer Use",
-    description: "AI controls your computer to complete tasks",
+    name: "Control",
+    description: "Desktop automation — operates your computer",
     icon: Monitor,
     color: "from-purple-500 to-purple-600",
   },
   {
     id: "browser" as const,
-    name: "Browser Agent",
-    description: "AI navigates the web autonomously",
+    name: "Browse",
+    description: "Web automation — navigates and extracts data",
     icon: Globe,
     color: "from-orange-500 to-orange-600",
   },
   {
-    id: "support" as const,
-    name: "Customer Support",
-    description: "AI-powered support with knowledge base",
-    icon: Headphones,
+    id: "research" as const,
+    name: "Research",
+    description: "Deep investigation — multi-step analysis",
+    icon: Search,
     color: "from-pink-500 to-pink-600",
   },
 ];
@@ -73,21 +73,21 @@ export function WelcomeScreen({ onAgentSelect, currentAgent = "chat" }: WelcomeS
       <NvidiaLogo className="w-16 h-16 text-[#76B900] mb-6" />
 
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-semibold mb-2">NVIDIA NIM</h1>
+        <h1 className="text-2xl font-semibold mb-2">dory</h1>
         <p className="text-muted-foreground text-sm">
-          Powered by NVIDIA × Nemotron 3
+          Powered by NVIDIA NIM × Nemotron
         </p>
       </div>
 
-      {/* Agent selection grid */}
+      {/* Mode selection grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-3xl">
-        {AGENTS.map((agent) => {
-          const Icon = agent.icon;
-          const isSelected = currentAgent === agent.id;
+        {MODES.map((mode) => {
+          const Icon = mode.icon;
+          const isSelected = currentAgent === mode.id;
           return (
             <button
-              key={agent.id}
-              onClick={() => onAgentSelect(agent.id)}
+              key={mode.id}
+              onClick={() => onAgentSelect(mode.id)}
               className={cn(
                 "relative p-4 rounded-xl border text-left transition-all group",
                 isSelected
@@ -97,13 +97,13 @@ export function WelcomeScreen({ onAgentSelect, currentAgent = "chat" }: WelcomeS
             >
               <div className={cn(
                 "w-10 h-10 rounded-lg flex items-center justify-center mb-3 bg-gradient-to-br",
-                agent.color
+                mode.color
               )}>
                 <Icon className="h-5 w-5 text-white" />
               </div>
-              <div className="font-medium mb-1">{agent.name}</div>
+              <div className="font-medium mb-1">{mode.name}</div>
               <div className="text-xs text-muted-foreground line-clamp-2">
-                {agent.description}
+                {mode.description}
               </div>
               {isSelected && (
                 <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#76B900]" />

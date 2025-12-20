@@ -120,9 +120,11 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
             </div>
           );
         }
+        // Assistant message - show as dory
         return (
-          <div key={index} className="py-1">
-            <span className="text-gray-300 whitespace-pre-wrap">{event.content}</span>
+          <div key={index} className="flex items-start gap-2 py-1">
+            <span className="text-green-400 font-mono">[dory]</span>
+            <span className="text-gray-300 whitespace-pre-wrap flex-1">{event.content}</span>
           </div>
         );
 
@@ -196,7 +198,7 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
           <div className="w-3 h-3 rounded-full bg-yellow-500" />
           <div className="w-3 h-3 rounded-full bg-green-500" />
         </div>
-        <span className="text-gray-400 text-sm ml-2">nvidia-agent — {projectDir}</span>
+        <span className="text-gray-400 text-sm ml-2">dory — {projectDir}</span>
         {isRunning && (
           <span className="ml-auto text-green-400 text-sm animate-pulse">● running</span>
         )}
@@ -208,15 +210,15 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
           {/* Welcome message */}
           {events.length === 0 && (
             <div className="text-gray-500">
-              <div className="text-green-400 mb-2">NVIDIA Agent CLI</div>
-              <div>Type a command or ask a question. I can:</div>
+              <div className="text-green-400 mb-2">dory 🐟 — autonomous coding assistant</div>
+              <div>Welcome to the future of software development:</div>
               <div className="pl-4 text-gray-600">
-                • Read and write files<br />
-                • Execute shell commands<br />
-                • Navigate directories<br />
-                • Help with coding tasks
+                • Autonomous task execution<br />
+                • File system access & shell commands<br />
+                • Starts and finishes on its own<br />
+                • Build entire features with one prompt
               </div>
-              <div className="mt-2">Try: "what's in /Users/home/Desktop/science-test.txt"</div>
+              <div className="mt-2 text-gray-400">Type below to start working with dory.</div>
             </div>
           )}
 
@@ -238,7 +240,7 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={isRunning}
-            placeholder={isRunning ? "Running..." : "Enter command..."}
+            placeholder={isRunning ? "dory is thinking..." : "Ask dory anything..."}
             className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-600"
             autoComplete="off"
             spellCheck={false}

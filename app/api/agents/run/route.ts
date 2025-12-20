@@ -46,7 +46,7 @@ const AGENT_CONFIGS = {
     command: "streamlit",
     commandArgs: (script: string) => ["run", script, "--server.headless", "true"],
   },
-  support: {
+  research: {
     script: "npm",
     dir: "customer-support-agent",
     args: () => ["run", "dev"],

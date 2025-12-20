@@ -472,8 +472,8 @@ export default function ChatPage() {
                   <FolderOpen className="h-10 w-10 text-white" />
                 </div>
                 <div className="text-center">
-                  <h2 className="text-xl font-semibold mb-2">Autonomous Coder</h2>
-                  <p className="text-muted-foreground">Select a project directory to start the AI coding agent</p>
+                  <h2 className="text-xl font-semibold mb-2">Code Mode</h2>
+                  <p className="text-muted-foreground">Select a project directory to start the autonomous coder</p>
                 </div>
                 <div className="flex flex-col items-center gap-3 w-full max-w-md">
                   <div className="flex items-center gap-2 w-full">
@@ -526,35 +526,35 @@ export default function ChatPage() {
         )}
 
         {/* Other agent types with start buttons */}
-        {(agentMode === "computer" || agentMode === "browser" || agentMode === "support") && (
+        {(agentMode === "computer" || agentMode === "browser" || agentMode === "research") && (
           <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
             <div className={cn(
               "w-20 h-20 rounded-2xl flex items-center justify-center bg-gradient-to-br",
               agentMode === "computer" && "from-purple-500 to-purple-600",
               agentMode === "browser" && "from-orange-500 to-orange-600",
-              agentMode === "support" && "from-pink-500 to-pink-600"
+              agentMode === "research" && "from-pink-500 to-pink-600"
             )}>
               {agentMode === "computer" && <Monitor className="h-10 w-10 text-white" />}
               {agentMode === "browser" && <Globe className="h-10 w-10 text-white" />}
-              {agentMode === "support" && <Headphones className="h-10 w-10 text-white" />}
+              {agentMode === "research" && <Headphones className="h-10 w-10 text-white" />}
             </div>
             <div className="text-center">
               <h2 className="text-xl font-semibold mb-2">
-                {agentMode === "computer" && "Computer Use Agent"}
-                {agentMode === "browser" && "Browser Agent"}
-                {agentMode === "support" && "Customer Support Agent"}
+                {agentMode === "computer" && "Control Mode"}
+                {agentMode === "browser" && "Browse Mode"}
+                {agentMode === "research" && "Research Mode"}
               </h2>
               <p className="text-muted-foreground max-w-md">
-                {agentMode === "computer" && "AI controls your computer to complete tasks autonomously"}
-                {agentMode === "browser" && "AI navigates the web to find information and complete tasks"}
-                {agentMode === "support" && "AI-powered support with knowledge base integration"}
+                {agentMode === "computer" && "dory controls your computer to complete tasks autonomously"}
+                {agentMode === "browser" && "dory navigates the web to find information and complete tasks"}
+                {agentMode === "research" && "Deep research with knowledge base integration"}
               </p>
             </div>
             <button
               onClick={() => startAgentSession(agentMode as AgentType)}
               className="px-6 py-2 bg-[#76B900] hover:bg-[#5a8f00] text-white rounded-md transition-colors font-medium"
             >
-              Start {agentMode === "computer" ? "Computer Use" : agentMode === "browser" ? "Browser" : "Support"} Agent
+              Start {agentMode === "computer" ? "Control" : agentMode === "browser" ? "Browse" : "Research"} Mode
             </button>
             <button
               onClick={handleNewChat}

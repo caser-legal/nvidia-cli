@@ -315,11 +315,11 @@ export function ChatMessage({
 // Feature 22-24: Typing indicator and skeleton loaders
 export function TypingIndicator() {
   return (
-    <div className="typing-indicator" role="status" aria-label="AI is typing">
+    <div className="typing-indicator" role="status" aria-label="dory is thinking">
       <div className="typing-dot animate-typing-dot" />
       <div className="typing-dot animate-typing-dot" style={{ animationDelay: "0.2s" }} />
       <div className="typing-dot animate-typing-dot" style={{ animationDelay: "0.4s" }} />
-      <span className="sr-only">AI is typing...</span>
+      <span className="sr-only">dory is thinking...</span>
     </div>
   );
 }

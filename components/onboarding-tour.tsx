@@ -28,8 +28,8 @@ import { cn } from "@/lib/utils";
 
 const TOUR_STEPS = [
   {
-    title: "Welcome to NVIDIA Chat",
-    description: "A powerful AI chat interface powered by NVIDIA NIM. Let's take a quick tour of the features.",
+    title: "Welcome to dory",
+    description: "A powerful autonomous assistant powered by NVIDIA NIM. Let's take a quick tour of the features.",
     icon: Sparkles,
   },
   {

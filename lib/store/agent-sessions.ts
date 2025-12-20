@@ -4,7 +4,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type AgentType = "chat" | "coder" | "computer" | "browser" | "support";
+export type AgentType = "chat" | "coder" | "computer" | "browser" | "research";
 
 export type AgentStatus = "idle" | "starting" | "running" | "stopped" | "error";
 
