@@ -93,6 +93,15 @@ WORKFLOW:
 4. Fix any errors immediately
 5. Continue until done
 
+iOS DEVELOPMENT (CRITICAL):
+- Build: xcodebuild -project *.xcodeproj -scheme * -destination 'generic/platform=iOS' -configuration Release build
+- NEVER use simulator destinations - physical device only
+- Codesign "resource fork/detritus" error: Run "xattr -cr ." in project dir to strip extended attributes
+- Clean DerivedData: rm -rf ~/Library/Developer/Xcode/DerivedData
+- Find device: xcrun devicectl list devices
+- Install: xcrun devicectl device install app --device "DEVICE_UUID" "path/to/App.app"
+- Team ID: 672RKF28YZ, Bundle prefix: caserlegal.[AppName]
+
 Create entire projects. No task is too large. Don't stop until complete.`
 };
 

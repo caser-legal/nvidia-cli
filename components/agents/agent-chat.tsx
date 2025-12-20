@@ -122,12 +122,46 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
   const [events, setEvents] = React.useState<AgentEvent[]>([]);
   const [input, setInput] = React.useState("");
   const [isRunning, setIsRunning] = React.useState(false);
+  const [metrics, setMetrics] = React.useState<{ tokensPerSec: number; totalTokens: number; elapsed: number } | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const currentSessionRef = React.useRef<string | null>(null);
+  const streamStartRef = React.useRef<number>(0);
+  const tokenCountRef = React.useRef<number>(0);
+  const metricsIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const { sessions, createSession, appendOutput, updateSession } = useAgentSessionsStore();
+  
+  // Estimate tokens from text (roughly 4 chars per token)
+  const estimateTokens = (text: string) => Math.ceil(text.length / 4);
+  
+  // Start metrics tracking
+  const startMetrics = () => {
+    streamStartRef.current = Date.now();
+    tokenCountRef.current = 0;
+    setMetrics({ tokensPerSec: 0, totalTokens: 0, elapsed: 0 });
+    
+    // Update metrics every 100ms
+    metricsIntervalRef.current = setInterval(() => {
+      const elapsed = (Date.now() - streamStartRef.current) / 1000;
+      const tokPerSec = elapsed > 0 ? Math.round(tokenCountRef.current / elapsed) : 0;
+      setMetrics({ tokensPerSec: tokPerSec, totalTokens: tokenCountRef.current, elapsed: Math.round(elapsed * 10) / 10 });
+    }, 100);
+  };
+  
+  // Stop metrics tracking
+  const stopMetrics = () => {
+    if (metricsIntervalRef.current) {
+      clearInterval(metricsIntervalRef.current);
+      metricsIntervalRef.current = null;
+    }
+  };
+  
+  // Add tokens to count
+  const addTokens = (text: string) => {
+    tokenCountRef.current += estimateTokens(text);
+  };
 
   const config = MODE_CONFIG[mode];
   const Icon = config.icon;
@@ -152,6 +186,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsRunning(false);
+      stopMetrics();
       setEvents(prev => [...prev, { type: "status", status: "stopped" }]);
     }
   };
@@ -164,11 +199,21 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
     inputRef.current?.focus();
   }, []);
 
+  // Cleanup metrics interval on unmount
+  React.useEffect(() => {
+    return () => {
+      if (metricsIntervalRef.current) {
+        clearInterval(metricsIntervalRef.current);
+      }
+    };
+  }, []);
+
   // Clear events when mode changes (but not if loading a session)
   React.useEffect(() => {
     if (!sessionId) {
       setEvents([]);
       currentSessionRef.current = null;
+      setMetrics(null);
     }
   }, [mode, sessionId]);
 
@@ -179,6 +224,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
     const userMessage = input.trim();
     setInput("");
     setIsRunning(true);
+    startMetrics();
 
     // Create session if new conversation
     let sid = currentSessionRef.current;
@@ -231,6 +277,9 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
             try {
               const event = JSON.parse(line.slice(6)) as AgentEvent;
               if (event.type === "message" && event.role === "user") continue;
+              // Track tokens from content
+              if (event.content) addTokens(event.content);
+              if (event.result) addTokens(event.result);
               setEvents(prev => [...prev, event]);
               appendOutput(sid!, JSON.stringify(event));
             } catch {}
@@ -238,7 +287,10 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
         }
       }
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
+      if (error instanceof Error && error.name === 'AbortError') {
+        stopMetrics();
+        return;
+      }
       setEvents(prev => [...prev, {
         type: "error",
         message: error instanceof Error ? error.message : "Unknown error",
@@ -246,6 +298,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
       if (sid) updateSession(sid, { status: "error" });
     } finally {
       setIsRunning(false);
+      stopMetrics();
       abortControllerRef.current = null;
       if (sid) updateSession(sid, { status: "stopped" });
       inputRef.current?.focus();
@@ -348,9 +401,21 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
           <Icon className={cn("h-4 w-4", config.color)} />
           <span className={cn("text-sm", config.color)}>{config.name} Mode</span>
         </div>
-        {isRunning && (
-          <span className={cn("ml-auto text-sm animate-pulse", config.color)}>● running</span>
-        )}
+        {/* Metrics display */}
+        <div className="ml-auto flex items-center gap-3 text-xs font-mono">
+          {metrics && metrics.tokensPerSec > 0 && (
+            <span className="text-gray-400 tabular-nums">{metrics.tokensPerSec} tok/s</span>
+          )}
+          {metrics && metrics.totalTokens > 0 && (
+            <span className="text-gray-500 tabular-nums">{metrics.totalTokens} tokens</span>
+          )}
+          {metrics && metrics.elapsed > 0 && (
+            <span className="text-gray-600 tabular-nums">{metrics.elapsed}s</span>
+          )}
+          {isRunning && (
+            <span className={cn("animate-pulse", config.color)}>●</span>
+          )}
+        </div>
       </div>
 
       {/* Output area */}
