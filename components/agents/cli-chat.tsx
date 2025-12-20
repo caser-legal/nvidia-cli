@@ -36,7 +36,6 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
   const [events, setEvents] = React.useState<AgentEvent[]>([]);
   const [input, setInput] = React.useState("");
   const [isRunning, setIsRunning] = React.useState(false);
-  const folderInputRef = React.useRef<HTMLInputElement>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -50,6 +49,18 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
     inputRef.current?.focus();
   }, []);
 
+  const handleFolderSelect = () => {
+    const newDir = prompt("Enter project directory path:", currentDir);
+    if (newDir && newDir.trim()) {
+      setCurrentDir(newDir.trim());
+      onProjectDirChange?.(newDir.trim());
+      setEvents(prev => [...prev, { 
+        type: "status", 
+        status: `switched to ${newDir.trim()}` 
+      }]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isRunning) return;
@@ -58,7 +69,6 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
     setInput("");
     setIsRunning(true);
 
-    // Add user message to events
     setEvents(prev => [...prev, { type: "message", role: "user", content: userMessage }]);
 
     try {
@@ -76,9 +86,7 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("No response body");
@@ -96,7 +104,6 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
           if (line.startsWith("data: ")) {
             try {
               const event = JSON.parse(line.slice(6)) as AgentEvent;
-              // Skip user messages from server - we already added it locally
               if (event.type === "message" && event.role === "user") continue;
               setEvents(prev => [...prev, event]);
             } catch {
@@ -116,7 +123,6 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
     }
   };
 
-  // Strip <think>...</think> tags from content
   const stripThinking = (content: string) => {
     return content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
   };
@@ -132,7 +138,6 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
             </div>
           );
         }
-        // Assistant message - render markdown, strip thinking
         const cleanContent = stripThinking(event.content || "");
         if (!cleanContent) return null;
         return (
@@ -198,19 +203,10 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
 
       case "complete":
       case "done":
-        return null; // Don't render completion events
+        return null;
 
       default:
         return null;
-  const handleFolderSelect = () => {
-    const newDir = prompt("Enter project directory path:", currentDir);
-    if (newDir && newDir.trim()) {
-      setCurrentDir(newDir.trim());
-      onProjectDirChange?.(newDir.trim());
-      setEvents(prev => [...prev, { 
-        type: "status", 
-        status: `switched to ${newDir.trim()}` 
-      }]);
     }
   };
 
@@ -241,10 +237,9 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
       {/* Output area */}
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-1">
-          {/* Welcome message */}
           {events.length === 0 && (
             <div className="text-gray-500">
-              <div className="text-green-400 mb-2">NVIDA CLI [codename: dory]</div>
+              <div className="text-green-400 mb-2">NVIDIA CLI [codename: dory]</div>
               <div>Welcome to the future of software development:</div>
               <div className="pl-4 text-gray-600">
                 • Truly autonomous task execution<br />
@@ -252,14 +247,12 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
                 • Starts and finishes on its own<br />
                 • Build entire apps with one file
               </div>
-              <div className="mt-2 text-gray-400">Type below to start working with dory.</div>
+              <div className="mt-2 text-gray-400">Click the folder icon above to select a project, then type below.</div>
             </div>
           )}
 
-          {/* Events */}
           {events.map((event, i) => renderEvent(event, i))}
 
-          {/* Scroll anchor */}
           <div ref={scrollRef} />
         </div>
       </ScrollArea>
