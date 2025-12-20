@@ -91,6 +91,8 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
           if (line.startsWith("data: ")) {
             try {
               const event = JSON.parse(line.slice(6)) as AgentEvent;
+              // Skip user messages from server - we already added it locally
+              if (event.type === "message" && event.role === "user") continue;
               setEvents(prev => [...prev, event]);
             } catch {
               // Ignore parse errors
