@@ -22,9 +22,22 @@ export default function ChatPage() {
   const [activeArtifact, setActiveArtifact] = React.useState<Artifact | null>(null);
 
   const { sidebarOpen, artifactPanelOpen, closeArtifactPanel, setCommandPaletteOpen, setSettingsModalOpen, toggleSidebar, agentMode, setAgentMode, coderProjectDir, setCoderProjectDir } = useUIStore();
-  const { createSession, updateSession, appendOutput } = useAgentSessionsStore();
+  const { createSession, updateSession, appendOutput, activeSessionId, sessions, setActiveSession } = useAgentSessionsStore();
 
-  const handleNewChat = () => setAgentMode("chat");
+  // When clicking a session in sidebar, switch to its mode
+  React.useEffect(() => {
+    if (activeSessionId) {
+      const session = sessions.find(s => s.id === activeSessionId);
+      if (session && session.type !== agentMode) {
+        setAgentMode(session.type);
+      }
+    }
+  }, [activeSessionId, sessions, agentMode, setAgentMode]);
+
+  const handleNewChat = () => {
+    setActiveSession(null);
+    setAgentMode("chat");
+  };
 
   const startAgentSession = async (type: AgentType, projectDir?: string) => {
     const name = `${type.charAt(0).toUpperCase() + type.slice(1)} - ${new Date().toLocaleTimeString()}`;
@@ -90,22 +103,13 @@ export default function ChatPage() {
       <main id="main-content" className="flex-1 flex flex-col min-w-0">
         <Header />
 
-        {/* Talk, Control, Browse, Research modes - all use AgentChat */}
-        {(agentMode === "chat" || agentMode === "computer" || agentMode === "browser" || agentMode === "research") && (
-          <AgentChat mode={getAgentChatMode()} className="flex-1 min-h-0" />
-        )}
-
-        {/* Coder mode - uses CoderPanel with project selector */}
-        {agentMode === "coder" && (
-          coderProjectDir ? (
-            <CoderPanel projectDir={coderProjectDir} onBack={() => setCoderProjectDir("")} />
-          ) : (
-            <CoderSetup onStart={(dir, task) => {
-              setCoderProjectDir(dir);
-              // Task is passed to CoderPanel via the dir for now
-              // Could extend to pass task type
-            }} />
-          )
+        {/* Talk, Control, Browse, Research, Coder modes - all use AgentChat */}
+        {(agentMode === "chat" || agentMode === "computer" || agentMode === "browser" || agentMode === "research" || agentMode === "coder") && (
+          <AgentChat 
+            mode={agentMode === "coder" ? "coder" : getAgentChatMode()} 
+            sessionId={activeSessionId}
+            className="flex-1 min-h-0" 
+          />
         )}
 
         {/* Terminal mode */}

@@ -5,9 +5,11 @@
 
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { Monitor, Globe, Headphones, MessageSquare, Code } from "lucide-react";
+import { Monitor, Globe, Headphones, MessageSquare, Code, Square } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAgentSessionsStore } from "@/lib/store/agent-sessions";
 
 interface AgentEvent {
   type: "status" | "message" | "tool_call" | "tool_result" | "error" | "complete" | "done";
@@ -25,6 +27,7 @@ type AgentMode = "chat" | "computer" | "browser" | "research" | "coder";
 
 interface AgentChatProps {
   mode: AgentMode;
+  sessionId?: string | null;
   className?: string;
 }
 
@@ -103,27 +106,55 @@ const MODE_CONFIG = {
     bgColor: "bg-blue-500",
     placeholder: "What would you like me to build or work on?",
     welcome: {
-      title: "Autonomous Coder Mode",
-      description: "I build and modify code projects autonomously",
+      title: "Autonomous Coder",
+      description: "Build entire apps from start to finish. Watch it work.",
       features: [
-        "Create new projects from scratch",
-        "Continue existing projects",
-        "Refactor and improve code",
-        "Fix bugs and add features",
+        "Never overflows context window",
+        "Never gets dumb—compact memory across sessions",
+        "Never say \"just do it\" again",
+        "Picks up exactly where it left off, every time",
       ],
     },
   },
 };
 
-export function AgentChat({ mode, className }: AgentChatProps) {
+export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
   const [events, setEvents] = React.useState<AgentEvent[]>([]);
   const [input, setInput] = React.useState("");
   const [isRunning, setIsRunning] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const currentSessionRef = React.useRef<string | null>(null);
+
+  const { sessions, createSession, appendOutput, updateSession } = useAgentSessionsStore();
 
   const config = MODE_CONFIG[mode];
   const Icon = config.icon;
+
+  // Load session if sessionId provided
+  React.useEffect(() => {
+    if (sessionId && sessionId !== currentSessionRef.current) {
+      const session = sessions.find(s => s.id === sessionId);
+      if (session?.output?.length) {
+        try {
+          const loaded = session.output.map(o => JSON.parse(o) as AgentEvent);
+          setEvents(loaded);
+          currentSessionRef.current = sessionId;
+        } catch {}
+      }
+    }
+  }, [sessionId, sessions]);
+
+  // Stop handler
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsRunning(false);
+      setEvents(prev => [...prev, { type: "status", status: "stopped" }]);
+    }
+  };
 
   React.useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -133,10 +164,13 @@ export function AgentChat({ mode, className }: AgentChatProps) {
     inputRef.current?.focus();
   }, []);
 
-  // Clear events when mode changes
+  // Clear events when mode changes (but not if loading a session)
   React.useEffect(() => {
-    setEvents([]);
-  }, [mode]);
+    if (!sessionId) {
+      setEvents([]);
+      currentSessionRef.current = null;
+    }
+  }, [mode, sessionId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +180,20 @@ export function AgentChat({ mode, className }: AgentChatProps) {
     setInput("");
     setIsRunning(true);
 
-    setEvents(prev => [...prev, { type: "message", role: "user", content: userMessage }]);
+    // Create session if new conversation
+    let sid = currentSessionRef.current;
+    if (!sid) {
+      const name = userMessage.slice(0, 50) + (userMessage.length > 50 ? "..." : "");
+      sid = createSession(mode, name, "/Users/home");
+      currentSessionRef.current = sid;
+    }
+
+    const userEvent: AgentEvent = { type: "message", role: "user", content: userMessage };
+    setEvents(prev => [...prev, userEvent]);
+    appendOutput(sid, JSON.stringify(userEvent));
+    updateSession(sid, { status: "running" });
+
+    abortControllerRef.current = new AbortController();
 
     try {
       const response = await fetch("/api/agent-chat", {
@@ -162,6 +209,7 @@ export function AgentChat({ mode, className }: AgentChatProps) {
           mode,
           projectDir: "/Users/home",
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) throw new Error(`API error: ${response.status}`);
@@ -184,23 +232,32 @@ export function AgentChat({ mode, className }: AgentChatProps) {
               const event = JSON.parse(line.slice(6)) as AgentEvent;
               if (event.type === "message" && event.role === "user") continue;
               setEvents(prev => [...prev, event]);
+              appendOutput(sid!, JSON.stringify(event));
             } catch {}
           }
         }
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       setEvents(prev => [...prev, {
         type: "error",
         message: error instanceof Error ? error.message : "Unknown error",
       }]);
+      if (sid) updateSession(sid, { status: "error" });
     } finally {
       setIsRunning(false);
+      abortControllerRef.current = null;
+      if (sid) updateSession(sid, { status: "stopped" });
       inputRef.current?.focus();
     }
   };
 
-  const stripThinking = (content: string) => {
-    return content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  // Parse thinking blocks
+  const parseContent = (content: string) => {
+    const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/i);
+    const thinking = thinkMatch ? thinkMatch[1].trim() : null;
+    const mainContent = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    return { thinking, mainContent };
   };
 
   const renderEvent = (event: AgentEvent, index: number) => {
@@ -214,14 +271,22 @@ export function AgentChat({ mode, className }: AgentChatProps) {
             </div>
           );
         }
-        const cleanContent = stripThinking(event.content || "");
-        if (!cleanContent) return null;
+        const { thinking, mainContent } = parseContent(event.content || "");
         return (
-          <div key={index} className="flex items-start gap-2 py-2">
-            <span className={cn("font-mono shrink-0", config.color)}>[dory]</span>
-            <div className="text-gray-200 flex-1 prose prose-invert prose-sm max-w-none prose-pre:bg-gray-800 prose-pre:text-gray-200 prose-code:text-green-400 prose-headings:text-white prose-strong:text-white prose-li:text-gray-200">
-              <ReactMarkdown>{cleanContent}</ReactMarkdown>
-            </div>
+          <div key={index} className="py-2">
+            {thinking && (
+              <div className="mb-2 pl-3 border-l border-gray-700 text-[11px] text-gray-500 italic leading-relaxed max-h-24 overflow-y-auto">
+                <span className="text-gray-600 not-italic">💭 </span>{thinking}
+              </div>
+            )}
+            {mainContent && (
+              <div className="flex items-start gap-2">
+                <span className={cn("font-mono shrink-0", config.color)}>[dory]</span>
+                <div className="text-gray-200 flex-1 prose prose-invert prose-sm max-w-none prose-pre:bg-gray-800 prose-pre:text-gray-200 prose-code:text-green-400 prose-headings:text-white prose-strong:text-white prose-li:text-gray-200">
+                  <ReactMarkdown>{mainContent}</ReactMarkdown>
+                </div>
+              </div>
+            )}
           </div>
         );
 
@@ -324,6 +389,18 @@ export function AgentChat({ mode, className }: AgentChatProps) {
             autoComplete="off"
             spellCheck={false}
           />
+          {isRunning && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleStop}
+              className="text-red-400 hover:text-red-300 hover:bg-red-900/20 gap-1"
+            >
+              <Square className="h-3 w-3 fill-current" />
+              Stop
+            </Button>
+          )}
         </div>
       </form>
     </div>
