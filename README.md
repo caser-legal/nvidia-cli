@@ -5,7 +5,7 @@
 <h1 align="center">NVIDIA CLI</h1>
 
 <p align="center">
-  <strong>A powerful, privacy-first AI chat interface powered by NVIDIA NIM</strong>
+  <strong>[codename: dory] A powerful, privacy-first AI chat interface powered by NVIDIA NIM</strong>
 </p>
 
 <p align="center">
