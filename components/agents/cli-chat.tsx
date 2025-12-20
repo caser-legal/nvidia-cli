@@ -210,13 +210,13 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
           {/* Welcome message */}
           {events.length === 0 && (
             <div className="text-gray-500">
-              <div className="text-green-400 mb-2">dory 🐟 — autonomous coding assistant</div>
+              <div className="text-green-400 mb-2">NVIDA CLI [codename: dory]</div>
               <div>Welcome to the future of software development:</div>
               <div className="pl-4 text-gray-600">
-                • Autonomous task execution<br />
-                • File system access & shell commands<br />
+                • Truly autonomous task execution<br />
+                • Never say "just do it" again<br />
                 • Starts and finishes on its own<br />
-                • Build entire features with one prompt
+                • Build entire apps with one file
               </div>
               <div className="mt-2 text-gray-400">Type below to start working with dory.</div>
             </div>

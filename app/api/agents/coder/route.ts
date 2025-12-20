@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       systemPrompt: CODING_SYSTEM_PROMPT,
       tools,
       config: {
-        model: "nvidia/nemotron-3-nano",
+        model: "nvidia/nemotron-3-nano-30b-a3b",
         maxTokens: 16384,
         temperature: 0.7,
       },

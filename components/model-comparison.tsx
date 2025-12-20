@@ -18,7 +18,7 @@ import { Check, X, Zap, Brain, Eye, Code } from "lucide-react";
 
 // Feature 89: Model pricing info (free tier)
 const MODEL_PRICING = {
-  "nvidia/nemotron-3-nano": { input: "Free", output: "Free", limit: "40 RPM" },
+  "nvidia/nemotron-3-nano-30b-a3b": { input: "Free", output: "Free", limit: "40 RPM" },
   "nvidia/nemotron-nano-9b-v2": { input: "Free", output: "Free", limit: "40 RPM" },
   "nvidia/llama-3.3-nemotron-super-49b-v1.5": { input: "Free", output: "Free", limit: "40 RPM" },
   "deepseek-ai/deepseek-v3.1": { input: "Free", output: "Free", limit: "40 RPM" },

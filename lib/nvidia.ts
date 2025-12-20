@@ -10,8 +10,8 @@ const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || "";
 // Available Models (December 2025)
 export const NVIDIA_MODELS = {
   // Nemotron 3 Nano - Flagship reasoning model with parallel reasoning
-  "nvidia/nemotron-3-nano": {
-    id: "nvidia/nemotron-3-nano",
+  "nvidia/nemotron-3-nano-30b-a3b": {
+    id: "nvidia/nemotron-3-nano-30b-a3b",
     name: "Nemotron 3 Nano",
     description: "30B params, 3.5B active, hybrid Mamba-Transformer MoE, 1M context, parallel reasoning",
     contextWindow: 1000000,
@@ -23,8 +23,8 @@ export const NVIDIA_MODELS = {
     supportsThinkingBudget: true,
   },
   // Nemotron Nano 9B v2 - Efficient model with thinking budget control
-  "nvidia/nemotron-nano-9b-v2": {
-    id: "nvidia/nemotron-nano-9b-v2",
+  "nvidia/nvidia-nemotron-nano-9b-v2": {
+    id: "nvidia/nvidia-nemotron-nano-9b-v2",
     name: "Nemotron Nano 9B v2",
     description: "High-efficiency LLM with hybrid Transformer-Mamba design, thinking budget control",
     contextWindow: 128000,
@@ -116,8 +116,8 @@ export const NVIDIA_MODELS = {
     supportsThinkingBudget: false,
   },
   // Vision Models
-  "nvidia/llama-3.1-nemotron-nano-vl-8b": {
-    id: "nvidia/llama-3.1-nemotron-nano-vl-8b",
+  "nvidia/llama-3.1-nemotron-nano-vl-8b-v1": {
+    id: "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
     name: "Nemotron Nano VL 8B",
     description: "Multimodal vision-language model for image understanding",
     contextWindow: 128000,

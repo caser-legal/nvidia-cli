@@ -32,7 +32,7 @@ export function ProjectSettingsPanel() {
   const [description, setDescription] = React.useState("");
   const [color, setColor] = React.useState("#76B900");
   const [customInstructions, setCustomInstructions] = React.useState("");
-  const [defaultModel, setDefaultModel] = React.useState<ModelId>("nvidia/nemotron-3-nano");
+  const [defaultModel, setDefaultModel] = React.useState<ModelId>("nvidia/nemotron-3-nano-30b-a3b");
 
   // Load project data
   React.useEffect(() => {

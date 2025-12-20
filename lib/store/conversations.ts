@@ -142,7 +142,7 @@ export const useConversationStore = create<ConversationState>()(
         const newConversation: Conversation = {
           id,
           title: "New Conversation",
-          model: "nvidia/nemotron-3-nano",
+          model: "nvidia/nemotron-3-nano-30b-a3b",
           messages: [],
           temperature: 1,
           maxTokens: 16384,

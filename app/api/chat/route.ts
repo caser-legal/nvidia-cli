@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       messages,
-      model = "nvidia/nemotron-3-nano",
+      model = "nvidia/nemotron-3-nano-30b-a3b",
       temperature = 1,
       maxTokens = 16384,
       topP = 1,

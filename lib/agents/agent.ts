@@ -12,7 +12,7 @@ import type {
 } from "./types";
 
 const DEFAULT_CONFIG: AgentConfig = {
-  model: "nvidia/nemotron-3-nano",
+  model: "nvidia/nemotron-3-nano-30b-a3b",
   maxTokens: 16384,
   temperature: 1,
   contextWindowTokens: 128000,
