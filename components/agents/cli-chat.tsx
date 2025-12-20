@@ -181,7 +181,7 @@ export function CLIChat({ projectDir = "/Users/home", className }: CLIChatProps)
             <span className={cn(
               "font-mono",
               event.status === "running" && "text-yellow-500",
-              event.status === "completed" && "text-green-500",
+              event.status === "completed" && "text-white",
               event.status === "error" && "text-red-500"
             )}>{event.status}</span>
           </div>
