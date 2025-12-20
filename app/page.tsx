@@ -172,18 +172,19 @@ export default function ChatPage() {
 
   // Feature 2: Send message with streaming
   const handleSendMessage = async (content: string, images?: string[]) => {
-    if (!conversation) {
+    let convId = conversation?.id;
+    
+    if (!convId) {
       // Create new conversation if none exists
-      const newId = createConversation();
-      // Wait for state update
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      convId = createConversation();
     }
 
-    const currentConv = getCurrentConversation();
+    // Get the conversation directly by ID
+    const currentConv = useConversationStore.getState().conversations.find(c => c.id === convId);
     if (!currentConv) return;
 
     // Add user message
-    const userMessageId = addMessage(currentConv.id, {
+    const userMessageId = addMessage(convId, {
       role: "user",
       content,
       images,
@@ -270,14 +271,14 @@ export default function ChatPage() {
       }
 
       // Add assistant message
-      addMessage(currentConv.id, {
+      addMessage(convId, {
         role: "assistant",
         content: fullContent,
       });
     } catch (error) {
       console.error("Chat error:", error);
       // Add error message
-      addMessage(currentConv.id, {
+      addMessage(convId, {
         role: "assistant",
         content: `Error: ${error instanceof Error ? error.message : "Failed to get response"}`,
       });
