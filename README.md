@@ -1,7 +1,7 @@
 <p align="center">
   <img src="public/nvidia-logo.webp" alt="NVIDIA CLI" width="120" />
   </p>
-  Access Dory here: <a href="http://localhost:3000/">Local 3000</a> or <a href="http://localhost:3001/">Local 3001</a>
+
   </p>
 </p>
 
@@ -9,6 +9,7 @@
 
 <p align="center">
   <strong>A powerful, privacy-first AI assistant powered by NVIDIA NIM</strong>
+    Access Dory here: <a href="http://localhost:3000/">Local 3000</a> or <a href="http://localhost:3001/">Local 3001</a>
 </p>
 
 <p align="center">
