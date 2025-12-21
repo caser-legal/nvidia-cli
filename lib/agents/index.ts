@@ -8,5 +8,15 @@ export { FileWriteTool } from "./tools/file-write";
 export { BashTool } from "./tools/bash";
 export { ThinkTool } from "./tools/think";
 export { GoogleSearchTool } from "./tools/google-search";
+export { TavilySearchTool, ParallelTavilySearchTool } from "./tools/tavily-search";
+export { ParallelSearchTool } from "./tools/parallel-search";
+export { LocalDocsSearchTool } from "./tools/local-docs-search";
+export { GitHubAnalyzerTool, GitHubFileReaderTool } from "./tools/github-analyzer";
+export { MermaidGeneratorTool, QuickDiagramTool } from "./tools/mermaid-generator";
+export { MemoryTool, EntityMemoryTool } from "./tools/memory";
+export { CodeDocumentationTool, DocumentationSpecialistTool } from "./tools/code-documentation";
+export { RAGTools, RAGIngestTool, RAGSearchTool, RAGQueryTool, RAGResearchTool, RAGStatsTool, RAGClearTool } from "./tools/rag-tools";
 
 export * from "./types";
+export * from "./flywheel";
+export * from "./rag";

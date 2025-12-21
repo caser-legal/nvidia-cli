@@ -25,6 +25,7 @@ import { GitHubAnalyzerTool, GitHubFileReaderTool } from "@/lib/agents/tools/git
 import { MermaidGeneratorTool, QuickDiagramTool } from "@/lib/agents/tools/mermaid-generator";
 import { MemoryTool, EntityMemoryTool } from "@/lib/agents/tools/memory";
 import { CodeDocumentationTool, DocumentationSpecialistTool } from "@/lib/agents/tools/code-documentation";
+import { RAGIngestTool, RAGSearchTool, RAGQueryTool, RAGResearchTool, RAGStatsTool, RAGClearTool } from "@/lib/agents/tools/rag-tools";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
 
 export const runtime = "nodejs";
@@ -275,7 +276,7 @@ export async function POST(request: Request) {
         new ThinkTool(),
       ];
     } else if (mode === "research") {
-      // Research mode gets all search tools + memory
+      // Research mode gets all search tools + memory + RAG
       tools = [
         new FileReadTool(projectDir),
         new FileWriteTool(projectDir),
@@ -287,6 +288,11 @@ export async function POST(request: Request) {
         new ParallelTavilySearchTool(),
         new LocalDocsSearchTool(),
         new MemoryTool(),
+        RAGIngestTool,
+        RAGSearchTool,
+        RAGQueryTool,
+        RAGResearchTool,
+        RAGStatsTool,
       ];
     } else if (mode === "browser") {
       // Browser mode gets search tools
