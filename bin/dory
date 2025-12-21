@@ -68,7 +68,7 @@ async function run() {
   }
 }
 
-function handleEvent(event: any) {
+function handleEvent(event) {
   switch (event.type) {
     case 'message':
       if (event.role === 'assistant' && event.content) {
