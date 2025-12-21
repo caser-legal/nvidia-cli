@@ -166,17 +166,17 @@ Multi-agent research with quality review loops:
 │                                                             │
 │  User Query                                                 │
 │      ↓                                                      │
-│  🔍 Search Specialist (parallel web + local docs)          │
+│  🔍 Search Specialist (parallel web + local docs)           │
 │      ↓                                                      │
-│  📋 Report Planner (structured outline)                    │
+│  📋 Report Planner (structured outline)                     │
 │      ↓                                                      │
-│  ✍️ Section Author (writes each section)                   │
+│  ✍️ Section Author (writes each section)                    │
 │      ↓                                                      │
-│  ✅ Quality Reviewer (evaluates completeness)              │
+│  ✅ Quality Reviewer (evaluates completeness)               │
 │      ↓                                                      │
-│  🔄 Reflection Loop (max 3 rounds until approved)          │
+│  🔄 Reflection Loop (max 3 rounds until approved)           │
 │      ↓                                                      │
-│  📚 Source Deduplicator (clean citations)                  │
+│  📚 Source Deduplicator (clean citations)                   │
 │      ↓                                                      │
 │  Final Report                                               │
 │                                                             │
