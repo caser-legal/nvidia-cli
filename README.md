@@ -85,7 +85,7 @@ The interface mimics a macOS terminal window with functional controls:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ 🔴 🟡 🟢  12/21/2024 2:05:23 PM        15 tok/s  238 tokens │
+│ 🔴 🟡 🟢  12/21/2024 2:05:23 PM        15 tok/s  238 tokens│
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  [dory] Here's what's in your directory:                    │
