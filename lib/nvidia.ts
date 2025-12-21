@@ -7,13 +7,13 @@ import OpenAI from "openai";
 const NVIDIA_API_BASE = "https://integrate.api.nvidia.com/v1";
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || "";
 
-// Available Models (December 2025) - Optimized for iOS coding
+// Available Models - Streamlined for agents and coding
 export const NVIDIA_MODELS = {
-  // Nemotron 3 Nano - NEW flagship (Dec 15, 2025) - hybrid Mamba-Transformer MoE
+  // Nemotron 3 Nano - Main agent model, 1M context
   "nvidia/nemotron-3-nano-30b-a3b": {
     id: "nvidia/nemotron-3-nano-30b-a3b",
     name: "Nemotron 3 Nano",
-    description: "31.6B params, 3.6B active, hybrid Mamba-Transformer MoE, 1M context, reasoning ON/OFF, 3.3x faster",
+    description: "31.6B params, 3.6B active, 1M context, reasoning ON/OFF",
     contextWindow: 1000000,
     maxTokens: 32768,
     supportsTools: true,
@@ -23,41 +23,25 @@ export const NVIDIA_MODELS = {
     supportsThinkingBudget: true,
     disabled: false,
   },
-  // Nemotron Super 49B v1.5 - Best for agentic tasks
-  "nvidia/llama-3.3-nemotron-super-49b-v1.5": {
-    id: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
-    name: "Nemotron Super 49B",
-    description: "Top reasoning model, 97.4% MATH500, best for agentic coding tasks",
+  // Nemotron 70B Instruct - RAG pipeline LLM
+  "nvidia/llama-3.1-nemotron-70b-instruct": {
+    id: "nvidia/llama-3.1-nemotron-70b-instruct",
+    name: "Nemotron 70B Instruct",
+    description: "70B instruct model for RAG and general tasks",
     contextWindow: 128000,
-    maxTokens: 32768,
+    maxTokens: 4096,
     supportsTools: true,
     supportsImages: false,
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
-    thinkingPrompt: "/no_think",
-    disabled: true,
+    disabled: false,
   },
-  // Nemotron Ultra 253B - Largest reasoning model
-  "nvidia/llama-3.1-nemotron-ultra-253b-v1": {
-    id: "nvidia/llama-3.1-nemotron-ultra-253b-v1",
-    name: "Nemotron Ultra 253B",
-    description: "Largest Nemotron, maximum reasoning capability",
-    contextWindow: 128000,
-    maxTokens: 32768,
-    supportsTools: true,
-    supportsImages: false,
-    supportsStreaming: true,
-    supportsParallelReasoning: false,
-    supportsThinkingBudget: false,
-    thinkingPrompt: "detailed thinking off",
-    disabled: true,
-  },
-  // Qwen3 Coder 480B - Massive coding specialist
+  // Qwen3 Coder 480B - Best coding model
   "qwen/qwen3-coder-480b-a35b-instruct": {
     id: "qwen/qwen3-coder-480b-a35b-instruct",
     name: "Qwen3 Coder 480B",
-    description: "480B params, 35B active, specialized for code generation",
+    description: "480B params, 35B active, best for code generation",
     contextWindow: 128000,
     maxTokens: 32768,
     supportsTools: true,
@@ -65,79 +49,9 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
-    disabled: true,
+    disabled: false,
   },
-  // Devstral 2 123B - Excellent coding model
-  "mistralai/devstral-2-123b-instruct-2512": {
-    id: "mistralai/devstral-2-123b-instruct-2512",
-    name: "Devstral 2 123B",
-    description: "123B coding specialist from Mistral, excellent for development",
-    contextWindow: 128000,
-    maxTokens: 32768,
-    supportsTools: true,
-    supportsImages: false,
-    supportsStreaming: true,
-    supportsParallelReasoning: false,
-    supportsThinkingBudget: false,
-    disabled: true,
-  },
-  // DeepSeek R1 - Strong reasoning
-  "deepseek-ai/deepseek-r1": {
-    id: "deepseek-ai/deepseek-r1",
-    name: "DeepSeek R1",
-    description: "State-of-the-art reasoning, math, and coding",
-    contextWindow: 128000,
-    maxTokens: 16384,
-    supportsTools: false,
-    supportsImages: false,
-    supportsStreaming: true,
-    supportsParallelReasoning: false,
-    supportsThinkingBudget: false,
-    disabled: true,
-  },
-  // DeepSeek V3.2 - Latest DeepSeek
-  "deepseek-ai/deepseek-v3.2": {
-    id: "deepseek-ai/deepseek-v3.2",
-    name: "DeepSeek V3.2",
-    description: "Latest DeepSeek with hybrid inference",
-    contextWindow: 128000,
-    maxTokens: 16384,
-    supportsTools: true,
-    supportsImages: false,
-    supportsStreaming: true,
-    supportsParallelReasoning: false,
-    supportsThinkingBudget: false,
-    disabled: true,
-  },
-  // Llama 3.3 70B
-  "meta/llama-3.3-70b-instruct": {
-    id: "meta/llama-3.3-70b-instruct",
-    name: "Llama 3.3 70B",
-    description: "Meta's latest Llama with strong reasoning",
-    contextWindow: 128000,
-    maxTokens: 8192,
-    supportsTools: true,
-    supportsImages: false,
-    supportsStreaming: true,
-    supportsParallelReasoning: false,
-    supportsThinkingBudget: false,
-    disabled: true,
-  },
-  // Qwen3 235B - Large general model
-  "qwen/qwen3-235b-a22b": {
-    id: "qwen/qwen3-235b-a22b",
-    name: "Qwen3 235B",
-    description: "235B params, 22B active, strong general reasoning",
-    contextWindow: 128000,
-    maxTokens: 32768,
-    supportsTools: true,
-    supportsImages: false,
-    supportsStreaming: true,
-    supportsParallelReasoning: false,
-    supportsThinkingBudget: false,
-    disabled: true,
-  },
-  // Vision Model
+  // Vision Model - For screenshots and diagrams
   "nvidia/llama-3.1-nemotron-nano-vl-8b-v1": {
     id: "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
     name: "Nemotron Nano VL 8B",
@@ -149,7 +63,7 @@ export const NVIDIA_MODELS = {
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
-    disabled: true,
+    disabled: false,
   },
 } as const;
 

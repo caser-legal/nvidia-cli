@@ -19,14 +19,8 @@ import { Check, X, Zap, Brain, Eye, Code } from "lucide-react";
 // Feature 89: Model pricing info (free tier)
 const MODEL_PRICING: Record<string, { input: string; output: string; limit: string }> = {
   "nvidia/nemotron-3-nano-30b-a3b": { input: "Free", output: "Free", limit: "40 RPM" },
-  "nvidia/llama-3.3-nemotron-super-49b-v1.5": { input: "Free", output: "Free", limit: "40 RPM" },
-  "nvidia/llama-3.1-nemotron-ultra-253b-v1": { input: "Free", output: "Free", limit: "40 RPM" },
+  "nvidia/llama-3.1-nemotron-70b-instruct": { input: "Free", output: "Free", limit: "40 RPM" },
   "qwen/qwen3-coder-480b-a35b-instruct": { input: "Free", output: "Free", limit: "40 RPM" },
-  "mistralai/devstral-2-123b-instruct-2512": { input: "Free", output: "Free", limit: "40 RPM" },
-  "deepseek-ai/deepseek-r1": { input: "Free", output: "Free", limit: "40 RPM" },
-  "deepseek-ai/deepseek-v3.2": { input: "Free", output: "Free", limit: "40 RPM" },
-  "meta/llama-3.3-70b-instruct": { input: "Free", output: "Free", limit: "40 RPM" },
-  "qwen/qwen3-235b-a22b": { input: "Free", output: "Free", limit: "40 RPM" },
   "nvidia/llama-3.1-nemotron-nano-vl-8b-v1": { input: "Free", output: "Free", limit: "40 RPM" },
 };
 
