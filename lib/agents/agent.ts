@@ -98,130 +98,39 @@ export class Agent {
     this.onEvent?.(event);
   }
 
-  private getToolDefinitions(allowedNames?: string[]) {
-    const tools = Array.from(this.tools.values());
-    if (allowedNames) {
-      return tools.filter(t => allowedNames.includes(t.name)).map(t => t.toDefinition());
-    }
-    return tools.map((t) => t.toDefinition());
-  }
+  private parseToolCallsFromContent(content: string): ToolCall[] {
+    const toolCalls: ToolCall[] = [];
+    // Regex to capture <tool_call> ... </tool_call>
+    const toolCallRegex = /<tool_call>([\s\S]*?)<\/tool_call>/g;
+    let match;
 
-  /**
-   * Run learning loops to optimize future performance
-   */
-  async learn(): Promise<void> {
-    if (this.autoRAGUpdater) {
-      try {
-        const count = await this.autoRAGUpdater.sync();
-        if (count > 0) {
-          this.emit({ type: "status", status: "learning", message: `Integrated ${count} insights into RAG` });
-        }
-      } catch (e) {
-        console.error("AutoRAG update failed:", e);
-      }
-    }
+    while ((match = toolCallRegex.exec(content)) !== null) {
+      const inner = match[1];
+      // Extract function name
+      const funcMatch = /<function=([a-zA-Z0-9_]+)>/.exec(inner);
+      if (!funcMatch) continue;
+      const name = funcMatch[1];
 
-    if (this.feedbackOptimizer) {
-      try {
-        // Just triggering analysis for now, in a real system this would update prompt templates
-        await this.feedbackOptimizer.generateOptimizations();
-      } catch (e) {
-        console.error("Feedback optimization failed:", e);
-      }
-    }
-  }
-
-  private async executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
-    const spanId = this.tracer.startSpan(`tool_execution:${toolCall.function.name}`, {
-      tool: toolCall.function.name,
-      args: toolCall.function.arguments
-    });
-
-    const tool = this.tools.get(toolCall.function.name);
-    const startTime = Date.now();
-    
-    if (!tool) {
-      this.tracer.failSpan(spanId, new Error("Tool not found"));
-      const record: ToolCallRecord = {
-        toolName: toolCall.function.name,
-        arguments: {},
-        result: `Tool '${toolCall.function.name}' not found`,
-        durationMs: Date.now() - startTime,
-        success: false,
-        error: "Tool not found",
-      };
-      this.toolCallRecords.push(record);
-      
-      return {
-        tool_call_id: toolCall.id,
-        content: `Tool '${toolCall.function.name}' not found`,
-        is_error: true,
-      };
-    }
-
-    try {
-      const args = JSON.parse(toolCall.function.arguments);
-      
-      // Check permissions
-      const permission = this.toolGuard.check(tool.name, args);
-      if (!permission.allowed) {
-        throw new Error(`Tool execution blocked: ${permission.reason}`);
-      }
-      
-      if (permission.requiresConfirmation) {
-        this.emit({ type: "status", status: "awaiting_confirmation", message: `Allow ${tool.name}?` });
-        // In a real CLI, we'd wait for input. Here we proceed but log it.
-        // TODO: Implement actual confirmation flow via event loop interruption
+      // Extract parameters
+      const args: Record<string, any> = {};
+      const paramRegex = /<parameter=([a-zA-Z0-9_]+)>([\s\S]*?)<\/parameter>/g;
+      let paramMatch;
+      while ((paramMatch = paramRegex.exec(inner)) !== null) {
+        const key = paramMatch[1];
+        const value = paramMatch[2].trim();
+        args[key] = value;
       }
 
-      this.emit({ type: "tool_call", name: tool.name, args: toolCall.function.arguments });
-      
-      const result = await tool.execute(args);
-      
-      // Redact PII from result before logging/emitting
-      const sanitizedResult = this.piiGuard.redact(result);
-      
-      this.emit({ type: "tool_result", name: tool.name, result: sanitizedResult });
-      
-      this.tracer.endSpan(spanId, { success: true });
-
-      // Log to flywheel
-      const record: ToolCallRecord = {
-        toolName: tool.name,
-        arguments: args,
-        result: sanitizedResult.substring(0, 5000), // Truncate for storage
-        durationMs: Date.now() - startTime,
-        success: true,
-      };
-      this.toolCallRecords.push(record);
-      
-      return {
-        tool_call_id: toolCall.id,
-        content: sanitizedResult,
-      };
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      this.tracer.failSpan(spanId, error instanceof Error ? error : new Error(errorMsg));
-      
-      this.emit({ type: "tool_result", name: tool.name, result: errorMsg, is_error: true });
-      
-      // Log error to flywheel
-      const record: ToolCallRecord = {
-        toolName: tool.name,
-        arguments: {},
-        result: errorMsg,
-        durationMs: Date.now() - startTime,
-        success: false,
-        error: errorMsg,
-      };
-      this.toolCallRecords.push(record);
-      
-      return {
-        tool_call_id: toolCall.id,
-        content: `Error executing tool: ${errorMsg}`,
-        is_error: true,
-      };
+      toolCalls.push({
+        id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        type: "function",
+        function: {
+          name,
+          arguments: JSON.stringify(args),
+        },
+      });
     }
+    return toolCalls;
   }
 
   async run(userMessage: string, conversationHistory?: AgentMessage[]): Promise<string> {
@@ -327,6 +236,16 @@ export class Agent {
 
         const choice = response.choices[0];
         const message = choice.message;
+
+        // Fallback: Check for XML tool calls if native ones are missing
+        if (!message.tool_calls && message.content) {
+          const parsedTools = this.parseToolCallsFromContent(message.content);
+          if (parsedTools.length > 0) {
+            message.tool_calls = parsedTools;
+            // Ideally we strip the XML from content, or keep it as log. 
+            // We'll keep it but the tool execution loop will handle the calls.
+          }
+        }
 
         // Add assistant message to history
         const assistantMessage: AgentMessage = {
@@ -519,6 +438,14 @@ export class Agent {
                 if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
               }
             }
+          }
+        }
+
+        // Fallback: Check for XML tool calls if content exists but native tools don't
+        if (toolCalls.length === 0 && content) {
+          const parsedTools = this.parseToolCallsFromContent(content);
+          if (parsedTools.length > 0) {
+            toolCalls = parsedTools;
           }
         }
 
