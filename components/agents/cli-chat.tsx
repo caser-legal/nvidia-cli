@@ -123,8 +123,9 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
     }
   };
 
-  const stripThinking = (content: string) => {
-    return content.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  const formatContent = (content: string) => {
+    // Convert <think> tags to blockquotes for visibility
+    return content.replace(/<think>([\s\S]*?)<\/think>/g, "\n> **Thinking:**\n> $1\n").trim();
   };
 
   const renderEvent = (event: AgentEvent, index: number) => {
@@ -134,17 +135,17 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
           return (
             <div key={index} className="flex items-start gap-2 py-1">
               <span className="text-cyan-400 font-mono shrink-0">[user]</span>
-              <span className="text-white">{event.content}</span>
+              <span className="text-white whitespace-pre-wrap break-words min-w-0 flex-1">{event.content}</span>
             </div>
           );
         }
-        const cleanContent = stripThinking(event.content || "");
-        if (!cleanContent) return null;
+        const formattedContent = formatContent(event.content || "");
+        if (!formattedContent) return null;
         return (
           <div key={index} className="flex items-start gap-2 py-2">
             <span className="text-green-400 font-mono shrink-0">[dory]</span>
-            <div className="text-gray-200 flex-1 prose prose-invert prose-sm max-w-none prose-pre:bg-gray-800 prose-pre:text-gray-200 prose-code:text-green-400 prose-headings:text-white prose-strong:text-white prose-li:text-gray-200">
-              <ReactMarkdown>{cleanContent}</ReactMarkdown>
+            <div className="text-gray-200 flex-1 min-w-0 prose prose-invert prose-sm max-w-none break-words prose-pre:bg-gray-800 prose-pre:text-gray-200 prose-code:text-green-400 prose-headings:text-white prose-strong:text-white prose-li:text-gray-200 prose-blockquote:text-gray-500 prose-blockquote:border-l-gray-600">
+              <ReactMarkdown>{formattedContent}</ReactMarkdown>
             </div>
           </div>
         );
@@ -154,26 +155,21 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
           <div key={index} className="flex items-start gap-2 py-1 font-mono text-sm">
             <span className="text-yellow-400">⚡</span>
             <span className="text-yellow-400">{event.name}</span>
-            <span className="text-gray-500 truncate max-w-[500px]">({event.args})</span>
+            <span className="text-gray-500 break-all whitespace-pre-wrap min-w-0 flex-1">({event.args})</span>
           </div>
         );
 
       case "tool_result":
         const isError = event.is_error;
-        const resultLines = (event.result || "").split("\n");
-        const truncated = resultLines.length > 10;
-        const displayLines = truncated ? resultLines.slice(0, 10) : resultLines;
+        const resultText = event.result || "";
         
         return (
-          <div key={index} className="py-1 pl-4 border-l-2 border-gray-700 ml-4 text-xs">
+          <div key={index} className="py-1 pl-4 border-l-2 border-gray-700 ml-4 text-xs overflow-hidden">
             <div className={cn(
-              "font-mono whitespace-pre-wrap",
+              "font-mono whitespace-pre-wrap break-words",
               isError ? "text-red-400" : "text-gray-500"
             )}>
-              {displayLines.join("\n")}
-              {truncated && (
-                <div className="text-gray-600 italic">... ({resultLines.length - 10} more lines)</div>
-              )}
+              {resultText}
             </div>
           </div>
         );
