@@ -33,8 +33,73 @@ NVIDIA CLI [codename: **dory**] is a full-featured AI application implementing p
 - **Data Flywheel Blueprint** - Production logging, LLM-as-Judge, feedback loops
 - **AIQ Research Assistant** - Multi-step research with reflection loops
 - **Agent Workshop** - LangGraph-style state machines, ReAct pattern
+- **🆕 NeMo Agent Toolkit** - Professional-grade agent infrastructure with MCP, profiling, and observability
 
 **Default Model:** Nemotron 3 Nano 30B - 1M context, 3.3x faster throughput
+
+---
+
+## NeMo Agent Toolkit Integration
+
+This project integrates [NVIDIA NeMo Agent Toolkit](https://docs.nvidia.com/nemo/agent-toolkit/) for production-grade agent infrastructure.
+
+### Quick Start with NAT
+
+```bash
+# One-time setup
+./bin/setup-nat
+
+# Start both Next.js and NAT servers
+./bin/start-all
+
+# Or run NAT standalone
+cd nat && source .venv/bin/activate
+nat serve --config_file configs/dory_workflow.yml
+```
+
+### NAT Features Used
+
+| Feature | Description |
+|---------|-------------|
+| **Data Flywheel** | Production logging with automatic dataset creation |
+| **Phoenix Observability** | Real-time tracing and debugging |
+| **MCP Server** | Expose tools via Model Context Protocol |
+| **Profiling** | Token-level tracking and bottleneck analysis |
+| **Evaluation** | LLM-as-Judge quality scoring via `nat eval` |
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Next.js Frontend (localhost:3000)                      │
+│  └── lib/nat-client.ts (Hybrid client)                  │
+└─────────────────────┬───────────────────────────────────┘
+                      │ HTTP/WebSocket
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│  NeMo Agent Toolkit (localhost:8000)                    │
+│  ├── nat serve --config_file configs/dory_workflow.yml  │
+│  ├── Data Flywheel (observability)                      │
+│  ├── Phoenix/OpenTelemetry (tracing)                    │
+│  └── Custom Tools (bash, file_read, file_write, etc.)   │
+└─────────────────────────────────────────────────────────┘
+```
+
+### NAT Commands
+
+```bash
+# Run a single query
+nat run --config_file nat/configs/dory_workflow.yml --input "Your query"
+
+# Start API server
+nat serve --config_file nat/configs/dory_workflow.yml
+
+# Run evaluation
+nat eval --config_file nat/configs/eval_config.yml
+
+# Start MCP server (for external agents)
+nat mcp --config_file nat/configs/mcp_server.yml
+```
 
 ---
 
@@ -90,14 +155,8 @@ flowchart TD
 
 | Mode | Description | Key Tools |
 |------|-------------|-----------|
-| **🤖 Auto** (Default) | Intelligent orchestrator | Dynamic selection from ALL tools |
-| **💬 Chat** | General assistant | Memory, entity tracking |
-| **💻 Coder** | Autonomous coding | GitHub analyzer, Mermaid diagrams |
-| **📄 Docs** | Documentation generator | Code documentation, architecture diagrams |
-| **🖥️ Controller** | Computer automation | Bash, file operations |
-| **🌐 Browser** | Web browsing | Tavily, Google search |
-| **🔬 Research** | Deep research | Parallel search, RAG |
-| **👥 Coordinator** | Multi-agent research | All specialist agents |
+| **🐠 Dory** (Default) | Full autonomy - coding, research, file ops, web search | All 30+ tools |
+| **👥 Dory (Supervised)** | Multi-agent research with quality review loops | Specialist agents with reflection |
 
 ---
 

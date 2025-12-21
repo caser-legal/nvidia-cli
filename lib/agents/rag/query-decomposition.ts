@@ -46,7 +46,7 @@ export class QueryDecomposer {
   private llmEndpoint: string;
   private model: string;
 
-  constructor(llmEndpoint: string = 'https://integrate.api.nvidia.com/v1', model: string = 'nvidia/llama-3.1-nemotron-70b-instruct') {
+  constructor(llmEndpoint: string = 'https://integrate.api.nvidia.com/v1', model: string = 'nvidia/nemotron-3-nano-30b-a3b') {
     this.llmEndpoint = llmEndpoint;
     this.model = model;
   }

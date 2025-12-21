@@ -1,6 +1,6 @@
 
-import { FlywheelLogger } from "../flywheel/logger";
-import { FlywheelRecord } from "../flywheel/types";
+import { FlywheelLogger } from "./flywheel/logger";
+import { FlywheelRecord } from "./flywheel/types";
 
 export interface OptimizationResult {
   improvedSystemPrompt?: string;

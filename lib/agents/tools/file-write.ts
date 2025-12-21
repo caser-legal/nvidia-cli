@@ -1,16 +1,18 @@
 // File Write Tool
-// Write and edit files - sandboxed to project directory
+// Write and edit files
 
 import * as fs from "fs/promises";
 import * as path from "path";
 import { BaseTool } from "../base-tool";
+import { getCurrentProjectDir } from "./project";
 
 export class FileWriteTool extends BaseTool {
   name = "file_write";
   description = `Write or edit files.
 Operations:
 - write: Create or completely replace a file
-- edit: Make targeted changes to parts of a file`;
+- edit: Make targeted changes to parts of a file
+Uses the current project directory (use set_project to change it).`;
 
   parameters = {
     operation: {
@@ -20,7 +22,7 @@ Operations:
     },
     path: {
       type: "string",
-      description: "File path to write to or edit",
+      description: "File path to write to or edit (relative to project or absolute)",
     },
     content: {
       type: "string",
@@ -39,23 +41,24 @@ Operations:
     },
   };
 
-  private projectDir: string;
-
-  constructor(projectDir: string) {
+  constructor() {
     super();
-    this.projectDir = projectDir;
   }
 
   private resolvePath(inputPath: string): string {
-    const resolved = path.resolve(this.projectDir, inputPath);
-    if (!resolved.startsWith(this.projectDir)) {
-      throw new Error("Access denied: path outside project directory");
+    // Handle absolute paths and ~ expansion
+    if (inputPath.startsWith("/")) {
+      return inputPath;
     }
-    return resolved;
+    if (inputPath.startsWith("~")) {
+      return inputPath.replace(/^~/, process.env.HOME || "");
+    }
+    // Relative path - resolve from current project
+    return path.resolve(getCurrentProjectDir(), inputPath);
   }
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    const operation = args.operation as string;
+    const operation = (args.operation as string) || "write"; // Default to write
     const filePath = args.path as string;
 
     try {

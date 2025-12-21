@@ -4,10 +4,10 @@
 "use client";
 
 import * as React from "react";
-import { Code, Monitor, Globe, Search, MessageSquare } from "lucide-react";
+import { MessageSquare, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type AgentType = "chat" | "coder" | "computer" | "browser" | "research" | "coordinator" | "docs";
+export type AgentType = "dory" | "dory-supervised";
 
 interface WelcomeScreenProps {
   onAgentSelect: (agent: AgentType) => void;
@@ -16,39 +16,18 @@ interface WelcomeScreenProps {
 
 const MODES = [
   {
-    id: "chat" as const,
-    name: "Talk",
-    description: "Conversational assistant powered by Nemotron",
+    id: "dory" as const,
+    name: "Dory",
+    description: "Full autonomy — coding, research, file ops, web search",
     icon: MessageSquare,
     color: "from-[#76B900] to-[#5a8f00]",
   },
   {
-    id: "coder" as const,
-    name: "Code",
-    description: "Autonomous coding — builds features from specs",
-    icon: Code,
-    color: "from-blue-500 to-blue-600",
-  },
-  {
-    id: "computer" as const,
-    name: "Control",
-    description: "Desktop automation — operates your computer",
-    icon: Monitor,
-    color: "from-purple-500 to-purple-600",
-  },
-  {
-    id: "browser" as const,
-    name: "Browse",
-    description: "Web automation — navigates and extracts data",
-    icon: Globe,
-    color: "from-orange-500 to-orange-600",
-  },
-  {
-    id: "research" as const,
-    name: "Research",
-    description: "Deep investigation — multi-step analysis",
-    icon: Search,
-    color: "from-pink-500 to-pink-600",
+    id: "dory-supervised" as const,
+    name: "Dory (Supervised)",
+    description: "Multi-agent research with quality review loops",
+    icon: Users,
+    color: "from-yellow-500 to-yellow-600",
   },
 ];
 
@@ -66,7 +45,7 @@ function NvidiaLogo({ className = "" }: { className?: string }) {
   );
 }
 
-export function WelcomeScreen({ onAgentSelect, currentAgent = "chat" }: WelcomeScreenProps) {
+export function WelcomeScreen({ onAgentSelect, currentAgent = "dory" }: WelcomeScreenProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full p-8">
       {/* NVIDIA Logo */}
@@ -111,11 +90,6 @@ export function WelcomeScreen({ onAgentSelect, currentAgent = "chat" }: WelcomeS
             </button>
           );
         })}
-      </div>
-
-      {/* Keyboard hints */}
-      <div className="mt-8 text-xs text-muted-foreground">
-        <kbd className="px-1 py-0.5 bg-muted rounded">⌘K</kbd> command palette · <kbd className="px-1 py-0.5 bg-muted rounded">⌘,</kbd> settings
       </div>
     </div>
   );

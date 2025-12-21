@@ -287,7 +287,7 @@ interface UIState {
   artifactPanelWidth: number;
   
   // Agent Mode
-  agentMode: "chat" | "coder" | "computer" | "browser" | "research" | "terminal" | "coordinator" | "docs";
+  agentMode: "dory" | "dory-supervised";
   coderProjectDir: string;
   
   // Modals
@@ -348,7 +348,7 @@ export const useUIStore = create<UIState>()(
       artifactPanelOpen: false,
       artifactPanelWidth: 500,
       
-      agentMode: "chat",
+      agentMode: "dory",
       coderProjectDir: "/Users/home/Documents/iOS",
       
       settingsModalOpen: false,

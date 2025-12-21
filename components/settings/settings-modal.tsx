@@ -1,5 +1,4 @@
-// Settings Modal Component
-// Features 103-117: Settings with tabs
+// Settings Modal Component - Simplified
 
 "use client";
 
@@ -13,59 +12,74 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSettingsStore, useUIStore } from "@/lib/store";
-import { Sun, Moon, Monitor, Eye, EyeOff, Keyboard, Download, Shield, Key } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useAgentSessionsStore } from "@/lib/store/agent-sessions";
+import { Sun, Moon, Monitor, Eye, EyeOff, Key, Terminal } from "lucide-react";
 
 export function SettingsModal() {
-  const { settingsModalOpen, setSettingsModalOpen, setKeyboardShortcutsOpen } = useUIStore();
+  const { settingsModalOpen, setSettingsModalOpen } = useUIStore();
   const {
     theme,
     setTheme,
     fontSize,
     setFontSize,
-    messageDensity,
-    setMessageDensity,
     codeTheme,
     setCodeTheme,
-    apiKey,
-    setApiKey,
-    globalInstructions,
-    setGlobalInstructions,
-    reducedMotion,
-    setReducedMotion,
-    highContrast,
-    setHighContrast,
   } = useSettingsStore();
+  const { sessions } = useAgentSessionsStore();
 
   const [showApiKey, setShowApiKey] = React.useState(false);
-  const [localApiKey, setLocalApiKey] = React.useState(apiKey || "");
+  const [localApiKey, setLocalApiKey] = React.useState("");
+  const [saveStatus, setSaveStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  const handleSaveApiKey = () => {
-    setApiKey(localApiKey);
+  // Load current API key on mount
+  React.useEffect(() => {
+    fetch("/api/settings/api-key")
+      .then(res => res.json())
+      .then(data => {
+        if (data.apiKey) setLocalApiKey(data.apiKey);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveApiKey = async () => {
+    setSaveStatus("saving");
+    try {
+      const res = await fetch("/api/settings/api-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: localApiKey }),
+      });
+      if (res.ok) {
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 2000);
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    }
   };
 
-  const handleExportData = () => {
-    const data = {
-      settings: {
-        theme,
-        fontSize,
-        messageDensity,
-        codeTheme,
-        globalInstructions,
-      },
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "nvidia-cli-settings.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // Calculate stats from sessions
+  const stats = React.useMemo(() => {
+    let totalTokens = 0;
+    let totalRequests = sessions.length;
+    
+    sessions.forEach(session => {
+      session.output?.forEach(out => {
+        try {
+          const event = JSON.parse(out);
+          if (event.type === "metrics" && event.totalTokens) {
+            totalTokens += event.totalTokens;
+          }
+        } catch {}
+      });
+    });
+    
+    return { totalTokens, totalRequests };
+  }, [sessions]);
 
   return (
     <Dialog open={settingsModalOpen} onOpenChange={setSettingsModalOpen}>
@@ -75,15 +89,14 @@ export function SettingsModal() {
         </DialogHeader>
 
         <Tabs defaultValue="appearance" className="flex-1">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="api">API</TabsTrigger>
-            <TabsTrigger value="instructions">Instructions</TabsTrigger>
-            <TabsTrigger value="data">Data</TabsTrigger>
+            <TabsTrigger value="usage">Usage</TabsTrigger>
           </TabsList>
 
           <ScrollArea className="h-[400px] mt-4">
-            {/* Appearance Tab - Features 103-112 */}
+            {/* Appearance Tab */}
             <TabsContent value="appearance" className="space-y-6 pr-4">
               {/* Theme Selection */}
               <div className="space-y-2">
@@ -124,23 +137,6 @@ export function SettingsModal() {
                 </div>
               </div>
 
-              {/* Message Density */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Message Density</label>
-                <div className="flex gap-2">
-                  {["compact", "comfortable", "spacious"].map((density) => (
-                    <Button
-                      key={density}
-                      variant={messageDensity === density ? "default" : "outline"}
-                      className="flex-1 capitalize"
-                      onClick={() => setMessageDensity(density as "compact" | "comfortable" | "spacious")}
-                    >
-                      {density}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
               {/* Code Theme */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Code Theme</label>
@@ -158,33 +154,19 @@ export function SettingsModal() {
                 </div>
               </div>
 
-              {/* Accessibility */}
-              <div className="space-y-4">
-                <label className="text-sm font-medium">Accessibility</label>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Reduced Motion</span>
-                  <Button
-                    variant={reducedMotion ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setReducedMotion(!reducedMotion)}
-                  >
-                    {reducedMotion ? "On" : "Off"}
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">High Contrast</span>
-                  <Button
-                    variant={highContrast ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setHighContrast(!highContrast)}
-                  >
-                    {highContrast ? "On" : "Off"}
-                  </Button>
+              {/* Keyboard Shortcuts */}
+              <div className="space-y-2 pt-4 border-t">
+                <label className="text-sm font-medium">Keyboard Shortcuts</label>
+                <div className="text-xs text-muted-foreground space-y-1 font-mono bg-muted/50 p-3 rounded">
+                  <div className="flex justify-between"><span>Open Settings</span><kbd className="bg-background px-1.5 py-0.5 rounded">⌘ ,</kbd></div>
+                  <div className="flex justify-between"><span>Send Message</span><kbd className="bg-background px-1.5 py-0.5 rounded">Enter</kbd></div>
+                  <div className="flex justify-between"><span>New Line</span><kbd className="bg-background px-1.5 py-0.5 rounded">Shift + Enter</kbd></div>
+                  <div className="flex justify-between"><span>Clear Input</span><kbd className="bg-background px-1.5 py-0.5 rounded">Ctrl + U</kbd></div>
                 </div>
               </div>
             </TabsContent>
 
-            {/* API Tab - Feature 116 */}
+            {/* API Tab */}
             <TabsContent value="api" className="space-y-6 pr-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
@@ -208,102 +190,83 @@ export function SettingsModal() {
                       {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
-                  <Button onClick={handleSaveApiKey}>Save</Button>
+                  <Button 
+                    onClick={handleSaveApiKey}
+                    disabled={saveStatus === "saving"}
+                  >
+                    {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved ✓" : "Save"}
+                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Get your API key from{" "}
+                  Updates .env.local file. Get your key from{" "}
                   <a href="https://build.nvidia.com" target="_blank" rel="noopener" className="text-primary underline">
                     build.nvidia.com
                   </a>
                 </p>
               </div>
-            </TabsContent>
 
-            {/* Instructions Tab - Features 95-102 */}
-            <TabsContent value="instructions" className="space-y-6 pr-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Global Custom Instructions</label>
-                <Textarea
-                  value={globalInstructions}
-                  onChange={(e) => setGlobalInstructions(e.target.value)}
-                  placeholder="Add custom instructions that will be included in all conversations..."
-                  className="min-h-[200px]"
-                />
-                <p className="text-xs text-muted-foreground">
-                  These instructions will be prepended to every conversation as a system message.
-                </p>
+              {/* Model Info */}
+              <div className="space-y-2 pt-4 border-t">
+                <label className="text-sm font-medium">Active Model</label>
+                <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                  <div className="font-medium">Nemotron 3 Nano 30B</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    128K context • 3.5B active params • Hybrid MoE
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
-            {/* Data Tab - Feature 114-115 */}
-            <TabsContent value="data" className="space-y-6 pr-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Export Data</label>
-                  <Button onClick={handleExportData} className="w-full">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Settings
-                  </Button>
+            {/* Usage Tab */}
+            <TabsContent value="usage" className="space-y-6 pr-4">
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <div className="text-2xl font-bold">{stats.totalTokens.toLocaleString()}</div>
+                  <div className="text-xs text-muted-foreground">Total Tokens</div>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Keyboard Shortcuts</label>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setSettingsModalOpen(false);
-                      setKeyboardShortcutsOpen(true);
-                    }}
-                  >
-                    <Keyboard className="h-4 w-4 mr-2" />
-                    View Shortcuts
-                  </Button>
+                <div className="p-4 rounded-lg bg-muted/50">
+                  <div className="text-2xl font-bold">{stats.totalRequests}</div>
+                  <div className="text-xs text-muted-foreground">Conversations</div>
                 </div>
+              </div>
 
-                {/* Feature 115: Privacy Settings */}
-                <div className="space-y-4 pt-4 border-t">
-                  <label className="text-sm font-medium flex items-center gap-2">
-                    <Shield className="h-4 w-4" />
-                    Privacy Settings
-                  </label>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-sm">Save conversation history</span>
-                        <p className="text-xs text-muted-foreground">Store conversations locally</p>
-                      </div>
-                      <Button variant="outline" size="sm">On</Button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-sm">Analytics</span>
-                        <p className="text-xs text-muted-foreground">Help improve the app</p>
-                      </div>
-                      <Button variant="outline" size="sm">Off</Button>
-                    </div>
-                    <Button 
-                      variant="destructive" 
-                      className="w-full"
-                      onClick={() => {
-                        if (confirm("Are you sure you want to clear ALL data? This will delete all conversations, settings, and agent sessions. This cannot be undone.")) {
-                          // Clear all localStorage keys
-                          localStorage.removeItem('nvidia-cli-conversations');
-                          localStorage.removeItem('nvidia-agent-sessions');
-                          localStorage.removeItem('nvidia-cli-projects');
-                          localStorage.removeItem('nvidia-cli-folders');
-                          localStorage.removeItem('nvidia-cli-settings');
-                          localStorage.removeItem('nvidia-cli-ui');
-                          localStorage.removeItem('nvidia-cli-usage');
-                          localStorage.removeItem('nvidia-cli-prompts');
-                          // Reload the page
-                          window.location.reload();
-                        }
-                      }}
-                    >
-                      Clear All Data
-                    </Button>
+              {/* Running Log */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Terminal className="h-4 w-4" />
+                  Recent Activity
+                </label>
+                <ScrollArea className="h-[200px] rounded-lg border bg-black/90 p-3">
+                  <div className="font-mono text-xs text-green-400 space-y-1">
+                    {sessions.length === 0 ? (
+                      <div className="text-gray-500">No activity yet</div>
+                    ) : (
+                      sessions.slice(0, 20).map((session, i) => {
+                        const date = new Date(session.createdAt);
+                        const time = date.toLocaleTimeString();
+                        return (
+                          <div key={session.id} className="flex gap-2">
+                            <span className="text-gray-500">[{time}]</span>
+                            <span className={session.status === "running" ? "text-yellow-400" : "text-green-400"}>
+                              {session.status === "running" ? "●" : "✓"}
+                            </span>
+                            <span className="text-white truncate">{session.name}</span>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
+                </ScrollArea>
+              </div>
+
+              {/* Tools Available */}
+              <div className="space-y-2 pt-4 border-t">
+                <label className="text-sm font-medium">Available Tools (24)</label>
+                <div className="text-xs text-muted-foreground flex flex-wrap gap-1">
+                  {["set_project", "get_project", "file_read", "file_write", "bash", "think", "memory", "entity_memory", "google_search", "tavily_search", "parallel_search", "parallel_tavily_search", "local_docs_search", "github_analyzer", "github_file_reader", "code_documentation", "mermaid_generator", "quick_diagram", "rag_ingest", "rag_search", "rag_query", "rag_research", "rag_stats", "rag_clear"].map(tool => (
+                    <span key={tool} className="px-1.5 py-0.5 bg-muted rounded">{tool}</span>
+                  ))}
                 </div>
               </div>
             </TabsContent>

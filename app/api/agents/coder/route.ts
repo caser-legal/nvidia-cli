@@ -2,6 +2,7 @@
 // Autonomous coding agent with streaming updates
 
 import { Agent, FileReadTool, FileWriteTool, BashTool, ThinkTool } from "@/lib/agents";
+import { SetProjectTool, GetProjectTool, setCurrentProjectDir } from "@/lib/agents/tools/project";
 import type { AgentEvent } from "@/lib/agents";
 
 export const runtime = "nodejs";
@@ -42,11 +43,16 @@ export async function POST(request: Request) {
       });
     }
 
-    // Create tools scoped to project directory
+    // Set the project directory for all tools
+    setCurrentProjectDir(projectDir);
+
+    // Create tools
     const tools = [
-      new FileReadTool(projectDir),
-      new FileWriteTool(projectDir),
-      new BashTool(projectDir),
+      new SetProjectTool(),
+      new GetProjectTool(),
+      new FileReadTool(),
+      new FileWriteTool(),
+      new BashTool(),
       new ThinkTool(),
     ];
 

@@ -77,6 +77,9 @@ export interface QualitySignals {
   similarity?: number;
   correctness?: number;
   helpfulness?: number;
+  accuracy?: number;
+  overallScore?: number;
+  reasoning?: string;
 }
 
 // Batch of records for training

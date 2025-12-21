@@ -5,14 +5,17 @@
 
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
-import { Monitor, Globe, Headphones, MessageSquare, Code, Square, Users, FileText } from "lucide-react";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark, ghcolors, dracula } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { MessageSquare, Users, Square } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAgentSessionsStore } from "@/lib/store/agent-sessions";
+import { useSettingsStore } from "@/lib/store";
 
 interface AgentEvent {
-  type: "status" | "message" | "tool_call" | "tool_result" | "error" | "complete" | "done";
+  type: "status" | "message" | "tool_call" | "tool_result" | "error" | "complete" | "done" | "metrics";
   status?: string;
   role?: string;
   content?: string;
@@ -21,9 +24,13 @@ interface AgentEvent {
   result?: string;
   is_error?: boolean;
   message?: string;
+  // Metrics for completed responses
+  tokensPerSec?: number;
+  totalTokens?: number;
+  durationMs?: number;
 }
 
-type AgentMode = "chat" | "computer" | "browser" | "research" | "coder" | "coordinator" | "docs";
+type AgentMode = "dory" | "dory-supervised";
 
 interface AgentChatProps {
   mode: AgentMode;
@@ -32,7 +39,7 @@ interface AgentChatProps {
 }
 
 const MODE_CONFIG = {
-  chat: {
+  dory: {
     name: "Dory",
     icon: MessageSquare,
     color: "text-[#76B900]",
@@ -40,116 +47,33 @@ const MODE_CONFIG = {
     placeholder: "Ask dory anything...",
     welcome: {
       title: "NVIDIA CLI [codename: dory]",
-      description: "Your AI coding assistant with real tool execution",
+      description: "Your co-worker with full system access",
       features: [
         "Read and write files on your system",
-        "Execute shell commands safely",
-        "Build entire features autonomously",
+        "Execute shell commands (bash, git, xcodebuild, etc.)",
+        "Search the web (Google, Tavily)",
+        "Analyze GitHub repos and generate diagrams",
+        "RAG: Index and search local documents",
+        "Memory: Remembers context across sessions",
       ],
     },
   },
-  computer: {
-    name: "Controller",
-    icon: Monitor,
-    color: "text-purple-400",
-    bgColor: "bg-purple-500",
-    placeholder: "What would you like me to do on your computer?",
-    welcome: {
-      title: "Computer Control Mode",
-      description: "I can control your Mac to automate tasks",
-      features: [
-        "Open applications and URLs",
-        "Execute system commands",
-        "Automate repetitive tasks",
-        "Take screenshots and interact with UI",
-      ],
-    },
-  },
-  browser: {
-    name: "Browser",
-    icon: Globe,
-    color: "text-orange-400",
-    bgColor: "bg-orange-500",
-    placeholder: "What would you like me to find online?",
-    welcome: {
-      title: "Web Browsing Mode",
-      description: "I can help you find information on the web",
-      features: [
-        "Open websites and search engines",
-        "Fetch data from APIs",
-        "Search Google, DuckDuckGo, YouTube",
-        "Save web content to files",
-      ],
-    },
-  },
-  research: {
-    name: "Researcher",
-    icon: Headphones,
-    color: "text-pink-400",
-    bgColor: "bg-pink-500",
-    placeholder: "What topic would you like me to research?",
-    welcome: {
-      title: "Deep Research Mode",
-      description: "I conduct thorough investigations with citations",
-      features: [
-        "Multi-source research methodology",
-        "Structured reports with citations",
-        "Analysis and synthesis of findings",
-        "Save research notes to files",
-      ],
-    },
-  },
-  coder: {
-    name: "Coder",
-    icon: Code,
-    color: "text-blue-400",
-    bgColor: "bg-blue-500",
-    placeholder: "What would you like me to build or work on?",
-    welcome: {
-      title: "Autonomous Coder",
-      description: "Build entire apps from start to finish. Watch it work.",
-      features: [
-        "Never overflows context window",
-        "Never gets dumb—compact memory across sessions",
-        "Never say \"just do it\" again",
-        "Picks up exactly where it left off, every time",
-      ],
-    },
-  },
-  coordinator: {
-    name: "Coordinator",
+  "dory-supervised": {
+    name: "Dory (Supervised)",
     icon: Users,
     color: "text-yellow-400",
     bgColor: "bg-yellow-500",
     placeholder: "What would you like me to research and report on?",
     welcome: {
-      title: "Multi-Agent Research Coordinator",
-      description: "I orchestrate a team of specialist agents with reflection loop",
+      title: "Dory (Supervised Mode)",
+      description: "Multi-agent research with quality review loops",
       features: [
         "🔍 Search Specialist - parallel web search + local docs",
-        "📝 Report Writer - structured reports with citations",
+        "📋 Report Planner - structured outlines for complex topics",
+        "✍️ Section Author - writes individual sections",
         "✅ Quality Reviewer - evaluates completeness, identifies gaps",
-        "🔄 Reflection Loop - iterates until quality score ≥ 8/10",
+        "🔄 Reflection Loop - iterates until approved (max 3 rounds)",
         "📚 Source Deduplication - clean, numbered citations",
-      ],
-    },
-  },
-  docs: {
-    name: "Documentation",
-    icon: FileText,
-    color: "text-cyan-400",
-    bgColor: "bg-cyan-500",
-    placeholder: "Paste a GitHub URL or describe what to document...",
-    welcome: {
-      title: "Code Documentation Generator",
-      description: "I analyze codebases and generate comprehensive documentation",
-      features: [
-        "📦 GitHub Analyzer - clone and analyze any public repo",
-        "📊 Mermaid Diagrams - auto-generate architecture diagrams",
-        "📖 README Generator - comprehensive project documentation",
-        "🏗️ Architecture Docs - system design with diagrams",
-        "📡 API Documentation - endpoint references",
-        "🧠 Memory System - remembers context across sessions",
       ],
     },
   },
@@ -160,15 +84,26 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
   const [input, setInput] = React.useState("");
   const [isRunning, setIsRunning] = React.useState(false);
   const [metrics, setMetrics] = React.useState<{ tokensPerSec: number; totalTokens: number; elapsed: number } | null>(null);
+  const [currentTime, setCurrentTime] = React.useState(new Date());
   const scrollRef = React.useRef<HTMLDivElement>(null);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const currentSessionRef = React.useRef<string | null>(null);
   const streamStartRef = React.useRef<number>(0);
   const tokenCountRef = React.useRef<number>(0);
   const metricsIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  const { sessions, createSession, appendOutput, updateSession } = useAgentSessionsStore();
+  const { sessions, createSession, appendOutput, updateSession, deleteSession, setActiveSession } = useAgentSessionsStore();
+  const { fontSize, codeTheme } = useSettingsStore();
+  
+  const fontSizeClass = fontSize === "small" ? "text-xs" : fontSize === "large" ? "text-base" : "text-sm";
+  const codeStyle = codeTheme === "github" ? ghcolors : codeTheme === "dracula" ? dracula : oneDark;
+
+  // Live clock
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
   
   // Estimate tokens from text (roughly 4 chars per token)
   const estimateTokens = (text: string) => Math.ceil(text.length / 4);
@@ -212,10 +147,26 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
           const loaded = session.output.map(o => JSON.parse(o) as AgentEvent);
           setEvents(loaded);
           currentSessionRef.current = sessionId;
+          
+          // Restore metrics from last metrics event
+          const lastMetrics = [...loaded].reverse().find(e => e.type === "metrics");
+          if (lastMetrics) {
+            const elapsed = (lastMetrics.durationMs || 0) / 1000;
+            setMetrics({
+              tokensPerSec: lastMetrics.tokensPerSec || 0,
+              totalTokens: lastMetrics.totalTokens || 0,
+              elapsed: Math.round(elapsed * 10) / 10,
+            });
+          }
+          
+          // If session was "running" but we're loading it fresh, it was interrupted
+          if (session.status === "running") {
+            updateSession(sessionId, { status: "stopped" });
+          }
         } catch {}
       }
     }
-  }, [sessionId, sessions]);
+  }, [sessionId, sessions, updateSession]);
 
   // Stop handler
   const handleStop = () => {
@@ -339,6 +290,18 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
       }]);
       if (sid) updateSession(sid, { status: "error" });
     } finally {
+      // Save final metrics before stopping
+      const finalElapsed = (Date.now() - streamStartRef.current);
+      const finalTokPerSec = finalElapsed > 0 ? Math.round(tokenCountRef.current / (finalElapsed / 1000)) : 0;
+      const metricsEvent: AgentEvent = {
+        type: "metrics",
+        tokensPerSec: finalTokPerSec,
+        totalTokens: tokenCountRef.current,
+        durationMs: finalElapsed,
+      };
+      setEvents(prev => [...prev, metricsEvent]);
+      if (sid) appendOutput(sid, JSON.stringify(metricsEvent));
+      
       setIsRunning(false);
       stopMetrics();
       abortControllerRef.current = null;
@@ -377,8 +340,31 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
             {mainContent && (
               <div className="flex items-start gap-2">
                 <span className={cn("font-mono shrink-0", config.color)}>[dory]</span>
-                <div className="text-gray-200 flex-1 prose prose-invert prose-sm max-w-none prose-pre:bg-gray-800 prose-pre:text-gray-200 prose-code:text-green-400 prose-headings:text-white prose-strong:text-white prose-li:text-gray-200">
-                  <ReactMarkdown>{mainContent}</ReactMarkdown>
+                <div className="text-gray-200 flex-1 prose prose-invert prose-sm max-w-none prose-headings:text-white prose-strong:text-white prose-li:text-gray-200">
+                  <ReactMarkdown
+                    components={{
+                      code({ node, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || "");
+                        const inline = !match;
+                        return !inline ? (
+                          <SyntaxHighlighter
+                            style={codeStyle}
+                            language={match[1]}
+                            PreTag="div"
+                            customStyle={{ margin: 0, borderRadius: "0.375rem", fontSize: fontSize === "small" ? "11px" : fontSize === "large" ? "14px" : "12px" }}
+                          >
+                            {String(children).replace(/\n$/, "")}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code className="bg-gray-800 px-1 py-0.5 rounded text-green-400" {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {mainContent}
+                  </ReactMarkdown>
                 </div>
               </div>
             )}
@@ -425,24 +411,75 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
           </div>
         );
 
+      case "metrics":
+        const elapsed = (event.durationMs || 0) / 1000;
+        const timeStr = elapsed >= 60 
+          ? `${Math.floor(elapsed / 60)}m ${Math.round(elapsed % 60)}s`
+          : `${Math.round(elapsed * 10) / 10}s`;
+        return (
+          <div key={index} className="flex items-center gap-3 py-1 text-xs font-mono text-gray-600 border-t border-gray-800 mt-2 pt-2">
+            <span>✓ completed</span>
+            <span>{event.tokensPerSec} tok/s</span>
+            <span>{event.totalTokens} tokens</span>
+            <span>{timeStr}</span>
+          </div>
+        );
+
       default:
         return null;
     }
   };
+
+  // Calculate total conversation tokens from all metrics events
+  const conversationTokens = React.useMemo(() => {
+    return events
+      .filter(e => e.type === "metrics")
+      .reduce((sum, e) => sum + (e.totalTokens || 0), 0);
+  }, [events]);
+
+  // Context window usage (Nemotron 3 Nano = 128K)
+  const contextLimit = 128000;
+  const contextPercent = Math.min(100, (conversationTokens / contextLimit) * 100);
 
   return (
     <div className={cn("flex flex-col h-full bg-[#1a1a1a] text-white font-mono", className)}>
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-800 bg-[#252525]">
         <div className="flex gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-red-500" />
-          <div className="w-3 h-3 rounded-full bg-yellow-500" />
-          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <button 
+            className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-400 transition-colors"
+            onClick={() => {
+              if (currentSessionRef.current) {
+                deleteSession(currentSessionRef.current);
+              }
+              setActiveSession(null);
+              setEvents([]);
+              setMetrics(null);
+            }}
+            title="Close & delete chat"
+          />
+          <button 
+            className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-400 transition-colors"
+            onClick={() => {
+              setActiveSession(null);
+              setEvents([]);
+              setMetrics(null);
+            }}
+            title="Minimize to sidebar"
+          />
+          <button 
+            className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-400 transition-colors"
+            onClick={() => {
+              setActiveSession(null);
+              setEvents([]);
+              setMetrics(null);
+            }}
+            title="New chat"
+          />
         </div>
-        <div className="flex items-center gap-2 ml-2">
-          <Icon className={cn("h-4 w-4", config.color)} />
-          <span className={cn("text-sm", config.color)}>{config.name} Mode</span>
-        </div>
+        <span className="text-sm text-gray-400 tabular-nums">
+          {currentTime.toLocaleDateString()} {currentTime.toLocaleTimeString()}
+        </span>
         {/* Metrics display */}
         <div className="ml-auto flex items-center gap-3 text-xs font-mono">
           {metrics && metrics.tokensPerSec > 0 && (
@@ -452,7 +489,11 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
             <span className="text-gray-500 tabular-nums">{metrics.totalTokens} tokens</span>
           )}
           {metrics && metrics.elapsed > 0 && (
-            <span className="text-gray-600 tabular-nums">{metrics.elapsed}s</span>
+            <span className="text-gray-600 tabular-nums">
+              {metrics.elapsed >= 60 
+                ? `${Math.floor(metrics.elapsed / 60)}m ${Math.round(metrics.elapsed % 60)}s` 
+                : `${metrics.elapsed}s`}
+            </span>
           )}
           {isRunning && (
             <span className={cn("animate-pulse", config.color)}>●</span>
@@ -462,7 +503,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
 
       {/* Output area */}
       <ScrollArea className="flex-1 p-4">
-        <div className="space-y-1">
+        <div className={cn("space-y-1", fontSizeClass)}>
           {events.length === 0 && (
             <div className="text-gray-500">
               <div className={cn("mb-2", config.color)}>{config.welcome.title}</div>
@@ -483,32 +524,73 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
 
       {/* Input area */}
       <form onSubmit={handleSubmit} className="border-t border-gray-800 p-4 bg-[#252525]">
-        <div className="flex items-center gap-2">
-          <span className={config.color}>❯</span>
-          <input
+        <div className="flex items-start gap-2 p-2 rounded-lg border border-gray-700/50 focus-within:border-[#76B900] transition-colors">
+          <span className={cn(config.color, "leading-6")}>❯</span>
+          <textarea
             ref={inputRef}
-            type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              // Auto-resize
+              e.target.style.height = 'auto';
+              e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+            }}
+            onKeyDown={(e) => {
+              if (e.ctrlKey && e.key === 'u') {
+                e.preventDefault();
+                setInput('');
+                (e.target as HTMLTextAreaElement).style.height = 'auto';
+              }
+              // Enter to send (Shift+Enter for newline)
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (input.trim() && !isRunning) {
+                  handleSubmit(e);
+                }
+              }
+            }}
             disabled={isRunning}
             placeholder={isRunning ? "dory is working..." : config.placeholder}
-            className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-600"
+            className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-600 resize-none min-h-[24px] max-h-[200px] leading-6"
             autoComplete="off"
             spellCheck={false}
+            rows={1}
           />
-          {isRunning && (
+          {isRunning ? (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={handleStop}
-              className="text-red-400 hover:text-red-300 hover:bg-red-900/20 gap-1"
+              className="text-red-400 hover:text-red-300 hover:bg-red-900/20 gap-1 mt-1"
             >
               <Square className="h-3 w-3 fill-current" />
               Stop
             </Button>
+          ) : (
+            <Button
+              type="submit"
+              variant="ghost"
+              size="sm"
+              disabled={!input.trim()}
+              className={cn("gap-1 mt-1", config.color, "hover:bg-gray-800")}
+            >
+              Send
+            </Button>
           )}
         </div>
+        {/* Conversation stats */}
+        {conversationTokens > 0 && (
+          <div className="flex items-center justify-end gap-3 mt-2 text-[10px] text-gray-600">
+            <span>{conversationTokens.toLocaleString()} total tokens</span>
+            <span className={cn(
+              contextPercent > 80 ? "text-red-500" : 
+              contextPercent > 50 ? "text-yellow-500" : "text-gray-600"
+            )}>
+              {contextPercent.toFixed(1)}% context
+            </span>
+          </div>
+        )}
       </form>
     </div>
   );

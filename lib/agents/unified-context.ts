@@ -5,7 +5,7 @@
  */
 
 import { RAGPipeline, Document } from "./rag/pipeline";
-import { ShortTermMemory, LongTermMemory, MemoryEntry, ConversationSummary } from "./tools/memory";
+import { ShortTermMemory, LongTermMemory, MemoryEntry, ConversationSummary, EntityMemoryTool } from "./tools/memory";
 import { FlywheelLogger } from "./flywheel/logger";
 import { FlywheelRecord } from "./flywheel/types";
 import { RetrievalRouter, RetrievalSource } from "./retrieval-router";
@@ -34,7 +34,8 @@ export class UnifiedContext {
     private shortTerm: ShortTermMemory,
     private longTerm: LongTermMemory,
     private flywheel: FlywheelLogger,
-    private router: RetrievalRouter
+    private router: RetrievalRouter,
+    private entityMemory?: EntityMemoryTool
   ) {}
 
   /**
@@ -85,10 +86,22 @@ export class UnifiedContext {
       promises.push(Promise.resolve([]));
     }
 
-    // 3. Entity Search (approximate via LongTermMemory)
-    if (includeMemory) {
-      // Find entities mentioned in the query
-      // This is a naive implementation; ideal would be NER -> longTerm.get("entity", name)
+    // 3. Entity Search (Structured via EntityMemoryTool if available)
+    if (includeMemory && this.entityMemory) {
+      // Use EntityMemoryTool to find specific entity matches
+      // We search for entities matching the query
+      promises.push(this.entityMemory.execute({ operation: "get", entity_name: query }).then(res => {
+        if (res.startsWith("Error:") || res.startsWith("No information found")) return [];
+        return [{
+          id: `entity-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          type: "entity" as const,
+          content: res,
+          metadata: { query }
+        } as MemoryEntry];
+      }).catch(() => []));
+    } else if (includeMemory) {
+      // Fallback to naive search
       promises.push(this.longTerm.search(query).then(
         mems => mems.filter(m => m.type === "entity")
       ).catch(() => []));

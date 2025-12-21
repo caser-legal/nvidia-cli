@@ -1,17 +1,19 @@
 // File Read Tool
-// Read files and list directories - sandboxed to project directory
+// Read files and list directories
 
 import * as fs from "fs/promises";
 import * as path from "path";
 import { glob } from "glob";
 import { BaseTool } from "../base-tool";
+import { getCurrentProjectDir } from "./project";
 
 export class FileReadTool extends BaseTool {
   name = "file_read";
   description = `Read files or list directory contents.
 Operations:
 - read: Read the contents of a file
-- list: List files in a directory`;
+- list: List files in a directory
+Uses the current project directory (use set_project to change it).`;
 
   parameters = {
     operation: {
@@ -21,7 +23,7 @@ Operations:
     },
     path: {
       type: "string",
-      description: "File path for read or directory path for list",
+      description: "File path for read or directory path for list (relative to project or absolute)",
     },
     max_lines: {
       type: "integer",
@@ -35,19 +37,20 @@ Operations:
     },
   };
 
-  private projectDir: string;
-
-  constructor(projectDir: string) {
+  constructor() {
     super();
-    this.projectDir = projectDir;
   }
 
   private resolvePath(inputPath: string): string {
-    const resolved = path.resolve(this.projectDir, inputPath);
-    if (!resolved.startsWith(this.projectDir)) {
-      throw new Error("Access denied: path outside project directory");
+    // Handle absolute paths and ~ expansion
+    if (inputPath.startsWith("/")) {
+      return inputPath;
     }
-    return resolved;
+    if (inputPath.startsWith("~")) {
+      return inputPath.replace(/^~/, process.env.HOME || "");
+    }
+    // Relative path - resolve from current project
+    return path.resolve(getCurrentProjectDir(), inputPath);
   }
 
   async execute(args: Record<string, unknown>): Promise<string> {

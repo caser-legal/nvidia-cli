@@ -20,7 +20,7 @@ function getRAGPipeline(): RAGPipeline {
       enableReflection: true,
       maxReflectionLoops: 2,
       enableDecomposition: true,
-      llmModel: 'nvidia/llama-3.1-nemotron-70b-instruct',
+      llmModel: 'nvidia/nemotron-3-nano-30b-a3b',
     });
   }
   return ragPipeline;

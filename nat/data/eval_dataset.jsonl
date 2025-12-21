@@ -1,0 +1,5 @@
+{"input": "What is the current date and time?", "expected_output": "The current date and time"}
+{"input": "Create a file called test.txt with the content 'Hello World'", "expected_output": "Successfully wrote"}
+{"input": "Read the contents of package.json", "expected_output": "name"}
+{"input": "List files in the current directory", "expected_output": ""}
+{"input": "Store in memory that my favorite color is blue", "expected_output": "Stored"}

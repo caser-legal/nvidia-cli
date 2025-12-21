@@ -20,8 +20,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 // Feature 188: PWA support
 export const metadata: Metadata = {
-  title: "NVIDIA Chat - AI Assistant",
-  description: "A powerful AI chat interface powered by NVIDIA NIM",
+  title: "Dory",
+  description: "Your co-worker, powered by NVIDIA NIM",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

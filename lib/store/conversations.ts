@@ -14,6 +14,8 @@ export interface Message {
   images?: string[];
   inputTokens?: number;
   outputTokens?: number;
+  tokensPerSec?: number;
+  durationMs?: number;
   isEdited?: boolean;
   isRegenerated?: boolean;
   originalContent?: string;

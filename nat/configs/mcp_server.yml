@@ -1,0 +1,39 @@
+# =============================================================================
+# MCP Server Configuration
+# Exposes dory tools via Model Context Protocol for external agents
+# =============================================================================
+
+llms:
+  nim_nemotron:
+    _type: nim
+    model_name: nvidia/nemotron-3-nano-30b-a3b
+
+functions:
+  bash:
+    _type: dory_bash
+    description: "Execute bash commands"
+    timeout: 60
+
+  file_read:
+    _type: dory_file_read
+    description: "Read file contents"
+
+  file_write:
+    _type: dory_file_write
+    description: "Write files"
+
+  memory:
+    _type: dory_memory
+    description: "Persistent memory storage"
+
+  think:
+    _type: dory_think
+    description: "Extended reasoning"
+
+  current_datetime:
+    _type: current_datetime
+
+# MCP Server front-end - exposes tools to MCP clients
+front_end:
+  _type: mcp
+  transport: stdio

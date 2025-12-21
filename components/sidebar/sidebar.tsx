@@ -1,134 +1,58 @@
-// Sidebar Component
-// Features 46-67, 196, 199-200, 207-211: Conversation list and management
+// Sidebar Component - Simplified
 
 "use client";
 
 import * as React from "react";
 import {
   Plus,
-  Search,
-  Settings,
-  ChevronDown,
-  ChevronRight,
-  Pin,
-  Archive,
   Trash2,
-  MoreHorizontal,
-  FolderPlus,
   MessageSquare,
   PanelLeftClose,
   PanelLeft,
-  Square,
-  Code,
-  Monitor,
-  Globe,
-  Headphones,
-  Loader2,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { useConversationStore } from "@/lib/store/conversations";
-import { useUIStore, useFolderStore, useProjectStore } from "@/lib/store";
-import { useAgentSessionsStore, type AgentSession } from "@/lib/store/agent-sessions";
-import { cn, groupByDate, formatRelativeDate } from "@/lib/utils";
+import { useUIStore } from "@/lib/store";
+import { useAgentSessionsStore } from "@/lib/store/agent-sessions";
+import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface SidebarProps {
   onNewChat?: () => void;
 }
 
 export function Sidebar({ onNewChat }: SidebarProps) {
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [dateFilter, setDateFilter] = React.useState("");
-  const [modelFilter, setModelFilter] = React.useState("");
   const [mounted, setMounted] = React.useState(false);
-  const [stoppingSessionId, setStoppingSessionId] = React.useState<string | null>(null);
+  const router = useRouter();
 
-  // Prevent hydration mismatch from date calculations
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Store state
-  const {
-    conversations,
-    currentConversationId,
-    createConversation,
-    deleteConversation,
-    setCurrentConversation,
-    pinConversation,
-    archiveConversation,
-    searchConversations,
-  } = useConversationStore();
+  const { sidebarOpen, toggleSidebar, setAgentMode } = useUIStore();
+  const { sessions, activeSessionId, setActiveSession, deleteSession, resetStaleSessions } = useAgentSessionsStore();
 
-  const { sidebarOpen, toggleSidebar, setSettingsModalOpen, setAgentMode } = useUIStore();
-  const { folders, createFolder, toggleFolderExpanded } = useFolderStore();
-  const { currentProjectId } = useProjectStore();
-  
-  // Agent sessions
-  const { sessions, activeSessionId, setActiveSession, deleteSession, stopSession, resetStaleSessions } = useAgentSessionsStore();
-
-  // Reset stale running sessions on mount (they can't be running after page refresh)
   React.useEffect(() => {
     resetStaleSessions();
   }, [resetStaleSessions]);
 
-  // Filter conversations
-  const filteredConversations = React.useMemo(() => {
-    let result = conversations.filter((c) => !c.isArchived);
-    
-    // Filter by project
-    if (currentProjectId) {
-      result = result.filter((c) => c.projectId === currentProjectId);
-    }
-    
-    // Filter by search
-    if (searchQuery) {
-      result = searchConversations(searchQuery).filter((c) => !c.isArchived);
-    }
-    
-    return result;
-  }, [conversations, currentProjectId, searchQuery, searchConversations]);
-
-  // Group by date (Features 62-65)
-  const groupedConversations = React.useMemo(() => {
-    const pinned = filteredConversations.filter((c) => c.isPinned);
-    const unpinned = filteredConversations.filter((c) => !c.isPinned);
-    
-    return {
-      pinned,
-      groups: groupByDate(unpinned),
-    };
-  }, [filteredConversations]);
-
-  // Feature 46: Create new conversation and go to welcome screen
   const handleNewChat = () => {
-    setCurrentConversation(null);
-    setAgentMode("chat");
+    setActiveSession(null);
+    setAgentMode("dory");
+    router.push("/");
     onNewChat?.();
   };
 
-  // Get agent icon
   const getAgentIcon = (type: string) => {
     switch (type) {
-      case "coder": return Code;
-      case "computer": return Monitor;
-      case "browser": return Globe;
-      case "research": return Headphones;
+      case "dory-supervised": return Users;
       default: return MessageSquare;
     }
   };
 
   if (!sidebarOpen) {
-    // Collapsed sidebar
     return (
       <TooltipProvider>
         <div className="w-12 border-r bg-sidebar flex flex-col items-center py-4 gap-2">
@@ -156,32 +80,23 @@ export function Sidebar({ onNewChat }: SidebarProps) {
 
   return (
     <TooltipProvider>
-      <aside
-        className={cn(
-          "w-72 max-w-72 min-w-72 border-r bg-sidebar flex flex-col transition-all duration-300 overflow-hidden",
-          "animate-slide-in-left"
-        )}
-        role="navigation"
-        aria-label="Conversation sidebar"
-      >
-        {/* Header - Logo is clickable to start new chat */}
+      <aside className="w-72 max-w-72 min-w-72 border-r bg-sidebar flex flex-col">
+        {/* Header */}
         <div className="p-4 border-b flex items-center justify-between">
           <button onClick={handleNewChat} className="hover:opacity-80 transition-opacity">
             <img src="/nvidia-logo.webp" alt="NVIDIA" className="h-6" />
           </button>
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                  <PanelLeftClose className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Close sidebar</TooltipContent>
-            </Tooltip>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                <PanelLeftClose className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Close sidebar</TooltipContent>
+          </Tooltip>
         </div>
 
-        {/* Feature 207: New chat button */}
+        {/* New chat button */}
         <div className="p-3">
           <Button onClick={handleNewChat} className="w-full justify-start gap-2 bg-[#76B900] hover:bg-[#5a8f00] text-white">
             <Plus className="h-4 w-4" />
@@ -189,282 +104,66 @@ export function Sidebar({ onNewChat }: SidebarProps) {
           </Button>
         </div>
 
-        {/* Feature 208: Search input */}
-        <div className="px-3 pb-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8"
-              aria-label="Search conversations"
-            />
-          </div>
-          {/* Features 145-146: Search filters */}
-          <div className="flex gap-2 mt-2">
-            <select
-              className="flex-1 text-xs p-1.5 border rounded bg-background"
-              onChange={(e) => setDateFilter(e.target.value)}
-              aria-label="Filter by date"
-            >
-              <option value="">All dates</option>
-              <option value="today">Today</option>
-              <option value="week">This week</option>
-              <option value="month">This month</option>
-            </select>
-            <select
-              className="flex-1 text-xs p-1.5 border rounded bg-background"
-              onChange={(e) => setModelFilter(e.target.value)}
-              aria-label="Filter by model"
-            >
-              <option value="">All models</option>
-              <option value="nemotron">Nemotron</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="llama">Llama</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Conversation list */}
+        {/* Session list */}
         <ScrollArea className="flex-1">
           <div className="px-3 pb-3">
             {!mounted ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">
-                Loading...
-              </div>
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
+            ) : sessions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No conversations yet</div>
             ) : (
-              <>
-                {/* Running Agent Sessions */}
-                {sessions.filter(s => s.status === "running" || s.status === "starting").length > 0 && (
-                  <div className="mb-4">
-                    <div className="flex items-center gap-2 px-2 py-1 text-xs font-medium text-muted-foreground">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      Running Agents
+              <div className="space-y-1">
+                {sessions.map((session) => {
+                  const Icon = getAgentIcon(session.type);
+                  const isActive = activeSessionId === session.id;
+                  return (
+                    <div
+                      key={session.id}
+                      className={cn(
+                        "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors",
+                        isActive ? "bg-accent" : "hover:bg-accent/50"
+                      )}
+                      onClick={() => setActiveSession(session.id)}
+                    >
+                      <Icon className={cn("h-4 w-4 flex-shrink-0", session.status === "running" && "text-[#76B900] animate-pulse")} />
+                      <span className="flex-1 truncate text-sm">
+                        {session.name.slice(0, 25)}{session.name.length > 25 ? "..." : ""}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSession(session.id);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
-                    {sessions.filter(s => s.status === "running" || s.status === "starting").map((session) => {
-                      const Icon = getAgentIcon(session.type);
-                      const isStopping = stoppingSessionId === session.id;
-                      return (
-                        <div
-                          key={session.id}
-                          className={cn(
-                            "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors overflow-hidden",
-                            activeSessionId === session.id ? "bg-accent" : "hover:bg-accent/50"
-                          )}
-                          onClick={() => setActiveSession(session.id)}
-                        >
-                          <Icon className="h-4 w-4 flex-shrink-0 text-[#76B900]" />
-                          <span className="flex-1 truncate text-sm">{session.name.slice(0, 20)}{session.name.length > 20 ? "..." : ""}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 flex-shrink-0 -mr-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSession(session.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Stopped Agent Sessions */}
-                {sessions.filter(s => s.status === "stopped" || s.status === "error").length > 0 && (
-                  <div className="mb-4">
-                    <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                      Recent Agents
-                    </div>
-                    {sessions.filter(s => s.status === "stopped" || s.status === "error").slice(0, 5).map((session) => {
-                      const Icon = getAgentIcon(session.type);
-                      return (
-                        <div
-                          key={session.id}
-                          className={cn(
-                            "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors overflow-hidden",
-                            activeSessionId === session.id ? "bg-accent" : "hover:bg-accent/50"
-                          )}
-                          onClick={() => setActiveSession(session.id)}
-                        >
-                          <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                          <span className="flex-1 truncate text-sm text-muted-foreground">{session.name.slice(0, 20)}{session.name.length > 20 ? "..." : ""}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 flex-shrink-0 -mr-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSession(session.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Pinned conversations (Feature 52) */}
-                {groupedConversations.pinned.length > 0 && (
-                  <div className="mb-4">
-                    <div className="flex items-center gap-2 px-2 py-1 text-xs font-medium text-muted-foreground">
-                      <Pin className="h-3 w-3" />
-                      Pinned
-                    </div>
-                    {groupedConversations.pinned.map((conv) => (
-                      <ConversationItem
-                        key={conv.id}
-                        conversation={conv}
-                        isActive={conv.id === currentConversationId}
-                        onClick={() => setCurrentConversation(conv.id)}
-                        onPin={() => pinConversation(conv.id, !conv.isPinned)}
-                        onArchive={() => archiveConversation(conv.id, true)}
-                        onDelete={() => deleteConversation(conv.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Grouped conversations (Features 62-65) */}
-                {groupedConversations.groups.map((group) => (
-                  <div key={group.label} className="mb-4">
-                    <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                      {group.label}
-                    </div>
-                    {group.items.map((conv) => (
-                      <ConversationItem
-                        key={conv.id}
-                        conversation={conv}
-                        isActive={conv.id === currentConversationId}
-                        onClick={() => setCurrentConversation(conv.id)}
-                        onPin={() => pinConversation(conv.id, !conv.isPinned)}
-                        onArchive={() => archiveConversation(conv.id, true)}
-                        onDelete={() => deleteConversation(conv.id)}
-                      />
-                    ))}
-                  </div>
-                ))}
-
-                {filteredConversations.length === 0 && sessions.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    {searchQuery ? "No conversations found" : "No conversations yet"}
-                  </div>
-                )}
-              </>
+                  );
+                })}
+              </div>
             )}
           </div>
         </ScrollArea>
 
-        {/* Footer (Features 210-211) */}
-        <div className="p-3 border-t space-y-2">
-          {/* Feature 211: User profile */}
-          <div className="flex items-center gap-2 px-2 py-1">
-            <img 
-              src="/avatar.png" 
-              alt="CASER" 
-              className="w-8 h-8 rounded-full object-cover"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">CASER</div>
-            </div>
-          </div>
+        {/* Footer - Settings */}
+        <div className="p-3 border-t">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => setSettingsModalOpen(true)}
+            className="w-full justify-start gap-2 px-2 py-2 h-auto"
+            onClick={() => router.push("/settings")}
           >
-            <Settings className="h-4 w-4" />
-            Settings
+            <img 
+              src="/avatar.png" 
+              alt="Settings" 
+              className="w-8 h-8 rounded-full object-cover"
+            />
+            <span className="text-sm font-medium">Settings</span>
           </Button>
         </div>
       </aside>
     </TooltipProvider>
-  );
-}
-
-// Conversation item component
-interface ConversationItemProps {
-  conversation: {
-    id: string;
-    title: string;
-    isPinned: boolean;
-    hasUnread: boolean;
-    lastMessageAt: Date;
-  };
-  isActive: boolean;
-  onClick: () => void;
-  onPin: () => void;
-  onArchive: () => void;
-  onDelete: () => void;
-}
-
-function ConversationItem({
-  conversation,
-  isActive,
-  onClick,
-  onPin,
-  onArchive,
-  onDelete,
-}: ConversationItemProps) {
-  return (
-    <div
-      className={cn(
-        "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors overflow-hidden",
-        isActive ? "bg-accent" : "hover:bg-accent/50"
-      )}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && onClick()}
-      aria-current={isActive ? "page" : undefined}
-    >
-      <MessageSquare className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-      <span className="flex-1 truncate text-sm overflow-hidden text-ellipsis whitespace-nowrap">{conversation.title}</span>
-      {conversation.hasUnread && (
-        <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
-      )}
-
-      {/* Delete button - always visible on hover */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-
-      {/* More options menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={onPin}>
-            <Pin className="h-4 w-4 mr-2" />
-            {conversation.isPinned ? "Unpin" : "Pin"}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onArchive}>
-            <Archive className="h-4 w-4 mr-2" />
-            Archive
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
   );
 }

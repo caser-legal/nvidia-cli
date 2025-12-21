@@ -4,13 +4,15 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import { BaseTool } from "../base-tool";
+import { getCurrentProjectDir } from "./project";
 
 const execAsync = promisify(exec);
 
 export class BashTool extends BaseTool {
   name = "bash";
   description = `Execute ANY shell command. No restrictions.
-Use for: curl, wget, open, python, node, git, npm, or any other command.`;
+Use for: curl, wget, open, python, node, git, npm, or any other command.
+Commands run in the current project directory (use set_project to change it).`;
 
   parameters = {
     command: {
@@ -24,16 +26,16 @@ Use for: curl, wget, open, python, node, git, npm, or any other command.`;
     },
   };
 
-  private projectDir: string;
-
-  constructor(projectDir: string) {
+  constructor() {
     super();
-    this.projectDir = projectDir;
   }
 
   async execute(args: Record<string, unknown>): Promise<string> {
     let command = args.command as string;
     const timeout = (args.timeout as number) || 120000; // 2 min default
+    
+    // Get current project directory
+    const cwd = getCurrentProjectDir();
 
     // Fix common command issues on macOS
     if (command.startsWith("python ") || command.startsWith("python\"") || command === "python") {
@@ -42,7 +44,7 @@ Use for: curl, wget, open, python, node, git, npm, or any other command.`;
 
     try {
       const { stdout, stderr } = await execAsync(command, {
-        cwd: this.projectDir,
+        cwd,
         timeout,
         maxBuffer: 1024 * 1024 * 50, // 50MB buffer
         shell: "/bin/zsh",

@@ -46,7 +46,7 @@ const DEFAULT_CONFIG: RAGPipelineConfig = {
   relevanceThreshold: 1,
   groundednessThreshold: 1,
   enableDecomposition: true,
-  llmModel: 'nvidia/llama-3.1-nemotron-70b-instruct',
+  llmModel: 'nvidia/nemotron-3-nano-30b-a3b',
 };
 
 export class RAGPipeline {

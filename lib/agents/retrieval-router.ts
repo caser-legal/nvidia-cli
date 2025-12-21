@@ -59,11 +59,17 @@ Respond in JSON:
         messages: [{ role: "user", content: prompt }],
         temperature: 0.1,
         max_tokens: 256,
-        response_format: { type: "json_object" }
       });
 
       const content = response.choices[0].message.content || "{}";
-      const plan = JSON.parse(content) as RetrievalPlan;
+      
+      // Try to extract JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return { source: RetrievalSource.HYBRID, queries: [query], reasoning: "No JSON found" };
+      }
+      
+      const plan = JSON.parse(jsonMatch[0]) as RetrievalPlan;
       
       // Fallback if parsing fails or returns invalid source
       if (!Object.values(RetrievalSource).includes(plan.source)) {
@@ -72,7 +78,7 @@ Respond in JSON:
 
       return plan;
     } catch (error) {
-      console.error("RetrievalRouter error:", error);
+      // Silent fallback - don't log errors for routing
       return { source: RetrievalSource.HYBRID, queries: [query], reasoning: "Error fallback" };
     }
   }

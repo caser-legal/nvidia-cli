@@ -91,7 +91,7 @@ export class ResearchWorkflow {
       numQueries: 5,
     },
     llmEndpoint: string = 'https://integrate.api.nvidia.com/v1',
-    model: string = 'nvidia/llama-3.1-nemotron-70b-instruct'
+    model: string = 'nvidia/nemotron-3-nano-30b-a3b'
   ) {
     this.config = config;
     this.llmEndpoint = llmEndpoint;

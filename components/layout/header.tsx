@@ -4,7 +4,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Pencil, Check, X, MessageSquare, Code, Monitor, Globe, Headphones } from "lucide-react";
+import { ChevronDown, Pencil, Check, X, MessageSquare, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,11 +22,8 @@ import { cn } from "@/lib/utils";
 
 // Agent modes
 const MODES = [
-  { id: "chat", name: "Dory", icon: MessageSquare, color: "#76B900" },
-  { id: "coder", name: "Coder", icon: Code, color: "#3B82F6" },
-  { id: "computer", name: "Controller", icon: Monitor, color: "#8B5CF6" },
-  { id: "browser", name: "Browser", icon: Globe, color: "#F97316" },
-  { id: "research", name: "Researcher", icon: Headphones, color: "#EC4899" },
+  { id: "dory", name: "Dory", icon: MessageSquare, color: "#76B900" },
+  { id: "dory-supervised", name: "Dory (Supervised)", icon: Users, color: "#EAB308" },
 ] as const;
 
 type AgentMode = typeof MODES[number]["id"];
@@ -162,9 +159,7 @@ export function Header() {
               <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
             </button>
           )
-        ) : (
-          <span className="text-muted-foreground">New Conversation</span>
-        )}
+        ) : null}
       </div>
 
       {/* Feature 203: Model selector */}

@@ -1,0 +1,63 @@
+#!/bin/bash
+# =============================================================================
+# Start both Next.js and NAT servers
+# =============================================================================
+
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo -e "${BLUE}🚀 Starting nvidia-cli with NeMo Agent Toolkit...${NC}"
+
+# Check if NAT is set up
+if [ ! -d "nat/.venv" ]; then
+    echo "NAT not set up. Running setup first..."
+    ./bin/setup-nat
+fi
+
+# Start NAT server in background
+echo -e "${GREEN}Starting NAT API server on port 8000...${NC}"
+cd nat
+source .venv/bin/activate
+nat serve --config_file configs/dory_workflow.yml &
+NAT_PID=$!
+cd ..
+
+# Wait for NAT to be ready
+echo "Waiting for NAT server..."
+for i in {1..30}; do
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ NAT server ready${NC}"
+        break
+    fi
+    sleep 1
+done
+
+# Start Next.js
+echo -e "${GREEN}Starting Next.js on port 3000...${NC}"
+npm run dev &
+NEXT_PID=$!
+
+# Trap to cleanup on exit
+cleanup() {
+    echo ""
+    echo "Shutting down..."
+    kill $NAT_PID 2>/dev/null || true
+    kill $NEXT_PID 2>/dev/null || true
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
+
+echo ""
+echo -e "${GREEN}✅ All services running:${NC}"
+echo "   - Next.js UI:  http://localhost:3000"
+echo "   - NAT API:     http://localhost:8000"
+echo "   - NAT Docs:    http://localhost:8000/docs"
+echo ""
+echo "Press Ctrl+C to stop all services"
+
+# Wait for processes
+wait

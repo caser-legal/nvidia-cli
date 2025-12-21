@@ -16,16 +16,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, estimateTokens } from "@/lib/utils";
 
-type AgentMode = "chat" | "coder" | "computer" | "browser" | "research" | "terminal" | "coordinator" | "docs";
+type AgentMode = "dory" | "dory-supervised";
 
 const modes = [
-  { id: "chat" as const, name: "Talk", icon: MessageSquare },
-  { id: "coder" as const, name: "Code", icon: Code },
-  { id: "docs" as const, name: "Docs", icon: FileText },
-  { id: "computer" as const, name: "Control", icon: Monitor },
-  { id: "browser" as const, name: "Browse", icon: Globe },
-  { id: "coordinator" as const, name: "Research Team", icon: Users },
-  { id: "terminal" as const, name: "Terminal", icon: Terminal },
+  { id: "dory" as const, name: "Dory", icon: MessageSquare },
+  { id: "dory-supervised" as const, name: "Dory (Supervised)", icon: Users },
 ];
 
 interface ChatInputProps {
@@ -49,7 +44,7 @@ export function ChatInput({
   disabled = false,
   placeholder = "Message dory...",
   maxLength = 100000,
-  agentMode = "chat",
+  agentMode = "dory",
   onModeChange,
   streamingMetrics,
 }: ChatInputProps) {

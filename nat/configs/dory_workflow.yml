@@ -1,0 +1,105 @@
+# =============================================================================
+# NVIDIA CLI (Dory) - NeMo Agent Toolkit Workflow Configuration
+# =============================================================================
+# This configuration defines the main agent workflow using NAT's professional
+# infrastructure while preserving all custom dory capabilities.
+
+# -----------------------------------------------------------------------------
+# LLM Configuration - Using NVIDIA NIM
+# -----------------------------------------------------------------------------
+llms:
+  nim_nemotron:
+    _type: nim
+    model_name: nvidia/nemotron-3-nano-30b-a3b
+    temperature: 1.0
+    top_p: 1.0
+    max_tokens: 16384
+
+  nim_nemotron_70b:
+    _type: nim
+    model_name: nvidia/llama-3.1-nemotron-70b-instruct
+    temperature: 0.7
+    max_tokens: 4096
+
+# -----------------------------------------------------------------------------
+# Embedder Configuration - For RAG
+# -----------------------------------------------------------------------------
+embedders:
+  nv-embedqa:
+    _type: nim
+    model_name: nvidia/nv-embedqa-e5-v5
+
+# -----------------------------------------------------------------------------
+# Functions (Tools) - Custom dory tools + NAT built-ins
+# -----------------------------------------------------------------------------
+functions:
+  # Custom dory tools
+  bash:
+    _type: dory_bash
+    description: "Execute bash commands on the local system. Use for file operations, git, npm, etc."
+    timeout: 60
+
+  file_read:
+    _type: dory_file_read
+    description: "Read contents of files. Supports line ranges."
+    max_size_kb: 1000
+
+  file_write:
+    _type: dory_file_write
+    description: "Write or modify files on the filesystem."
+
+  memory:
+    _type: dory_memory
+    description: "Store and retrieve information from persistent long-term memory."
+    memory_path: "~/.nvidia-cli/memory.json"
+
+  think:
+    _type: dory_think
+    description: "Use this to think through complex problems step by step before acting."
+
+  # NAT built-in tools
+  current_datetime:
+    _type: current_datetime
+
+  tavily_search:
+    _type: tavily_internet_search
+
+# -----------------------------------------------------------------------------
+# Workflow Configuration - ReAct Agent
+# -----------------------------------------------------------------------------
+workflow:
+  _type: react_agent
+  llm_name: nim_nemotron
+  tool_names:
+    - bash
+    - file_read
+    - file_write
+    - memory
+    - think
+    - current_datetime
+    - tavily_search
+  verbose: true
+  max_iterations: 25
+
+# -----------------------------------------------------------------------------
+# Observability - Data Flywheel + Phoenix
+# -----------------------------------------------------------------------------
+telemetry_exporters:
+  # Data Flywheel for continuous improvement
+  flywheel:
+    _type: data_flywheel
+    output_dir: ~/.nvidia-cli/flywheel
+    
+  # Phoenix for real-time observability (optional - requires phoenix server)
+  # phoenix:
+  #   _type: phoenix
+  #   endpoint: http://localhost:6006
+
+# -----------------------------------------------------------------------------
+# Front-end Configuration - FastAPI Server
+# -----------------------------------------------------------------------------
+front_end:
+  _type: fastapi
+  host: 0.0.0.0
+  port: 8000
+  enable_websocket: true

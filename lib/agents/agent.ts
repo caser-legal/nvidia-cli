@@ -19,6 +19,7 @@ import { Tracer, globalTracer } from "./observability/tracer";
 import { ToolOrchestrator } from "./tool-orchestrator";
 import { FeedbackOptimizer } from "./feedback-optimizer";
 import { AutoRAGUpdater } from "./rag/auto-updater";
+import { FlywheelEvaluator } from "./flywheel/evaluator";
 
 const DEFAULT_CONFIG: AgentConfig = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
@@ -45,6 +46,8 @@ export class Agent {
   private toolOrchestrator?: ToolOrchestrator;
   private feedbackOptimizer?: FeedbackOptimizer;
   private autoRAGUpdater?: AutoRAGUpdater;
+  private evaluator?: FlywheelEvaluator;
+  private abortSignal?: AbortSignal;
 
   constructor(options: {
     apiKey?: string;
@@ -59,6 +62,8 @@ export class Agent {
     toolOrchestrator?: ToolOrchestrator;
     feedbackOptimizer?: FeedbackOptimizer;
     autoRAGUpdater?: AutoRAGUpdater;
+    evaluator?: FlywheelEvaluator;
+    abortSignal?: AbortSignal;
   }) {
     const apiKey = options.apiKey || process.env.NVIDIA_API_KEY;
     if (!apiKey) {
@@ -79,6 +84,8 @@ export class Agent {
     this.toolOrchestrator = options.toolOrchestrator;
     this.feedbackOptimizer = options.feedbackOptimizer;
     this.autoRAGUpdater = options.autoRAGUpdater;
+    this.evaluator = options.evaluator;
+    this.abortSignal = options.abortSignal;
     
     // Initialize Security & Observability
     this.piiGuard = new PIIGuard();
@@ -88,6 +95,8 @@ export class Agent {
     for (const tool of options.tools || []) {
       this.tools.set(tool.name, tool);
     }
+    
+    console.log("[Agent] Constructor - registered", this.tools.size, "tools:", Array.from(this.tools.keys()).join(", "));
     
     // Initialize flywheel logging
     this.flywheelLogger = options.flywheelLogger;
@@ -112,12 +121,21 @@ export class Agent {
     const toolCallRegex = /<tool_call>([\s\S]*?)<\/tool_call>/g;
     let match;
 
+    console.log("[Agent] Parsing content for tool calls, length:", content.length);
+    console.log("[Agent] Content preview:", content.substring(0, 500));
+
     while ((match = toolCallRegex.exec(content)) !== null) {
       const inner = match[1];
+      console.log("[Agent] Found tool_call block:", inner);
+      
       // Extract function name
       const funcMatch = /<function=([a-zA-Z0-9_]+)>/.exec(inner);
-      if (!funcMatch) continue;
+      if (!funcMatch) {
+        console.log("[Agent] No function match found in:", inner);
+        continue;
+      }
       const name = funcMatch[1];
+      console.log("[Agent] Function name:", name);
 
       // Extract parameters
       const args: Record<string, any> = {};
@@ -127,6 +145,7 @@ export class Agent {
         const key = paramMatch[1];
         const value = paramMatch[2].trim();
         args[key] = value;
+        console.log("[Agent] Parameter:", key, "=", value);
       }
 
       toolCalls.push({
@@ -138,6 +157,8 @@ export class Agent {
         },
       });
     }
+    
+    console.log("[Agent] Total tool calls parsed:", toolCalls.length);
     return toolCalls;
   }
 
@@ -162,15 +183,18 @@ export class Agent {
         
         if (contextResult.formattedContext) {
           contextPrompt = `\n\n### Additional Context\n${contextResult.formattedContext}`;
-          this.emit({ type: "message", role: "system", content: `Context retrieved: ${contextResult.ragDocuments.length} docs, ${contextResult.shortTermMemories.length} memories.` });
         }
       } catch (error) {
         console.error("Failed to retrieve unified context:", error);
       }
     }
 
-    // Dynamic Tool Selection
-    let activeToolNames: string[] | undefined;
+    // Dynamic Tool Selection - DISABLED for simplicity
+    // The ToolOrchestrator was filtering tools but causing issues
+    // Just pass all tools and let the LLM decide
+    let activeToolNames: string[] | undefined = undefined; // undefined = use all tools
+    
+    /*
     if (this.toolOrchestrator) {
       try {
         const spanId = this.tracer.startSpan("tool_selection");
@@ -181,6 +205,7 @@ export class Agent {
         console.error("Tool selection failed:", e);
       }
     }
+    */
 
     // Initialize with conversation history if provided
     if (conversationHistory && conversationHistory.length > 0) {
@@ -197,6 +222,12 @@ export class Agent {
     let totalCompletionTokens = 0;
 
     while (iterations < maxIterations) {
+      // Check for abort
+      if (this.abortSignal?.aborted) {
+        this.emit({ type: "status", status: "completed" });
+        return finalResponse || "Request cancelled";
+      }
+      
       iterations++;
       const iterSpanId = this.tracer.startSpan(`iteration_${iterations}`);
 
@@ -226,6 +257,12 @@ export class Agent {
       ];
 
       try {
+        const toolDefs = this.tools.size > 0 ? this.getToolDefinitions(activeToolNames) : undefined;
+        console.log("[Agent] Sending to LLM with", toolDefs?.length || 0, "tools");
+        if (toolDefs && toolDefs.length > 0) {
+          console.log("[Agent] Tool names:", toolDefs.map(t => t.function.name).join(", "));
+        }
+        
         // Call NVIDIA NIM API
         const response = await this.client.chat.completions.create({
           model: this.config.model,
@@ -233,7 +270,7 @@ export class Agent {
           max_tokens: this.config.maxTokens,
           temperature: this.config.temperature,
           top_p: this.config.topP,
-          tools: this.tools.size > 0 ? this.getToolDefinitions(activeToolNames) : undefined,
+          tools: toolDefs,
         });
 
         // Track token usage
@@ -244,16 +281,20 @@ export class Agent {
 
         const choice = response.choices[0];
         const message = choice.message;
+        
+        console.log("[Agent] LLM response - native tool_calls:", message.tool_calls?.length || 0);
+        console.log("[Agent] LLM response - content:", message.content?.substring(0, 200));
 
         // Fallback: Check for XML tool calls if native ones are missing
         if (!message.tool_calls && message.content) {
           const parsedTools = this.parseToolCallsFromContent(message.content);
           if (parsedTools.length > 0) {
+            console.log("[Agent] Parsed XML tool calls:", JSON.stringify(parsedTools, null, 2));
             message.tool_calls = parsedTools;
-            // Ideally we strip the XML from content, or keep it as log. 
-            // We'll keep it but the tool execution loop will handle the calls.
           }
         }
+        
+        console.log("[Agent] Tool calls to execute:", message.tool_calls?.length || 0);
 
         // Add assistant message to history
         const assistantMessage: AgentMessage = {
@@ -270,10 +311,17 @@ export class Agent {
 
         // Check if we need to execute tools
         if (message.tool_calls && message.tool_calls.length > 0) {
+          console.log("[Agent] Executing", message.tool_calls.length, "tool(s)...");
           // Execute all tool calls
           const results = await Promise.all(
             message.tool_calls.map((tc) => this.executeToolCall(tc as ToolCall))
           );
+          
+          console.log("[Agent] Tool results:", JSON.stringify(results.map(r => ({ 
+            id: r.tool_call_id, 
+            error: r.is_error,
+            content: r.content.substring(0, 300) 
+          })), null, 2));
 
           // Add tool results to messages
           for (const result of results) {
@@ -356,7 +404,6 @@ export class Agent {
 
         if (contextResult.formattedContext) {
           contextPrompt = `\n\n### Additional Context\n${contextResult.formattedContext}`;
-          yield { type: "message", role: "system", content: `Context retrieved: ${contextResult.ragDocuments.length} docs, ${contextResult.shortTermMemories.length} memories.` };
         }
       } catch (error) {
         console.error("Failed to retrieve unified context:", error);
@@ -370,7 +417,6 @@ export class Agent {
         const spanId = this.tracer.startSpan("tool_selection");
         activeToolNames = await this.toolOrchestrator.selectTools(sanitizedUserMessage);
         this.tracer.endSpan(spanId, { selected: activeToolNames });
-        yield { type: "status", status: "thinking", message: `Selected tools: ${activeToolNames.join(", ")}` };
       } catch (e) {
         console.error("Tool selection failed:", e);
       }
@@ -382,6 +428,11 @@ export class Agent {
     const maxIterations = 50;
 
     while (iterations < maxIterations) {
+      // Check for abort
+      if (this.abortSignal?.aborted) {
+        return;
+      }
+      
       iterations++;
       const iterSpanId = this.tracer.startSpan(`iteration_${iterations}`);
 
@@ -512,11 +563,111 @@ export class Agent {
     return [...this.messages];
   }
 
+  private async executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
+    const { name, arguments: argsString } = toolCall.function;
+    let args: any;
+    try {
+      args = JSON.parse(argsString);
+    } catch (e) {
+      args = argsString; // Fallback for poorly formatted JSON
+    }
+    
+    const tool = this.tools.get(name);
+    const toolStartTime = Date.now();
+    const spanId = this.tracer.startSpan(`tool_exec_${name}`, { args });
+
+    if (!tool) {
+      const error = `Tool ${name} not found`;
+      this.tracer.failSpan(spanId, new Error(error));
+      return {
+        tool_call_id: toolCall.id,
+        content: error,
+        is_error: true,
+      };
+    }
+
+    // Security Check
+    const securityCheck = this.toolGuard.check(name, args);
+    if (!securityCheck.allowed) {
+      const error = `Tool execution blocked by security policy: ${securityCheck.reason}`;
+      this.tracer.failSpan(spanId, new Error(error));
+      return {
+        tool_call_id: toolCall.id,
+        content: error,
+        is_error: true,
+      };
+    }
+
+    if (securityCheck.requiresConfirmation) {
+      console.log(`[Agent] Tool ${name} requires confirmation. Proceeding in prototype mode...`);
+    }
+
+    try {
+      const content = await tool.execute(args);
+      
+      // Record for flywheel
+      this.toolCallRecords.push({
+        toolName: name,
+        arguments: args,
+        result: content,
+        durationMs: Date.now() - toolStartTime,
+        success: true
+      });
+
+      this.tracer.endSpan(spanId, { success: true });
+      return {
+        tool_call_id: toolCall.id,
+        content,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.tracer.failSpan(spanId, error instanceof Error ? error : new Error(errorMessage));
+      
+      this.toolCallRecords.push({
+        toolName: name,
+        arguments: args,
+        result: `Error: ${errorMessage}`,
+        durationMs: Date.now() - toolStartTime,
+        success: false,
+        error: errorMessage
+      });
+
+      return {
+        tool_call_id: toolCall.id,
+        content: `Error: ${errorMessage}`,
+        is_error: true,
+      };
+    }
+  }
+
   private async learn(): Promise<void> {
-    // Run feedback optimizer and auto RAG updater if available
+    // 1. Run automatic evaluation if evaluator is available
+    if (this.evaluator && this.flywheelLogger) {
+      const records = this.flywheelLogger.getRecords();
+      const lastRecord = records[records.length - 1];
+      if (lastRecord && !lastRecord.qualitySignals?.overallScore) {
+        try {
+          const scores = await this.evaluator.evaluateRecord(lastRecord);
+          // Update the record with judge scores
+          lastRecord.qualitySignals = {
+            overallScore: scores.overall || 5,
+            helpfulness: scores.helpfulness,
+            accuracy: scores.accuracy,
+            reasoning: String(scores.reasoning || ""),
+            responseLength: lastRecord.qualitySignals?.responseLength || 0,
+            toolCallCount: lastRecord.qualitySignals?.toolCallCount || 0,
+            errorCount: lastRecord.qualitySignals?.errorCount || 0,
+          };
+        } catch (e) {
+          console.error("Auto-evaluation failed:", e);
+        }
+      }
+    }
+
+    // 2. Run feedback optimizer and auto RAG updater if available
     await Promise.all([
-      this.feedbackOptimizer?.optimize?.(),
-      this.autoRAGUpdater?.update?.(),
+      (this.feedbackOptimizer as any)?.generateOptimizations?.(),
+      (this.autoRAGUpdater as any)?.sync?.(),
     ].filter(Boolean));
   }
 }

@@ -1,0 +1,65 @@
+# =============================================================================
+# Evaluation Configuration
+# For running nat eval to assess workflow quality
+# =============================================================================
+
+llms:
+  nim_nemotron:
+    _type: nim
+    model_name: nvidia/nemotron-3-nano-30b-a3b
+    temperature: 1.0
+    max_tokens: 16384
+
+  judge_llm:
+    _type: nim
+    model_name: nvidia/llama-3.1-nemotron-70b-instruct
+    temperature: 0.1
+
+functions:
+  bash:
+    _type: dory_bash
+    timeout: 60
+
+  file_read:
+    _type: dory_file_read
+
+  file_write:
+    _type: dory_file_write
+
+  memory:
+    _type: dory_memory
+
+  think:
+    _type: dory_think
+
+  current_datetime:
+    _type: current_datetime
+
+  tavily_search:
+    _type: tavily_internet_search
+
+workflow:
+  _type: react_agent
+  llm_name: nim_nemotron
+  tool_names:
+    - bash
+    - file_read
+    - file_write
+    - memory
+    - think
+    - current_datetime
+    - tavily_search
+  max_iterations: 15
+
+# Evaluation configuration
+evaluators:
+  trajectory:
+    _type: trajectory
+    llm_name: judge_llm
+
+eval:
+  evaluator_name: trajectory
+  dataset:
+    _type: jsonl
+    path: data/eval_dataset.jsonl
+  output_dir: ~/.nvidia-cli/eval_results
