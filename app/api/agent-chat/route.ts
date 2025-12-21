@@ -23,10 +23,16 @@ import {
 } from "@/lib/agents/tools/specialist-agents";
 import { GitHubAnalyzerTool, GitHubFileReaderTool } from "@/lib/agents/tools/github-analyzer";
 import { MermaidGeneratorTool, QuickDiagramTool } from "@/lib/agents/tools/mermaid-generator";
-import { MemoryTool, EntityMemoryTool } from "@/lib/agents/tools/memory";
+import { MemoryTool, EntityMemoryTool, ShortTermMemory, LongTermMemory } from "@/lib/agents/tools/memory";
 import { CodeDocumentationTool, DocumentationSpecialistTool } from "@/lib/agents/tools/code-documentation";
 import { RAGIngestTool, RAGSearchTool, RAGQueryTool, RAGResearchTool, RAGStatsTool, RAGClearTool } from "@/lib/agents/tools/rag-tools";
+import { RAGPipeline } from "@/lib/agents/rag/pipeline";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
+import { UnifiedContext } from "@/lib/agents/unified-context";
+import { RetrievalRouter } from "@/lib/agents/retrieval-router";
+import { ToolOrchestrator } from "@/lib/agents/tool-orchestrator";
+import { FeedbackOptimizer } from "@/lib/agents/feedback-optimizer";
+import { AutoRAGUpdater } from "@/lib/agents/rag/auto-updater";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -335,11 +341,30 @@ export async function POST(request: Request) {
     const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.chat;
     
     // Initialize flywheel logger for this session
+    const sessionId = `session-${Date.now()}`;
     const flywheelLogger = getFlywheelLogger({
       clientId: "nvidia-cli",
-      workloadId: `session-${Date.now()}`,
+      workloadId: sessionId,
       enabled: true,
     });
+
+    // Initialize Unified Context Dependencies
+    const ragPipeline = new RAGPipeline();
+    const shortTermMemory = new ShortTermMemory(sessionId);
+    const longTermMemory = new LongTermMemory();
+    const retrievalRouter = new RetrievalRouter(apiKey);
+    const toolOrchestrator = new ToolOrchestrator(tools, apiKey, "nvidia/nemotron-3-nano-30b-a3b", flywheelLogger);
+    const feedbackOptimizer = new FeedbackOptimizer(flywheelLogger);
+    const autoRAGUpdater = new AutoRAGUpdater(ragPipeline, flywheelLogger);
+
+    // Create Unified Context
+    const unifiedContext = new UnifiedContext(
+      ragPipeline,
+      shortTermMemory,
+      longTermMemory,
+      flywheelLogger,
+      retrievalRouter
+    );
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -359,6 +384,10 @@ export async function POST(request: Request) {
           },
           flywheelLogger,
           mode,
+          unifiedContext, // Pass unified context to agent
+          toolOrchestrator, // Pass tool orchestrator
+          feedbackOptimizer, // Pass feedback optimizer
+          autoRAGUpdater, // Pass auto RAG updater
         });
 
         try {
