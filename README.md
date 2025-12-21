@@ -607,6 +607,59 @@ flowchart LR
 
 ---
 
+### RAG System ✅ IMPLEMENTED
+
+Full RAG pipeline with NVIDIA embeddings, reranking, query decomposition, and reflection.
+
+```mermaid
+flowchart TD
+    Query --> Decompose[Query Decomposition]
+    Decompose --> Search[Vector Search]
+    Search --> Rerank[NVIDIA Reranker]
+    Rerank --> Reflect{Relevant?}
+    Reflect --> |No| Rewrite[Rewrite Query]
+    Rewrite --> Search
+    Reflect --> |Yes| Generate[Generate Response]
+    Generate --> Ground{Grounded?}
+    Ground --> |No| Regenerate
+    Ground --> |Yes| Response
+```
+
+**Components:**
+- **NVIDIA Embeddings** - `llama-3.2-nv-embedqa-1b-v2` for semantic search
+- **NVIDIA Reranker** - `llama-3.2-nv-rerankqa-1b-v2` for relevance scoring
+- **Query Decomposition** - Breaks complex queries into sub-queries
+- **Reflection System** - Checks context relevance and response groundedness
+- **Research Workflow** - Full AIQ-style research with iteration
+
+**RAG Tools:**
+```typescript
+// Ingest documents
+rag_ingest({ documents: [{ id: "doc1", content: "...", metadata: {...} }] })
+
+// Search with reranking
+rag_search({ query: "your question", top_k: 5 })
+
+// Generate answer with reflection
+rag_query({ query: "your question", system_prompt: "..." })
+
+// Full research workflow
+rag_research({ topic: "research topic", max_iterations: 3 })
+
+// Get stats
+rag_stats()
+
+// Clear knowledge base
+rag_clear()
+```
+
+**Based on:**
+- NVIDIA RAG Blueprint patterns
+- NVIDIA Course Materials (docgen_agent, rag_agent)
+- AIQ Research Assistant workflow
+
+---
+
 ### Agent Workshop Patterns
 
 From NVIDIA's LangGraph Agent Workshop:
