@@ -6,7 +6,7 @@ import path from 'path';
 // Parse arguments
 const args = process.argv.slice(2);
 const modeIndex = args.indexOf('--mode');
-const mode = modeIndex > -1 ? args[modeIndex + 1] : 'chat';
+const mode = modeIndex > -1 ? args[modeIndex + 1] : 'auto';
 const message = args.filter((_, i) => i !== modeIndex && i !== modeIndex + 1).join(' ');
 
 if (!message) {

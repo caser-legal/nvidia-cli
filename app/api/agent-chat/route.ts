@@ -40,6 +40,25 @@ export const maxDuration = 300;
 
 // System prompts for each mode
 const SYSTEM_PROMPTS = {
+  auto: `You are dory - a universal AI agent with access to a vast ecosystem of tools.
+Your goal is to solve ANY task by dynamically selecting and using the right tools.
+
+CORE CAPABILITIES:
+- Research: Tavily, Google, RAG, Local Docs
+- Coding: File ops, Bash, GitHub Analysis
+- Coordination: Multi-agent delegation (via specialist tools)
+- Visualization: Mermaid diagrams
+- Memory: Long-term recall
+
+DIRECTIVES:
+1. ANALYZE the user's request to determine intent.
+2. The Tool Orchestrator has already filtered your tools to the most relevant ones. USE THEM.
+3. If the task is complex, break it down.
+4. NEVER say "I can't". You have the tools.
+5. CRITICAL: DO NOT use XML tags like <tool_call>. ALWAYS use the native tool/function calling feature provided by the API.
+
+You are on macOS. Home is /Users/home.`,
+
   chat: `You are dory - an autonomous AI agent with full system access. You DO things, you don't talk about doing things.
 
 TOOLS YOU HAVE (USE THEM):
@@ -222,11 +241,11 @@ export async function POST(request: Request) {
     const { 
       messages, 
       projectDir = "/Users/home",
-      mode = "chat" 
+      mode = "auto" // Default to auto mode
     } = body as {
       messages: { role: string; content: string }[];
       projectDir?: string;
-      mode?: "chat" | "computer" | "browser" | "research" | "coder" | "coordinator" | "docs";
+      mode?: "auto" | "chat" | "computer" | "browser" | "research" | "coder" | "coordinator" | "docs";
     };
 
     const apiKey = request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY;
@@ -251,9 +270,55 @@ export async function POST(request: Request) {
       .filter(m => m.role === "user" || m.role === "assistant")
       .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-    // Create tools based on mode
+    // Define ALL tools for auto mode
+    const allTools = [
+      // Basic Tools
+      new FileReadTool(projectDir),
+      new FileWriteTool(projectDir),
+      new BashTool(projectDir),
+      new ThinkTool(),
+      new MemoryTool(),
+      new EntityMemoryTool(),
+      
+      // Search Tools
+      new GoogleSearchTool(),
+      new TavilySearchTool(),
+      new ParallelSearchTool(),
+      new ParallelTavilySearchTool(),
+      new LocalDocsSearchTool(),
+      
+      // Specialist Agents
+      new SearchSpecialistTool(apiKey),
+      new ReportPlannerTool(apiKey),
+      new SectionAuthorTool(apiKey),
+      new ReportWriterTool(apiKey),
+      new QualityReviewerTool(apiKey),
+      new ReportExtenderTool(apiKey),
+      new ReportCompilerTool(),
+      new SourceDeduplicatorTool(),
+      new DocumentationSpecialistTool(apiKey),
+      
+      // Coding & Diagrams
+      new GitHubAnalyzerTool(),
+      new GitHubFileReaderTool(),
+      new CodeDocumentationTool(apiKey),
+      new MermaidGeneratorTool(apiKey),
+      new QuickDiagramTool(),
+      
+      // RAG
+      RAGIngestTool,
+      RAGSearchTool,
+      RAGQueryTool,
+      RAGResearchTool,
+      RAGStatsTool,
+      RAGClearTool,
+    ];
+
+    // Select tools based on mode
     let tools;
-    if (mode === "coordinator") {
+    if (mode === "auto") {
+      tools = allTools;
+    } else if (mode === "coordinator") {
       // Full specialist toolkit for coordinator
       tools = [
         new SearchSpecialistTool(apiKey),
@@ -339,7 +404,7 @@ export async function POST(request: Request) {
       ];
     }
 
-    const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.chat;
+    const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.auto;
     
     // Initialize flywheel logger for this session
     const sessionId = `session-${Date.now()}`;
@@ -354,7 +419,10 @@ export async function POST(request: Request) {
     const shortTermMemory = new ShortTermMemory(sessionId);
     const longTermMemory = new LongTermMemory();
     const retrievalRouter = new RetrievalRouter(apiKey);
+    
+    // Instantiate ToolOrchestrator with the SELECTED tools (which is ALL tools in auto mode)
     const toolOrchestrator = new ToolOrchestrator(tools, apiKey, "nvidia/nemotron-3-nano-30b-a3b", flywheelLogger);
+    
     const feedbackOptimizer = new FeedbackOptimizer(flywheelLogger);
     const autoRAGUpdater = new AutoRAGUpdater(ragPipeline, flywheelLogger);
 
