@@ -86,6 +86,7 @@ flowchart TD
 
 | Mode | Description | Key Tools |
 |------|-------------|-----------|
+| **🤖 Auto** (Default) | Intelligent orchestrator | Dynamic selection from ALL tools |
 | **💬 Chat** | General assistant | Memory, entity tracking |
 | **💻 Coder** | Autonomous coding | GitHub analyzer, Mermaid diagrams |
 | **📄 Docs** | Documentation generator | Code documentation, architecture diagrams |
@@ -187,13 +188,11 @@ Run the agent directly from your terminal using the Node.js wrapper.
 # Make executable (first time only)
 chmod +x bin/dory
 
-# Run in chat mode
+# Run in Auto Mode (Default) - Intelligently picks tools for any task
 ./bin/dory "Explain quantum computing"
 
-# Run in research mode
+# Run in specific modes (optional)
 ./bin/dory "Latest breakthroughs in fusion energy" --mode research
-
-# Run in coder mode
 ./bin/dory "Create a React component for a login form" --mode coder
 ```
 
