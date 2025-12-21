@@ -1,5 +1,6 @@
 <p align="center">
   <img src="public/nvidia-logo.webp" alt="NVIDIA CLI" width="120" />
+  Access Dory here: <a href="http://localhost:3000/">Local 3000</a> or <a href="http://localhost:3001/">Local 3001</a>
 </p>
 
 <h1 align="center">NVIDIA CLI</h1>
