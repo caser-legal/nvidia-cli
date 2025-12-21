@@ -98,6 +98,14 @@ export class Agent {
     this.onEvent?.(event);
   }
 
+  private getToolDefinitions(allowedNames?: string[]) {
+    const tools = Array.from(this.tools.values());
+    if (allowedNames) {
+      return tools.filter(t => allowedNames.includes(t.name)).map(t => t.toDefinition());
+    }
+    return tools.map((t) => t.toDefinition());
+  }
+
   private parseToolCallsFromContent(content: string): ToolCall[] {
     const toolCalls: ToolCall[] = [];
     // Regex to capture <tool_call> ... </tool_call>
