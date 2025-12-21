@@ -511,4 +511,12 @@ export class Agent {
   getHistory(): AgentMessage[] {
     return [...this.messages];
   }
+
+  private async learn(): Promise<void> {
+    // Run feedback optimizer and auto RAG updater if available
+    await Promise.all([
+      this.feedbackOptimizer?.optimize?.(),
+      this.autoRAGUpdater?.update?.(),
+    ].filter(Boolean));
+  }
 }

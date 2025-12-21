@@ -138,39 +138,48 @@ export class UnifiedContext {
 
   /**
    * Format the retrieved context into a string for LLM consumption
+   * Implements explicit context arbitration strategy.
    */
   private formatContext(result: UnifiedContextResult): string {
     const sections: string[] = [];
 
-    // 1. Critical Entities
+    // Arbitration Header
+    sections.push(`### CONTEXT ARBITRATION STRATEGY
+1. **FACTS (Verified)**: RAG documents. Highest priority for objective truth.
+2. **USER CONTEXT (Personal)**: Memories. Highest priority for user preferences/state.
+3. **SUGGESTIONS (Historical)**: Flywheel examples. Use for style/format guidance only.
+If FACTS and USER CONTEXT conflict on world knowledge, prefer FACTS.
+If they conflict on user preference, prefer USER CONTEXT.`);
+
+    // 1. Critical Entities (User Context)
     if (result.entities.length > 0) {
-      sections.push(`## Known Entities\n${result.entities.map(e => `- ${e.content}`).join("\n")}`);
+      sections.push(`### USER CONTEXT (Entities)\n${result.entities.map(e => `- ${e.content}`).join("\n")}`);
     }
 
-    // 2. Conversation Summary
+    // 2. Conversation Summary (User Context)
     if (result.conversationSummary) {
       const s = result.conversationSummary;
-      sections.push(`## Conversation Context\nTopics: ${s.topics.join(", ")}\nKey Facts: ${s.keyFacts.join("; ")}`);
+      sections.push(`### USER CONTEXT (Session)\nTopics: ${s.topics.join(", ")}\nKey Facts: ${s.keyFacts.join("; ")}`);
     }
 
-    // 3. Relevant Memories
+    // 3. Relevant Memories (User Context)
     if (result.shortTermMemories.length > 0 || result.longTermMemories.length > 0) {
       const allMems = [...result.shortTermMemories, ...result.longTermMemories]
         // Deduplicate by content
         .filter((v, i, a) => a.findIndex(t => t.content === v.content) === i)
         .slice(0, 10);
       
-      sections.push(`## Relevant Memories\n${allMems.map(m => `- [${m.type}] ${m.content}`).join("\n")}`);
+      sections.push(`### USER CONTEXT (Memories)\n${allMems.map(m => `- [${m.type}] ${m.content}`).join("\n")}`);
     }
 
-    // 4. RAG Knowledge
+    // 4. RAG Knowledge (Facts)
     if (result.ragDocuments.length > 0) {
-      sections.push(`## Retrieved Knowledge\n${result.ragDocuments.map((d, i) => `[Doc ${i+1}] ${d.content}`).join("\n\n")}`);
+      sections.push(`### FACTS (Verified Knowledge)\n${result.ragDocuments.map((d, i) => `[Doc ${i+1}] ${d.content}`).join("\n\n")}`);
     }
 
-    // 5. Successful Past Examples (Few-Shot)
+    // 5. Successful Past Examples (Suggestions)
     if (result.flywheelExamples.length > 0) {
-      sections.push(`## Similar Past Successes\n${result.flywheelExamples.map(r => `User: ${r.userMessage}\nAssistant: ${r.assistantResponse.slice(0, 200)}...`).join("\n\n")}`);
+      sections.push(`### SUGGESTIONS (Historical Patterns)\n${result.flywheelExamples.map(r => `User: ${r.userMessage}\nAssistant: ${r.assistantResponse.slice(0, 200)}...`).join("\n\n")}`);
     }
 
     return sections.join("\n\n");
