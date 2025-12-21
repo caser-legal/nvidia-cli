@@ -218,7 +218,7 @@ aside[role="navigation"] * {
   
   /* Feature 21: Proper spacing in markdown */
   .prose-chat {
-    @apply prose prose-sm dark:prose-invert max-w-none;
+    @apply prose prose-sm dark:prose-invert max-w-none break-words;
     @apply prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2;
     @apply prose-pre:my-0 prose-pre:p-0 prose-pre:bg-transparent;
   }
