@@ -61,6 +61,7 @@ export class ReflectionSystem {
   private relevanceThreshold: number;
   private groundednessThreshold: number;
 
+  // Use Super-49B for reflection - best instruction following for evaluation tasks
   constructor(
     llmEndpoint: string = 'https://integrate.api.nvidia.com/v1',
     model: string = 'nvidia/nemotron-3-nano-30b-a3b',
@@ -83,7 +84,7 @@ export class ReflectionSystem {
     const contextText = documents.map(d => d.content).join('\n\n---\n\n');
     const prompt = RELEVANCE_CHECK_PROMPT
       .replace('{query}', query)
-      .replace('{context}', contextText.slice(0, 4000));
+      .replace('{context}', contextText.slice(0, 16000));  // Increased context window
 
     try {
       const response = await fetch(`${this.llmEndpoint}/chat/completions`, {
@@ -99,7 +100,7 @@ export class ReflectionSystem {
             { role: 'user', content: prompt },
           ],
           temperature: 0,
-          max_tokens: 256,
+          max_tokens: 512,  // Increased for detailed reasoning
         }),
       });
 
@@ -135,7 +136,7 @@ export class ReflectionSystem {
 
     const contextText = documents.map(d => d.content).join('\n\n---\n\n');
     const prompt = GROUNDEDNESS_CHECK_PROMPT
-      .replace('{context}', contextText.slice(0, 4000))
+      .replace('{context}', contextText.slice(0, 16000))  // Increased context window
       .replace('{response}', response);
 
     try {
@@ -152,7 +153,7 @@ export class ReflectionSystem {
             { role: 'user', content: prompt },
           ],
           temperature: 0,
-          max_tokens: 512,
+          max_tokens: 1024,  // Increased for detailed groundedness analysis
         }),
       });
 
@@ -228,7 +229,7 @@ export class ReflectionSystem {
 Query: ${query}
 
 Context:
-${contextText.slice(0, 4000)}
+${contextText.slice(0, 16000)}
 
 Previous Response (not well-grounded):
 ${previousResponse}
@@ -253,7 +254,7 @@ New Response:`;
           model: this.model,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.3,
-          max_tokens: 1024,
+          max_tokens: 2048,  // Increased for comprehensive responses
         }),
       });
 

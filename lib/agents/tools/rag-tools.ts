@@ -3,24 +3,28 @@
  * Integrates NVIDIA RAG capabilities with the agent tool system
  */
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { Tool, ToolDefinition } from '../types';
 import { RAGPipeline } from '../rag';
+import { getCurrentProjectDir } from './project';
 
 // Singleton RAG pipeline instance
 let ragPipeline: RAGPipeline | null = null;
 
 function getRAGPipeline(): RAGPipeline {
   if (!ragPipeline) {
+    // Use Nano-30B for RAG - 1M context handles entire codebases
     ragPipeline = new RAGPipeline({
       embeddingModel: 'nvidia/llama-3.2-nv-embedqa-1b-v2',
       rerankModel: 'nvidia/llama-3.2-nv-rerankqa-1b-v2',
-      rerankTopN: 5,
-      topK: 10,
+      rerankTopN: 15,
+      topK: 30,
       scoreThreshold: 0.3,
       enableReflection: true,
-      maxReflectionLoops: 2,
+      maxReflectionLoops: 3,
       enableDecomposition: true,
-      llmModel: 'nvidia/nemotron-3-nano-30b-a3b',
+      llmModel: 'nvidia/nemotron-3-nano-30b-a3b',  // 1M context for large docs
     });
   }
   return ragPipeline;
@@ -50,18 +54,74 @@ function createToolDefinition(name: string, description: string, parameters: Rec
 export const RAGIngestTool: Tool = {
   name: 'rag_ingest',
   description: `Ingest documents into the RAG knowledge base for later retrieval.
-Parameters: documents (array of {id, content, metadata})`,
+Can accept either:
+- path: A file or directory path to ingest
+- documents: An array of {id, content, metadata} objects`,
   parameters: {
+    path: {
+      type: 'string',
+      description: 'File or directory path to ingest',
+      required: false,
+    },
     documents: {
       type: 'array',
-      description: 'Documents to ingest',
-      required: true,
+      description: 'Documents to ingest directly',
+      required: false,
     },
   },
   execute: async (args: Record<string, unknown>): Promise<string> => {
     try {
-      const documents = args.documents as { id: string; content: string; metadata?: Record<string, unknown> }[];
       const pipeline = getRAGPipeline();
+      let documents: { id: string; content: string; metadata?: Record<string, unknown> }[] = [];
+
+      // Handle path-based ingestion
+      if (args.path) {
+        const inputPath = args.path as string;
+        const resolvedPath = inputPath.startsWith('/') ? inputPath : 
+          inputPath.startsWith('~') ? inputPath.replace(/^~/, process.env.HOME || '') :
+          path.resolve(getCurrentProjectDir(), inputPath);
+        
+        const stat = await fs.stat(resolvedPath);
+        
+        if (stat.isFile()) {
+          const content = await fs.readFile(resolvedPath, 'utf-8');
+          documents.push({
+            id: resolvedPath,
+            content,
+            metadata: { source: resolvedPath, type: path.extname(resolvedPath) }
+          });
+        } else if (stat.isDirectory()) {
+          const files = await fs.readdir(resolvedPath);
+          for (const file of files) {
+            const filePath = path.join(resolvedPath, file);
+            const fileStat = await fs.stat(filePath);
+            if (fileStat.isFile() && /\.(md|txt|ts|tsx|js|jsx|json)$/i.test(file)) {
+              try {
+                const content = await fs.readFile(filePath, 'utf-8');
+                if (content) {
+                  documents.push({
+                    id: filePath,
+                    content,
+                    metadata: { source: filePath, type: path.extname(filePath) }
+                  });
+                }
+              } catch (readError) {
+                console.warn(`[RAG] Skipping file ${filePath}: ${readError}`);
+              }
+            }
+          }
+        }
+      }
+      
+      // Handle direct documents array
+      if (args.documents && Array.isArray(args.documents)) {
+        documents = documents.concat(args.documents as typeof documents);
+      }
+
+      if (documents.length === 0) {
+        return JSON.stringify({ success: false, error: 'No documents to ingest. Provide a path or documents array.' });
+      }
+
       await pipeline.ingest(documents);
       
       return JSON.stringify({
@@ -76,8 +136,9 @@ Parameters: documents (array of {id, content, metadata})`,
       });
     }
   },
-  toDefinition: () => createToolDefinition('rag_ingest', 'Ingest documents into RAG knowledge base', {
-    documents: { type: 'array', description: 'Documents to ingest' },
+  toDefinition: () => createToolDefinition('rag_ingest', 'Ingest documents into RAG knowledge base. Accepts path (file/directory) or documents array.', {
+    path: { type: 'string', description: 'File or directory path to ingest' },
+    documents: { type: 'array', description: 'Documents to ingest directly' },
   }),
 };
 

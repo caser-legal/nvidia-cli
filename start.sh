@@ -10,5 +10,5 @@ npx ts-node --esm lib/terminal-server.ts > /tmp/nvidia-cli-terminal.log 2>&1 &
 # Open browser after a delay
 (sleep 3 && open http://localhost:3000) &
 
-# Run next dev in foreground (shows logs)
-npm run dev
+# Run next dev with increased memory and suppress warnings
+NODE_OPTIONS="--max-old-space-size=8192 --no-deprecation --no-warnings" npm run dev 2>&1 | grep -v "Retrying"

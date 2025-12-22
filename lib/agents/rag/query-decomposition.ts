@@ -46,6 +46,7 @@ export class QueryDecomposer {
   private llmEndpoint: string;
   private model: string;
 
+  // Use Super-49B v1.5 for query decomposition - best instruction following
   constructor(llmEndpoint: string = 'https://integrate.api.nvidia.com/v1', model: string = 'nvidia/nemotron-3-nano-30b-a3b') {
     this.llmEndpoint = llmEndpoint;
     this.model = model;
@@ -78,12 +79,18 @@ export class QueryDecomposer {
             { role: 'user', content: prompt },
           ],
           temperature: 0.3,
-          max_tokens: 1024,
+          max_tokens: 2048,  // Increased for complex decompositions
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`LLM API error: ${response.status}`);
+        // Don't throw - just return fallback for non-critical feature
+        console.warn(`[QueryDecomposer] LLM API returned ${response.status}, using fallback`);
+        return {
+          originalQuery: query,
+          subQueries: [{ query, rationale: 'Original query (decomposition unavailable)' }],
+          needsDecomposition: false,
+        };
       }
 
       const data = await response.json();

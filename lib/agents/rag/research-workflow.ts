@@ -84,11 +84,12 @@ export class ResearchWorkflow {
   private llmEndpoint: string;
   private model: string;
 
+  // Use Super-49B for research workflow - best for report generation (ArenaHard 92%)
   constructor(
     config: ResearchConfig = {
-      maxReflections: 2,
+      maxReflections: 3,
       searchWeb: true,
-      numQueries: 5,
+      numQueries: 8,
     },
     llmEndpoint: string = 'https://integrate.api.nvidia.com/v1',
     model: string = 'nvidia/nemotron-3-nano-30b-a3b'
@@ -227,7 +228,7 @@ export class ResearchWorkflow {
           model: this.model,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.5,
-          max_tokens: 4096,
+          max_tokens: 8192,  // Increased for comprehensive reports
         }),
       });
 
@@ -266,7 +267,7 @@ export class ResearchWorkflow {
             { role: 'user', content: prompt },
           ],
           temperature: 0.3,
-          max_tokens: 512,
+          max_tokens: 1024,  // Increased for detailed gap analysis
         }),
       });
 

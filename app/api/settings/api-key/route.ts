@@ -16,12 +16,7 @@ export async function GET() {
     const match = content.match(/NVIDIA_API_KEY=(.+)/);
     const apiKey = match ? match[1].trim() : "";
     
-    // Mask the key for display (show first 10 and last 4 chars)
-    const masked = apiKey.length > 14 
-      ? apiKey.slice(0, 10) + "..." + apiKey.slice(-4)
-      : apiKey;
-    
-    return NextResponse.json({ apiKey: masked, hasKey: !!apiKey });
+    return NextResponse.json({ apiKey, hasKey: !!apiKey });
   } catch (error) {
     return NextResponse.json({ error: "Failed to read API key" }, { status: 500 });
   }

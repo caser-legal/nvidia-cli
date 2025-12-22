@@ -38,15 +38,15 @@ export interface RAGPipelineConfig {
 const DEFAULT_CONFIG: RAGPipelineConfig = {
   embeddingModel: 'nvidia/llama-3.2-nv-embedqa-1b-v2',
   rerankModel: 'nvidia/llama-3.2-nv-rerankqa-1b-v2',
-  rerankTopN: 5,
-  topK: 10,
-  scoreThreshold: 0.5,
+  rerankTopN: 15,
+  topK: 30,
+  scoreThreshold: 0.3,
   enableReflection: true,
-  maxReflectionLoops: 2,
+  maxReflectionLoops: 3,
   relevanceThreshold: 1,
   groundednessThreshold: 1,
   enableDecomposition: true,
-  llmModel: 'nvidia/nemotron-3-nano-30b-a3b',
+  llmModel: 'nvidia/nemotron-3-nano-30b-a3b',  // Super v1.5 for RAG generation
 };
 
 export class RAGPipeline {
@@ -57,6 +57,7 @@ export class RAGPipeline {
   private decomposer: QueryDecomposer;
   private reflection: ReflectionSystem;
   private llmEndpoint: string;
+  private initialized: boolean = false;
 
   constructor(config: Partial<RAGPipelineConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -86,12 +87,22 @@ export class RAGPipeline {
       this.config.relevanceThreshold,
       this.config.groundednessThreshold
     );
+    
+    // Auto-load persisted data
+    this.init();
+  }
+
+  private async init(): Promise<void> {
+    if (this.initialized) return;
+    await this.vectorStore.loadFromDisk();
+    this.initialized = true;
   }
 
   /**
    * Ingest documents into the vector store
    */
   async ingest(documents: { id: string; content: string; metadata?: Record<string, unknown> }[]): Promise<void> {
+    await this.init();
     // Chunk documents if needed
     const chunkedDocs = this.chunkDocuments(documents);
     await this.vectorStore.addDocuments(chunkedDocs);
@@ -101,6 +112,7 @@ export class RAGPipeline {
    * Search for relevant documents
    */
   async search(query: string): Promise<SearchResult> {
+    await this.init();
     // Step 1: Query decomposition (optional)
     let queries = [query];
     if (this.config.enableDecomposition) {
@@ -254,7 +266,7 @@ Answer:`;
             { role: 'user', content: prompt },
           ],
           temperature: 0.3,
-          max_tokens: 2048,
+          max_tokens: 4096,  // Increased for longer, more detailed responses
         }),
       });
 
@@ -343,28 +355,45 @@ Answer:`;
 
   private chunkDocuments(
     documents: { id: string; content: string; metadata?: Record<string, unknown> }[],
-    chunkSize: number = 500,
-    chunkOverlap: number = 50
+    chunkSize: number = 6000,   // ~1500 tokens, model supports 8192 - leave room for overlap
+    chunkOverlap: number = 500  // Increased overlap for better context continuity
   ): { id: string; content: string; metadata?: Record<string, unknown> }[] {
     const chunked: { id: string; content: string; metadata?: Record<string, unknown> }[] = [];
 
     for (const doc of documents) {
       const content = doc.content;
       
+      // Skip documents with no content
+      if (!content) {
+        console.warn(`[RAG] Skipping document ${doc.id} - no content`);
+        continue;
+      }
+      
+      console.log(`[RAG] Chunking document ${doc.id} (${content.length} chars)`);
+      
       if (content.length <= chunkSize) {
         chunked.push(doc);
         continue;
       }
 
-      // Split into chunks
+      // Split into chunks with proper termination
       const chunks: string[] = [];
       let start = 0;
       
       while (start < content.length) {
         const end = Math.min(start + chunkSize, content.length);
         chunks.push(content.slice(start, end));
+        
+        // Break if we've reached the end of content
+        if (end >= content.length) {
+          break;
+        }
+        
+        // Move start forward, ensuring we always make progress
         start = end - chunkOverlap;
       }
+
+      console.log(`[RAG] Created ${chunks.length} chunks for ${doc.id}`);
 
       // Create chunk documents
       chunks.forEach((chunk, idx) => {
@@ -381,6 +410,7 @@ Answer:`;
       });
     }
 
+    console.log(`[RAG] Total chunks to embed: ${chunked.length}`);
     return chunked;
   }
 

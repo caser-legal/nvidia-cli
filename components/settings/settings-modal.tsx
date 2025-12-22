@@ -176,19 +176,11 @@ export function SettingsModal() {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
-                      type={showApiKey ? "text" : "password"}
+                      type="text"
                       value={localApiKey}
                       onChange={(e) => setLocalApiKey(e.target.value)}
                       placeholder="nvapi-..."
                     />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1 h-7 w-7"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
                   </div>
                   <Button 
                     onClick={handleSaveApiKey}

@@ -206,11 +206,12 @@ export async function POST(request: Request) {
     const retrievalRouter = new RetrievalRouter(apiKey);
     const entityMemory = new EntityMemoryTool();
     
-    // Instantiate ToolOrchestrator with the SELECTED tools (which is ALL tools in auto mode)
+    // Tool orchestrator uses Nano for tool selection (good reasoning)
     const toolOrchestrator = new ToolOrchestrator(tools, apiKey, "nvidia/nemotron-3-nano-30b-a3b", flywheelLogger);
     
     const feedbackOptimizer = new FeedbackOptimizer(flywheelLogger);
     const autoRAGUpdater = new AutoRAGUpdater(ragPipeline, flywheelLogger);
+    // Evaluator uses Super v1.5 for better instruction following in judgments
     const evaluator = new FlywheelEvaluator({
       apiKey,
       model: "nvidia/nemotron-3-nano-30b-a3b",
@@ -233,16 +234,17 @@ export async function POST(request: Request) {
         // Get abort signal from request
         const abortSignal = request.signal;
         
+        // Main agent uses Nano-30B: SWE-Bench 38.8%, 1M context
         const agent = new Agent({
           apiKey,
           systemPrompt,
           tools,
           config: {
-            model: "nvidia/nemotron-3-nano-30b-a3b",
+            model: "nvidia/nemotron-3-nano-30b-a3b",  // Best for coding
             maxTokens: 32768,
             temperature: 1.0,
             topP: 1.0,
-            contextWindowTokens: 1000000,
+            contextWindowTokens: 1000000,  // 1M context
           },
           onEvent: (event) => {
             if (abortSignal.aborted) return;

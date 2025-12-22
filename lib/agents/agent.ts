@@ -21,12 +21,13 @@ import { FeedbackOptimizer } from "./feedback-optimizer";
 import { AutoRAGUpdater } from "./rag/auto-updater";
 import { FlywheelEvaluator } from "./flywheel/evaluator";
 
+// Default to Nano-30B: SWE-Bench 38.8%, AIME25 89.1%, 1M context
 const DEFAULT_CONFIG: AgentConfig = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
   maxTokens: 16384,
   temperature: 1.0,
   topP: 1.0,
-  contextWindowTokens: 128000,
+  contextWindowTokens: 1000000,  // 1M context for large codebases
 };
 
 export class Agent {
@@ -117,6 +118,8 @@ export class Agent {
 
   private parseToolCallsFromContent(content: string): ToolCall[] {
     const toolCalls: ToolCall[] = [];
+    if (!content) return toolCalls;
+    
     // Regex to capture <tool_call> ... </tool_call>
     const toolCallRegex = /<tool_call>([\s\S]*?)<\/tool_call>/g;
     let match;
@@ -271,6 +274,7 @@ export class Agent {
           temperature: this.config.temperature,
           top_p: this.config.topP,
           tools: toolDefs,
+          tool_choice: toolDefs && toolDefs.length > 0 ? "auto" : undefined,
         });
 
         // Track token usage
@@ -461,13 +465,15 @@ export class Agent {
       ];
 
       try {
+        const toolDefs = this.tools.size > 0 ? this.getToolDefinitions(activeToolNames) : undefined;
         const stream = await this.client.chat.completions.create({
           model: this.config.model,
           messages: apiMessages,
           max_tokens: this.config.maxTokens,
           temperature: this.config.temperature,
           top_p: this.config.topP,
-          tools: this.tools.size > 0 ? this.getToolDefinitions(activeToolNames) : undefined,
+          tools: toolDefs,
+          tool_choice: toolDefs && toolDefs.length > 0 ? "auto" : undefined,
           stream: true,
         });
 

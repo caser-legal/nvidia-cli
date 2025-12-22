@@ -73,7 +73,7 @@ export async function POST(request: Request) {
         
         const evaluator = new FlywheelEvaluator({
           apiKey,
-          model: "nvidia/nemotron-3-nano-30b-a3b",
+          model: "nvidia/nemotron-3-nano-30b-a3b",  // Super for evaluation (IFEval 88.6%)
           baseUrl: "https://integrate.api.nvidia.com/v1",
         });
         

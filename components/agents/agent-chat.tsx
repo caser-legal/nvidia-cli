@@ -84,7 +84,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
   const [input, setInput] = React.useState("");
   const [isRunning, setIsRunning] = React.useState(false);
   const [metrics, setMetrics] = React.useState<{ tokensPerSec: number; totalTokens: number; elapsed: number } | null>(null);
-  const [currentTime, setCurrentTime] = React.useState(new Date());
+  const [currentTime, setCurrentTime] = React.useState<Date | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = React.useRef<AbortController | null>(null);
@@ -99,8 +99,9 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
   const fontSizeClass = fontSize === "small" ? "text-xs" : fontSize === "large" ? "text-base" : "text-sm";
   const codeStyle = codeTheme === "github" ? ghcolors : codeTheme === "dracula" ? dracula : oneDark;
 
-  // Live clock
+  // Live clock - only starts after mount to avoid hydration mismatch
   React.useEffect(() => {
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -478,7 +479,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
           />
         </div>
         <span className="text-sm text-gray-400 tabular-nums">
-          {currentTime.toLocaleDateString()} {currentTime.toLocaleTimeString()}
+          {currentTime ? `${currentTime.toLocaleDateString()} ${currentTime.toLocaleTimeString()}` : ""}
         </span>
         {/* Metrics display */}
         <div className="ml-auto flex items-center gap-3 text-xs font-mono">

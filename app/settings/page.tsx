@@ -667,6 +667,32 @@ export default function SettingsPage() {
               </div>
             </section>
 
+            {/* Shutdown */}
+            <section className="space-y-4 pb-8">
+              <h2 className="text-lg font-semibold border-b pb-2">System</h2>
+              <div className="p-4 rounded-lg bg-muted/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium">Shutdown Dory</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Stops all running processes including the server, terminal, and any active agents.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      if (confirm("This will shut down Dory and close the server. Continue?")) {
+                        await fetch("/api/shutdown", { method: "POST" });
+                        window.close();
+                      }
+                    }}
+                  >
+                    Shutdown
+                  </Button>
+                </div>
+              </div>
+            </section>
+
           </div>
         </ScrollArea>
       </main>

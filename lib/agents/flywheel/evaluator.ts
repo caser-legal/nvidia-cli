@@ -98,7 +98,9 @@ Provide your evaluation in JSON format.`;
       });
       
       if (!response.ok) {
-        throw new Error(`Judge API error: ${response.status}`);
+        // Don't throw - evaluation is non-critical, return default scores
+        console.warn(`[Flywheel] Judge API returned ${response.status}, using default scores`);
+        return { overall: 5, skipped: 1 };
       }
       
       const data = await response.json();

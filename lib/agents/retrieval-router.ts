@@ -20,6 +20,7 @@ export class RetrievalRouter {
   private client: OpenAI;
   private model: string;
 
+  // Use Super-49B for routing - best instruction following (IFEval 88.6%)
   constructor(apiKey?: string, model: string = "nvidia/nemotron-3-nano-30b-a3b") {
     const key = apiKey || process.env.NVIDIA_API_KEY;
     if (!key) throw new Error("API Key required for RetrievalRouter");

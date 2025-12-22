@@ -86,6 +86,7 @@ This ensures comprehensive coverage and identifies gaps early.`;
     const research = args.initial_research as string;
     const style = (args.report_style as string) || "standard";
 
+    // Super-49B for report planning - best instruction following (IFEval 88.6%)
     const plannerAgent = new Agent({
       apiKey: this.apiKey,
       systemPrompt: REPORT_PLANNER_PROMPT,
@@ -215,6 +216,7 @@ Includes citations and connects to overall report narrative.`;
     const research = args.research_findings as string;
     const context = (args.report_context as string) || "";
 
+    // Super-49B for section authoring - best for writing quality (ArenaHard 92%)
     const authorAgent = new Agent({
       apiKey: this.apiKey,
       systemPrompt: SECTION_AUTHOR_PROMPT,

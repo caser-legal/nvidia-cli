@@ -46,7 +46,7 @@ export const useProjectStore = create<ProjectState>()(
           id,
           name,
           color: "#76B900",
-          defaultModel: "nvidia/nemotron-3-nano-30b-a3b",
+          defaultModel: "nvidia/nemotron-3-nano-30b-a3b",  // Best for coding (SWE-Bench 38.8%)
           isPinned: false,
           isArchived: false,
           createdAt: new Date(),
@@ -247,7 +247,7 @@ const defaultSettings: Settings = {
   highContrast: false,
   reducedMotion: false,
   globalInstructions: "",
-  defaultModel: "nvidia/nemotron-3-nano-30b-a3b",
+  defaultModel: "nvidia/nemotron-3-nano-30b-a3b",  // Best for coding (SWE-Bench 38.8%)
   apiKey: "",
   onboardingComplete: false,
   onboardingStep: 0,
