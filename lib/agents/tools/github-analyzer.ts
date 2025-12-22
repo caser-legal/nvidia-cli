@@ -45,9 +45,10 @@ Operations:
   private tempDir = "/tmp/nvidia-cli-repos";
 
   private getRepoPath(repoUrl: string): string {
-    const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/\?\#]+)/);
     if (!match) throw new Error("Invalid GitHub URL");
-    return path.join(this.tempDir, `${match[1]}-${match[2]}`);
+    const repoName = match[2].replace(/\.git$/, "");
+    return path.join(this.tempDir, `${match[1]}-${repoName}`);
   }
 
   async execute(args: Record<string, unknown>): Promise<string> {
@@ -251,13 +252,32 @@ Use after github_analyzer clone operation.`;
 
   async execute(args: Record<string, unknown>): Promise<string> {
     const repoUrl = args.repo_url as string;
-    const filePath = args.file_path as string;
+    let filePath = args.file_path as string;
     const maxLines = (args.max_lines as number) || 500;
 
-    const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+    const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/\?\#]+)/);
     if (!match) return "Invalid GitHub URL";
 
-    const fullPath = path.join(this.tempDir, `${match[1]}-${match[2]}`, filePath);
+    const repoName = match[2].replace(/\.git$/, "");
+    
+    // Clean file_path: remove repo name prefix if LLM included it
+    if (filePath.startsWith(repoName + "/")) {
+      filePath = filePath.slice(repoName.length + 1);
+    }
+    // Also handle if just the suffix was included (e.g., "com/CNAME" from "apple.caserlegal.com")
+    const dotParts = repoName.split(".");
+    for (let i = 1; i < dotParts.length; i++) {
+      const suffix = dotParts.slice(i).join(".") + "/";
+      if (filePath.startsWith(suffix)) {
+        filePath = filePath.slice(suffix.length);
+        break;
+      }
+    }
+    
+    // Remove leading slashes/dots
+    filePath = filePath.replace(/^[\.\/]+/, "");
+
+    const fullPath = path.join(this.tempDir, `${match[1]}-${repoName}`, filePath);
 
     try {
       const content = await fs.readFile(fullPath, "utf-8");
