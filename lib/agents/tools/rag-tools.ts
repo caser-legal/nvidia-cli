@@ -20,7 +20,7 @@ function getRAGPipeline(): RAGPipeline {
       rerankModel: 'nvidia/llama-3.2-nv-rerankqa-1b-v2',
       rerankTopN: 15,
       topK: 30,
-      scoreThreshold: 0.3,
+      scoreThreshold: 0.0,  // No threshold - let reranker handle relevance
       enableReflection: true,
       maxReflectionLoops: 3,
       enableDecomposition: true,
@@ -115,11 +115,19 @@ Can accept either:
       
       // Handle direct documents array
       if (args.documents && Array.isArray(args.documents)) {
-        documents = documents.concat(args.documents as typeof documents);
+        const validDocs = (args.documents as typeof documents).filter(doc => 
+          doc && typeof doc === 'object' && doc.id && doc.content && typeof doc.content === 'string'
+        );
+        documents = documents.concat(validDocs);
       }
 
+      // Final validation - filter out any invalid documents
+      documents = documents.filter(doc => 
+        doc && doc.id && doc.content && typeof doc.content === 'string' && doc.content.trim().length > 0
+      );
+
       if (documents.length === 0) {
-        return JSON.stringify({ success: false, error: 'No documents to ingest. Provide a path or documents array.' });
+        return JSON.stringify({ success: false, error: 'No valid documents to ingest. Provide a path or documents array.' });
       }
 
       await pipeline.ingest(documents);
@@ -305,11 +313,14 @@ export const RAGStatsTool: Tool = {
       return JSON.stringify({
         success: true,
         documentCount: pipeline.getDocumentCount(),
+        persistentStorage: '/Users/home/Documents/nvidia-cli/.rag-store.json',
         config: {
           embeddingModel: 'nvidia/llama-3.2-nv-embedqa-1b-v2',
           rerankModel: 'nvidia/llama-3.2-nv-rerankqa-1b-v2',
+          scoreThreshold: 0.0,
           reflectionEnabled: true,
           decompositionEnabled: true,
+          textSearchFallback: true,
         },
       });
     } catch (error) {

@@ -40,7 +40,7 @@ const DEFAULT_CONFIG: RAGPipelineConfig = {
   rerankModel: 'nvidia/llama-3.2-nv-rerankqa-1b-v2',
   rerankTopN: 15,
   topK: 30,
-  scoreThreshold: 0.3,
+  scoreThreshold: 0.0,  // No threshold - let reranker handle relevance filtering
   enableReflection: true,
   maxReflectionLoops: 3,
   relevanceThreshold: 1,
@@ -116,9 +116,13 @@ export class RAGPipeline {
     // Step 1: Query decomposition (optional)
     let queries = [query];
     if (this.config.enableDecomposition) {
-      const decomposed = await this.decomposer.decompose(query);
-      if (decomposed.needsDecomposition) {
-        queries = decomposed.subQueries.map(sq => sq.query);
+      try {
+        const decomposed = await this.decomposer.decompose(query);
+        if (decomposed.needsDecomposition) {
+          queries = decomposed.subQueries.map(sq => sq.query);
+        }
+      } catch (error) {
+        console.warn('[RAG] Query decomposition failed, using original query:', error);
       }
     }
 
@@ -138,6 +142,24 @@ export class RAGPipeline {
             },
           });
         }
+      }
+    }
+
+    // Step 2.5: Fallback to text search if vector search returns no results
+    if (allDocs.length === 0) {
+      console.log('[RAG] Vector search returned no results, trying text search fallback');
+      const textResults = await this.vectorStore.textSearch(query, this.config.topK!);
+      for (const r of textResults) {
+        allDocs.push({
+          id: r.id,
+          content: r.content,
+          metadata: {
+            ...r.metadata,
+            source: r.metadata.source as string || 'local',
+            relevanceScore: r.score,
+            searchType: 'text',
+          },
+        });
       }
     }
 
@@ -361,10 +383,21 @@ Answer:`;
     const chunked: { id: string; content: string; metadata?: Record<string, unknown> }[] = [];
 
     for (const doc of documents) {
+      // Skip invalid documents (null, undefined, or missing required fields)
+      if (!doc || typeof doc !== 'object') {
+        console.warn(`[RAG] Skipping invalid document entry - not an object`);
+        continue;
+      }
+      
+      if (!doc.id) {
+        console.warn(`[RAG] Skipping document with missing ID`);
+        continue;
+      }
+      
       const content = doc.content;
       
       // Skip documents with no content
-      if (!content) {
+      if (!content || typeof content !== 'string' || content.trim().length === 0) {
         console.warn(`[RAG] Skipping document ${doc.id} - no content`);
         continue;
       }

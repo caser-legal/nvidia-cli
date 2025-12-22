@@ -272,6 +272,49 @@ export class SimpleVectorStore {
       .slice(0, topK);
   }
 
+  /**
+   * Text-based search fallback when vector search fails
+   * Uses case-insensitive substring matching
+   */
+  textSearch(query: string, topK: number = 5): { id: string; content: string; score: number; metadata: Record<string, unknown> }[] {
+    const queryLower = query.toLowerCase();
+    const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 2);
+    
+    const results: { id: string; content: string; score: number; metadata: Record<string, unknown> }[] = [];
+    
+    for (const [id, doc] of this.documents) {
+      const contentLower = doc.content.toLowerCase();
+      
+      // Calculate score based on term matches
+      let matchCount = 0;
+      let exactMatch = false;
+      
+      // Check for exact phrase match
+      if (contentLower.includes(queryLower)) {
+        exactMatch = true;
+        matchCount = queryTerms.length;
+      } else {
+        // Check individual terms
+        for (const term of queryTerms) {
+          if (contentLower.includes(term)) {
+            matchCount++;
+          }
+        }
+      }
+      
+      if (matchCount > 0) {
+        // Score: exact match gets 1.0, partial matches get proportional score
+        const score = exactMatch ? 1.0 : matchCount / queryTerms.length;
+        results.push({ id, content: doc.content, score, metadata: doc.metadata });
+      }
+    }
+
+    // Sort by score descending and return top K
+    return results
+      .sort((a, b) => b.score - a.score)
+      .slice(0, topK);
+  }
+
   private cosineSimilarity(a: number[], b: number[]): number {
     let dotProduct = 0;
     let normA = 0;
