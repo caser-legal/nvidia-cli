@@ -23,30 +23,30 @@ export const NVIDIA_MODELS = {
     supportsThinkingBudget: true,
     disabled: false,
   },
-  // Nemotron 70B Instruct - RAG pipeline LLM
-  "nvidia/llama-3.1-nemotron-70b-instruct": {
-    id: "nvidia/llama-3.1-nemotron-70b-instruct",
-    name: "Nemotron 70B Instruct",
-    description: "70B instruct model for RAG and general tasks",
-    contextWindow: 128000,
-    maxTokens: 4096,
-    supportsTools: true,
+  // Embedding Model - For RAG vector search
+  "nvidia/llama-3.2-nv-embedqa-1b-v2": {
+    id: "nvidia/llama-3.2-nv-embedqa-1b-v2",
+    name: "NV EmbedQA 1B",
+    description: "1B embedding model for RAG retrieval",
+    contextWindow: 8192,
+    maxTokens: 0,
+    supportsTools: false,
     supportsImages: false,
-    supportsStreaming: true,
+    supportsStreaming: false,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
     disabled: false,
   },
-  // Qwen3 Coder 480B - Best coding model
-  "qwen/qwen3-coder-480b-a35b-instruct": {
-    id: "qwen/qwen3-coder-480b-a35b-instruct",
-    name: "Qwen3 Coder 480B",
-    description: "480B params, 35B active, best for code generation",
-    contextWindow: 128000,
-    maxTokens: 32768,
-    supportsTools: true,
+  // Reranker Model - For RAG result reranking
+  "nvidia/llama-3.2-nv-rerankqa-1b-v2": {
+    id: "nvidia/llama-3.2-nv-rerankqa-1b-v2",
+    name: "NV RerankQA 1B",
+    description: "1B reranker model for RAG result ordering",
+    contextWindow: 8192,
+    maxTokens: 0,
+    supportsTools: false,
     supportsImages: false,
-    supportsStreaming: true,
+    supportsStreaming: false,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
     disabled: false,

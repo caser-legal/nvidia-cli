@@ -46,7 +46,7 @@ const DEFAULT_CONFIG: RAGPipelineConfig = {
   relevanceThreshold: 1,
   groundednessThreshold: 1,
   enableDecomposition: true,
-  llmModel: 'nvidia/nemotron-3-nano-30b-a3b',  // Super v1.5 for RAG generation
+  llmModel: 'nvidia/nemotron-3-nano-30b-a3b',  // Nemotron 3 Nano for RAG generation
 };
 
 export class RAGPipeline {
