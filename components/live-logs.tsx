@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 interface LiveLogsProps {
@@ -58,16 +57,14 @@ export function LiveLogs({ className, maxLines = 500 }: LiveLogsProps) {
   // Auto-scroll to bottom
   React.useEffect(() => {
     if (autoScrollRef.current && scrollRef.current) {
-      const scrollContainer = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]");
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [logs]);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLDivElement;
-    const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 50;
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollHeight, scrollTop, clientHeight } = scrollRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
     autoScrollRef.current = isAtBottom;
   };
 
@@ -82,10 +79,10 @@ export function LiveLogs({ className, maxLines = 500 }: LiveLogsProps) {
           {connected ? "LIVE" : "RECONNECTING..."}
         </span>
       </div>
-      <ScrollArea 
-        ref={scrollRef} 
-        className="flex-1 min-h-0 rounded-lg bg-black/95 p-2"
-        onScrollCapture={handleScroll}
+      <div 
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto rounded-lg bg-black/95 p-2"
       >
         <div className="font-mono text-[11px] leading-relaxed space-y-0.5">
           {logs.length === 0 ? (
@@ -96,7 +93,7 @@ export function LiveLogs({ className, maxLines = 500 }: LiveLogsProps) {
             ))
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
