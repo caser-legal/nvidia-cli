@@ -2,7 +2,6 @@
 // Purpose: Main entry point for Dory agent modes (full autonomy + supervised research), supercharged for iOS development
 // Last updated: December 23, 2025 — Ultra-comprehensive prompt with ALL reference sections, iOS optimizations
 import { NextRequest } from "next/server";
-import { ReadableStream } from "node:stream/web";
 import { Agent } from "@/lib/agents/agent";
 import { FileReadTool } from "@/lib/agents/tools/file-read";
 import { FileWriteTool } from "@/lib/agents/tools/file-write";
@@ -31,8 +30,6 @@ import { MermaidGeneratorTool, QuickDiagramTool } from "@/lib/agents/tools/merma
 import {
   MemoryTool,
   EntityMemoryTool,
-  ShortTermMemory,
-  LongTermMemory,
 } from "@/lib/agents/tools/memory";
 import {
   CodeDocumentationTool,
@@ -45,17 +42,11 @@ import {
   RAGResearchTool,
   RAGStatsTool,
   RAGClearTool,
-  RAGEvaluationTool,
+  RAGValidateTool,
+  RAGUpdateTool,
 } from "@/lib/agents/tools/rag-tools";
-import { IOSBuildTool, EntitlementCheckerTool } from "@/lib/agents/tools/ios-tools"; // New: iOS-specific tools
-import { RAGPipeline } from "@/lib/agents/rag/pipeline";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
-import { UnifiedContext } from "@/lib/agents/unified-context";
-import { RetrievalRouter } from "@/lib/agents/retrieval-router";
-import { ToolOrchestrator } from "@/lib/agents/tool-orchestrator";
-import { FeedbackOptimizer } from "@/lib/agents/feedback-optimizer";
-import { AutoRAGUpdater } from "@/lib/agents/rag/auto-updater";
-import { FlywheelEvaluator } from "@/lib/agents/flywheel";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max execution
@@ -292,120 +283,91 @@ NEVER:
 - Prioritize accuracy and security over agreeableness
 - Never use profanity, casual emojis (only ✓ for verification success)
 You are a production-grade senior engineer who has shipped multiple enterprise iOS apps to the App Store.
-Act like it — every single time.`,
-  "dory-supervised": `You are Dory in SUPERVISED mode — research quality coordinator using multi-agent delegation.
-TEAM (11 specialists):
-1. search_specialist — deep research
-2. report_planner — structured outline
-3. section_author — individual sections
-4. report_writer — fast full draft
-5. quality_reviewer — evaluates with 0-10 scores
-6. report_extender — merges new findings
-7. report_compiler — final assembly
-8. deduplicate_sources — clean citations
-9. documentation_specialist — codebase docs
-10. mermaid_generator — diagrams
-11. think — planning
-WORKFLOW (mandatory):
-1. search_specialist
-2. report_planner (if complex)
-3. section_author
-4. report_compiler
-5. quality_reviewer → loop max 3× if NEEDS_MORE_RESEARCH
-Deliver only when APPROVED with scores.
-You are COORDINATOR only — never search/write directly. Always show phase.
-For iOS topics: Prioritize Apple HIG verification in quality_reviewer.`
+Act like it — every single time.
+
+================================================================================
+15. MULTI-AGENT RESEARCH DELEGATION — ALWAYS AVAILABLE
+================================================================================
+
+For complex research, reports, or documentation tasks, you have specialist sub-agents:
+
+SPECIALIST TEAM:
+- search_specialist — deep multi-source research with quality scoring
+- report_planner — creates structured outlines for complex deliverables
+- section_author — writes individual sections with citations
+- report_writer — fast full draft generation
+- quality_reviewer — evaluates output with 0-10 scores, flags gaps
+- report_extender — merges new findings into existing reports
+- report_compiler — final assembly and formatting
+- deduplicate_sources — cleans and deduplicates citations
+- documentation_specialist — generates codebase documentation
+
+WHEN TO USE SPECIALISTS:
+- Research requiring multiple sources → search_specialist
+- Reports/documentation → report_planner → section_author → report_compiler
+- Quality assurance → quality_reviewer (loop max 3× until APPROVED)
+- Always deduplicate_sources before final delivery
+
+WORKFLOW FOR COMPLEX TASKS:
+A. search_specialist (gather comprehensive information)
+B. report_planner (if deliverable is structured)
+C. section_author (write each section)
+D. report_compiler (assemble final output)
+E. quality_reviewer → loop until score ≥ 8/10 or max 3 iterations
+
+You can ALWAYS use these specialists. Quality over speed.`
 } as const;
 
-// Helper: Initialize tools based on mode, with iOS expansions
-function initializeTools(mode: "dory" | "dory-supervised", apiKey: string) {
-  const commonTools = [
+// Helper: Initialize ALL tools (unified - no mode separation)
+function initializeTools(apiKey: string) {
+  return [
+    // Reasoning
     new ThinkTool(),
+    // Diagrams
     new MermaidGeneratorTool(apiKey),
+    new QuickDiagramTool(),
+    // Documentation
     new CodeDocumentationTool(apiKey),
-    // RAG tools
+    new DocumentationSpecialistTool(apiKey),
+    // RAG
     RAGIngestTool,
     RAGSearchTool,
     RAGQueryTool,
     RAGResearchTool,
     RAGStatsTool,
     RAGClearTool,
-    new RAGEvaluationTool(), // For production RAG quality checks
-  ];
-
-  if (mode === "dory-supervised") {
-    return [
-      ...commonTools,
-      new SearchSpecialistTool(apiKey),
-      new ReportPlannerTool(apiKey),
-      new SectionAuthorTool(apiKey),
-      new ReportWriterTool(apiKey),
-      new QualityReviewerTool(apiKey),
-      new ReportExtenderTool(apiKey),
-      new ReportCompilerTool(),
-      new SourceDeduplicatorTool(),
-      new DocumentationSpecialistTool(apiKey),
-    ];
-  }
-
-  return [
-    ...commonTools,
+    RAGValidateTool,
+    RAGUpdateTool,
+    // Project Management
     new SetProjectTool(),
     new GetProjectTool(),
+    // File System
     new FileReadTool(),
     new FileWriteTool(),
+    // Shell
     new BashTool(),
+    // Memory
     new MemoryTool(),
     new EntityMemoryTool(),
+    // Search
     new GoogleSearchTool(),
     new TavilySearchTool(),
     new ParallelSearchTool(),
     new ParallelTavilySearchTool(),
     new LocalDocsSearchTool(),
+    // GitHub
     new GitHubAnalyzerTool(),
     new GitHubFileReaderTool(),
-    new QuickDiagramTool(),
-    new IOSBuildTool(), // New: Handles iOS build/install checklists
-    new EntitlementCheckerTool(), // New: Verifies Apple entitlements
+    // Specialist Agents (always available)
+    new SearchSpecialistTool(apiKey),
+    new ReportPlannerTool(apiKey),
+    new SectionAuthorTool(apiKey),
+    new ReportWriterTool(apiKey),
+    new QualityReviewerTool(apiKey),
+    new ReportExtenderTool(apiKey),
+    new ReportCompilerTool(),
+    new SourceDeduplicatorTool(),
   ];
-}
-
-// Helper: Initialize unified context and related components, with iOS auto-ingest
-function initializeContext(sessionId: string, apiKey: string) {
-  const flywheelLogger = getFlywheelLogger({
-    clientId: "nvidia-cli",
-    workloadId: sessionId,
-    enabled: true,
-  });
-  const ragPipeline = new RAGPipeline();
-  // Auto-ingest iOS dev docs on init
-  ragPipeline.ingest("/Users/home/Documents/dev-docs", { recursive: true }).catch(console.error);
-  const shortTermMemory = new ShortTermMemory(sessionId);
-  const longTermMemory = new LongTermMemory();
-  const retrievalRouter = new RetrievalRouter(apiKey);
-  const entityMemory = new EntityMemoryTool();
-  const autoRAGUpdater = new AutoRAGUpdater(ragPipeline, flywheelLogger);
-  const evaluator = new FlywheelEvaluator({
-    apiKey,
-    model: "nvidia/nemotron-3-nano-30b-a3b",
-    baseUrl: "https://integrate.api.nvidia.com/v1",
-  });
-
-  return {
-    unifiedContext: new UnifiedContext(
-      ragPipeline,
-      shortTermMemory,
-      longTermMemory,
-      flywheelLogger,
-      retrievalRouter,
-      entityMemory
-    ),
-    flywheelLogger,
-    toolOrchestrator: new ToolOrchestrator([], apiKey, "nvidia/nemotron-3-nano-30b-a3b", flywheelLogger), // Tools injected later
-    feedbackOptimizer: new FeedbackOptimizer(flywheelLogger),
-    autoRAGUpdater,
-    evaluator,
-  };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -415,14 +377,11 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
   try {
     const body = await request.json();
-    const { messages, mode = "dory" } = body as { messages: { role: string; content: string }[]; mode?: "dory" | "dory-supervised" };
+    const { messages } = body as { messages: { role: string; content: string }[] };
 
     // Input validation
     if (!Array.isArray(messages) || messages.length === 0) {
       throw new Error("Invalid or missing messages array");
-    }
-    if (!["dory", "dory-supervised"].includes(mode)) {
-      throw new Error("Invalid mode specified");
     }
 
     const apiKey = request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY;
@@ -432,7 +391,7 @@ export async function POST(request: NextRequest) {
 
     // Basic rate limiting (expand with Redis/middleware for production)
     const rateLimitHeader = request.headers.get("X-Rate-Limit");
-    if (rateLimitHeader && parseInt(rateLimitHeader) > 10) { // Example: Limit to 10 req/min
+    if (rateLimitHeader && parseInt(rateLimitHeader) > 10) {
       return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429 });
     }
 
@@ -444,11 +403,19 @@ export async function POST(request: NextRequest) {
     const conversationHistory = messages.slice(0, -1).filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
     const sessionId = `session-${Date.now()}`;
-    const { unifiedContext, flywheelLogger, toolOrchestrator, feedbackOptimizer, autoRAGUpdater, evaluator } = initializeContext(sessionId, apiKey);
-    const tools = initializeTools(mode, apiKey);
-    toolOrchestrator.tools = tools; // Inject tools post-init
+    const tools = initializeTools(apiKey);
+    
+    const flywheelLogger = getFlywheelLogger({
+      clientId: "nvidia-cli",
+      workloadId: sessionId,
+      enabled: true,
+    });
 
-    const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.dory;
+    const systemPrompt = SYSTEM_PROMPTS.dory;
+    
+    // Get correct context limits based on backend
+    const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
+    const contextLimit = useLocalLLM ? 1000000 : 262144;
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -460,29 +427,19 @@ export async function POST(request: NextRequest) {
           config: {
             model: "nvidia/nemotron-3-nano-30b-a3b",
             maxTokens: 32768,
-            temperature: 0.7, // Adjusted for balanced output
+            temperature: 0.7,
             topP: 0.95,
-            contextWindowTokens: 1000000, // Leverages Nemotron's 1M context for large iOS projects
+            contextWindowTokens: contextLimit,
           },
           onEvent: (event) => {
             if (abortSignal.aborted) return;
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
           },
           flywheelLogger,
-          mode,
-          unifiedContext,
-          toolOrchestrator,
-          feedbackOptimizer,
-          autoRAGUpdater,
-          evaluator,
           abortSignal,
         });
 
         try {
-          // iOS-specific pre-processing: Check if query involves build, auto-route to iOS tools
-          if (lastUserMessage.content.toLowerCase().includes("build") || lastUserMessage.content.toLowerCase().includes("install")) {
-            await agent.toolOrchestrator.selectTools(["ios_build", "bash"]); // Prioritize iOS build tools
-          }
           const result = await agent.run(lastUserMessage.content, conversationHistory);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", content: result })}\n\n`));
         } catch (error) {
@@ -491,11 +448,6 @@ export async function POST(request: NextRequest) {
           controller.close();
         }
       },
-    });
-
-    // Abort listener for cleanup
-    request.signal.addEventListener("abort", () => {
-      flywheelLogger.log("Session aborted");
     });
 
     return new Response(stream, {
@@ -508,7 +460,5 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[Agent Chat Error]", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }), { status: 500, headers: { "Content-Type": "application/json" } });
-  }
-};
   }
 }

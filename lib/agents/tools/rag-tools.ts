@@ -333,6 +333,119 @@ export const RAGStatsTool: Tool = {
   toDefinition: () => createToolDefinition('rag_stats', 'Get RAG statistics', {}),
 };
 
+/**
+ * RAG Validate Tool
+ * Based on NVIDIA RAG Blueprint document management
+ * Checks for stale documents where source files no longer exist
+ */
+export const RAGValidateTool: Tool = {
+  name: 'rag_validate',
+  description: `Validate RAG knowledge base - removes stale documents where source files no longer exist.
+Run this when you get ENOENT errors or after renaming/moving files.`,
+  parameters: {},
+  execute: async (): Promise<string> => {
+    try {
+      const pipeline = getRAGPipeline();
+      const result = await pipeline.validate();
+      
+      return JSON.stringify({
+        success: true,
+        message: result.removed > 0 
+          ? `Removed ${result.removed} stale documents. ${result.total} documents remaining.`
+          : `All ${result.total} documents are valid.`,
+        removed: result.removed,
+        remaining: result.total,
+      });
+    } catch (error) {
+      return JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  },
+  toDefinition: () => createToolDefinition('rag_validate', 'Validate RAG - remove stale documents', {}),
+};
+
+/**
+ * RAG Update Tool
+ * Based on NVIDIA RAG Blueprint update_documents pattern
+ * Re-ingests documents from a path, replacing old versions
+ */
+export const RAGUpdateTool: Tool = {
+  name: 'rag_update',
+  description: `Update documents in RAG from a path. Removes old documents from that path and re-ingests.
+Use this after editing files to refresh the knowledge base.`,
+  parameters: {
+    path: { type: 'string', description: 'File or directory path to update', required: true },
+  },
+  execute: async (args: Record<string, unknown>): Promise<string> => {
+    try {
+      const inputPath = args.path as string;
+      const resolvedPath = inputPath.startsWith('/') ? inputPath : 
+        inputPath.startsWith('~') ? inputPath.replace(/^~/, process.env.HOME || '') :
+        path.resolve(getCurrentProjectDir(), inputPath);
+      
+      const pipeline = getRAGPipeline();
+      
+      // First remove old documents from this path
+      const removeResult = await pipeline.update(resolvedPath);
+      
+      // Then re-ingest
+      const stat = await fs.stat(resolvedPath);
+      const documents: { id: string; content: string; metadata?: Record<string, unknown> }[] = [];
+      
+      if (stat.isFile()) {
+        const content = await fs.readFile(resolvedPath, 'utf-8');
+        documents.push({
+          id: resolvedPath,
+          content,
+          metadata: { source: resolvedPath, type: path.extname(resolvedPath) }
+        });
+      } else if (stat.isDirectory()) {
+        const files = await fs.readdir(resolvedPath);
+        for (const file of files) {
+          const filePath = path.join(resolvedPath, file);
+          const fileStat = await fs.stat(filePath);
+          if (fileStat.isFile() && /\.(md|txt|ts|tsx|js|jsx|json|swift)$/i.test(file)) {
+            try {
+              const content = await fs.readFile(filePath, 'utf-8');
+              if (content) {
+                documents.push({
+                  id: filePath,
+                  content,
+                  metadata: { source: filePath, type: path.extname(filePath) }
+                });
+              }
+            } catch {
+              // Skip unreadable files
+            }
+          }
+        }
+      }
+      
+      if (documents.length > 0) {
+        await pipeline.ingest(documents);
+      }
+      
+      return JSON.stringify({
+        success: true,
+        message: `Updated ${resolvedPath}: removed ${removeResult.removed} old, ingested ${documents.length} new`,
+        removed: removeResult.removed,
+        ingested: documents.length,
+        totalDocuments: pipeline.getDocumentCount(),
+      });
+    } catch (error) {
+      return JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  },
+  toDefinition: () => createToolDefinition('rag_update', 'Update documents in RAG from path', {
+    path: { type: 'string', description: 'File or directory path to update' },
+  }),
+};
+
 // Export all RAG tools
 export const RAGTools = [
   RAGIngestTool,
@@ -341,4 +454,6 @@ export const RAGTools = [
   RAGResearchTool,
   RAGClearTool,
   RAGStatsTool,
+  RAGValidateTool,
+  RAGUpdateTool,
 ];

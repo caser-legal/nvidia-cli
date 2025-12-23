@@ -375,6 +375,29 @@ Answer:`;
     this.vectorStore.clear();
   }
 
+  /**
+   * Validate documents - remove stale entries where source files no longer exist
+   * Based on NVIDIA RAG Blueprint document management
+   */
+  async validate(): Promise<{ removed: number; total: number }> {
+    return this.vectorStore.validateDocuments();
+  }
+
+  /**
+   * Update documents from a path - removes old and prepares for re-ingestion
+   * Based on NVIDIA RAG Blueprint update_documents pattern
+   */
+  async update(sourcePath: string): Promise<{ updated: number; removed: number }> {
+    return this.vectorStore.updateDocuments(sourcePath);
+  }
+
+  /**
+   * Get list of all source files in the store
+   */
+  getSourceFiles(): string[] {
+    return this.vectorStore.getSourceFiles();
+  }
+
   private chunkDocuments(
     documents: { id: string; content: string; metadata?: Record<string, unknown> }[],
     chunkSize: number = 6000,   // ~1500 tokens, model supports 8192 - leave room for overlap

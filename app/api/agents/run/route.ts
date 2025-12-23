@@ -26,25 +26,19 @@ process.on("SIGTERM", () => {
 // Agent configurations
 const AGENTS_BASE_PATH = process.env.NVIDIA_AGENTS_PATH || "/Users/home/Desktop/nvidia-quickstarts-main";
 
-const AGENT_CONFIGS = {
+interface AgentConfig {
+  script: string;
+  dir: string;
+  args: (projectDir?: string) => string[];
+  command?: string;
+  commandArgs?: (scriptPath: string) => string[];
+}
+
+const AGENT_CONFIGS: Record<string, AgentConfig> = {
   coder: {
     script: "autonomous_agent_demo.py",
     dir: "autonomous-coding",
-    args: (projectDir: string) => ["--project-dir", projectDir],
-  },
-  computer: {
-    script: "streamlit.py",
-    dir: "computer-use-demo/computer_use_demo",
-    args: () => [],
-    command: "streamlit",
-    commandArgs: (script: string) => ["run", script, "--server.headless", "true"],
-  },
-  browser: {
-    script: "streamlit.py", 
-    dir: "browser-use-demo/browser_use_demo",
-    args: () => [],
-    command: "streamlit",
-    commandArgs: (script: string) => ["run", script, "--server.headless", "true"],
+    args: (projectDir?: string) => projectDir ? ["--project-dir", projectDir] : [],
   },
   research: {
     script: "npm",
@@ -122,7 +116,7 @@ export async function POST(request: NextRequest) {
       args = config.commandArgs ? config.commandArgs(scriptPath) : [];
     } else {
       command = "python3";
-      args = [scriptPath, ...config.args(projectDir || "")];
+      args = [scriptPath, ...config.args(projectDir)];
     }
 
     await sendEvent("status", { status: "starting", command, args, cwd: agentDir });

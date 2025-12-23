@@ -1,5 +1,5 @@
 // Agent Chat Component
-// Reusable terminal-like interface for all agent modes
+// Unified Dory interface with all capabilities
 
 "use client";
 
@@ -7,7 +7,7 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, ghcolors, dracula } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { MessageSquare, Users, Square } from "lucide-react";
+import { MessageSquare, Square, Zap } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,56 +30,35 @@ interface AgentEvent {
   durationMs?: number;
 }
 
-type AgentMode = "dory" | "dory-supervised";
-
 interface AgentChatProps {
-  mode: AgentMode;
   sessionId?: string | null;
   className?: string;
 }
 
-const MODE_CONFIG = {
-  dory: {
-    name: "Dory",
-    icon: MessageSquare,
-    color: "text-[#76B900]",
-    bgColor: "bg-[#76B900]",
-    placeholder: "Ask dory anything...",
-    welcome: {
-      title: "NVIDIA CLI [codename: dory]",
-      description: "Your co-worker with full system access",
-      features: [
-        "Read and write files on your system",
-        "Execute shell commands (bash, git, xcodebuild, etc.)",
-        "Search the web (Google, Tavily)",
-        "Analyze GitHub repos and generate diagrams",
-        "RAG: Index and search local documents",
-        "Memory: Remembers context across sessions",
-      ],
-    },
-  },
-  "dory-supervised": {
-    name: "Dory (Supervised)",
-    icon: Users,
-    color: "text-yellow-400",
-    bgColor: "bg-yellow-500",
-    placeholder: "What would you like me to research and report on?",
-    welcome: {
-      title: "Dory (Supervised Mode)",
-      description: "Multi-agent research with quality review loops",
-      features: [
-        "🔍 Search Specialist - parallel web search + local docs",
-        "📋 Report Planner - structured outlines for complex topics",
-        "✍️ Section Author - writes individual sections",
-        "✅ Quality Reviewer - evaluates completeness, identifies gaps",
-        "🔄 Reflection Loop - iterates until approved (max 3 rounds)",
-        "📚 Source Deduplication - clean, numbered citations",
-      ],
-    },
+const DORY_CONFIG = {
+  name: "Dory",
+  icon: Zap,
+  color: "text-[#76B900]",
+  bgColor: "bg-[#76B900]",
+  placeholder: "Ask Dory anything...",
+  welcome: {
+    title: "NVIDIA CLI [codename: Dory]",
+    description: "Your co-worker with full system access + specialist agents",
+    features: [
+      "Read and write files on your system",
+      "Execute shell commands (bash, git, xcodebuild, etc.)",
+      "Search the web (Google, Tavily) with parallel queries",
+      "Analyze GitHub repos and generate diagrams",
+      "RAG: Index and search local documents",
+      "Memory: Remembers context across sessions",
+      "🔍 Search Specialist - deep multi-source research",
+      "📋 Report Planner - structured outlines for complex topics",
+      "✅ Quality Reviewer - evaluates completeness, iterates until approved",
+    ],
   },
 };
 
-export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
+export function AgentChat({ sessionId, className }: AgentChatProps) {
   const [events, setEvents] = React.useState<AgentEvent[]>([]);
   const [input, setInput] = React.useState("");
   const [isRunning, setIsRunning] = React.useState(false);
@@ -136,7 +115,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
     tokenCountRef.current += estimateTokens(text);
   };
 
-  const config = MODE_CONFIG[mode];
+  const config = DORY_CONFIG;
   const Icon = config.icon;
 
   // Load session if sessionId provided
@@ -197,14 +176,14 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
     };
   }, []);
 
-  // Clear events when mode changes (but not if loading a session)
+  // Clear events when sessionId changes (but not if loading a session)
   React.useEffect(() => {
     if (!sessionId) {
       setEvents([]);
       currentSessionRef.current = null;
       setMetrics(null);
     }
-  }, [mode, sessionId]);
+  }, [sessionId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,7 +198,7 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
     let sid = currentSessionRef.current;
     if (!sid) {
       const name = userMessage.slice(0, 20) + (userMessage.length > 20 ? "..." : "");
-      sid = createSession(mode, name, "/Users/home");
+      sid = createSession(name, "/Users/home");
       currentSessionRef.current = sid;
     }
 
@@ -246,7 +225,6 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
         },
         body: JSON.stringify({
           messages: [...conversationHistory, { role: "user", content: userMessage }],
-          mode,
           projectDir: "/Users/home",
         }),
         signal: abortControllerRef.current.signal,

@@ -36,6 +36,14 @@ Commands run in the current project directory (use set_project to change it).`;
     
     // Get current project directory
     const cwd = getCurrentProjectDir();
+    
+    // Auto-exclude build folders from grep/find to prevent huge outputs
+    if (command.includes("grep -r") && !command.includes("--exclude-dir")) {
+      command = command.replace("grep -r", "grep -r --exclude-dir=build --exclude-dir=.build --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=DerivedData --exclude-dir='.git'");
+    }
+    if (command.includes("find ") && command.includes("-name") && !command.includes("-not -path")) {
+      command = command.replace("find ", "find . -not -path '*/build/*' -not -path '*/.build/*' -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/DerivedData/*' -not -path '*/.git/*' ");
+    }
 
     // Fix common command issues on macOS
     if (command.startsWith("python ") || command.startsWith("python\"") || command === "python") {
@@ -57,6 +65,12 @@ Commands run in the current project directory (use set_project to change it).`;
       let result = "";
       if (stdout) result += stdout;
       if (stderr) result += (result ? "\n" : "") + `[stderr] ${stderr}`;
+      
+      // Truncate output to prevent context overflow (max ~100K chars ≈ 25K tokens)
+      const MAX_OUTPUT = 100000;
+      if (result.length > MAX_OUTPUT) {
+        result = result.slice(0, MAX_OUTPUT) + `\n... [truncated ${result.length - MAX_OUTPUT} chars to prevent context overflow]`;
+      }
       
       return result || "[Command completed with no output]";
     } catch (error) {

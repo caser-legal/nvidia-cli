@@ -286,8 +286,7 @@ interface UIState {
   artifactPanelOpen: boolean;
   artifactPanelWidth: number;
   
-  // Agent Mode
-  agentMode: "dory" | "dory-supervised";
+  // Coder project directory
   coderProjectDir: string;
   
   // Modals
@@ -335,8 +334,7 @@ interface UIState {
   setSearchFilter: (filter: Partial<UIState["searchFilter"]>) => void;
   clearSearch: () => void;
   
-  // Agent mode actions
-  setAgentMode: (mode: UIState["agentMode"]) => void;
+  // Coder project dir action
   setCoderProjectDir: (dir: string) => void;
 }
 
@@ -348,7 +346,6 @@ export const useUIStore = create<UIState>()(
       artifactPanelOpen: false,
       artifactPanelWidth: 500,
       
-      agentMode: "dory",
       coderProjectDir: "/Users/home/Documents/iOS",
       
       settingsModalOpen: false,
@@ -388,7 +385,6 @@ export const useUIStore = create<UIState>()(
       setSearchFilter: (filter) => set((state) => ({ searchFilter: { ...state.searchFilter, ...filter } })),
       clearSearch: () => set({ searchQuery: "", searchFilter: {} }),
       
-      setAgentMode: (mode) => set({ agentMode: mode }),
       setCoderProjectDir: (dir) => set({ coderProjectDir: dir }),
     }),
     {

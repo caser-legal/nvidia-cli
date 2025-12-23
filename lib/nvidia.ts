@@ -15,14 +15,21 @@ const OLLAMA_MODEL_MAP: Record<string, string> = {
 };
 
 // Available Models - Streamlined for agents and coding
+// IMPORTANT: Context limits differ between hosted API and self-hosted NIM
+// - Hosted API (integrate.api.nvidia.com): 262,144 tokens (free tier limit)
+// - Self-hosted NIM / Ollama: Up to 1,000,000 tokens (model native limit)
 export const NVIDIA_MODELS = {
-  // Nemotron 3 Nano - Main agent model, 1M context
+  // Nemotron 3 Nano - Main agent model
+  // Native: 1M context, Hosted API: 262K limit
   "nvidia/nemotron-3-nano-30b-a3b": {
     id: "nvidia/nemotron-3-nano-30b-a3b",
     ollamaId: "nemotron-3-nano",
     name: "Nemotron 3 Nano",
-    description: "31.6B params, 3.6B active, 1M context, reasoning ON/OFF",
-    contextWindow: 1000000,
+    description: "31.6B params, 3.6B active, reasoning ON/OFF",
+    // Context windows by backend:
+    nativeContextWindow: 1000000,      // Self-hosted NIM / Ollama
+    hostedContextWindow: 262144,       // integrate.api.nvidia.com (free tier)
+    contextWindow: USE_LOCAL_LLM ? 1000000 : 262144, // Active limit
     maxTokens: 32768,
     supportsTools: true,
     supportsImages: false,

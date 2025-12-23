@@ -47,7 +47,7 @@ export interface AgentConfig {
 export interface AgentSession {
   id: string;
   projectDir: string;
-  status: "idle" | "running" | "paused" | "completed" | "error";
+  status: "idle" | "running" | "paused" | "completed" | "error" | "thinking";
   iteration: number;
   startedAt: Date;
   lastActivityAt: Date;
@@ -72,7 +72,7 @@ export interface Tool {
 
 // Agent events for streaming updates to UI
 export type AgentEvent =
-  | { type: "status"; status: AgentSession["status"] }
+  | { type: "status"; status: AgentSession["status"]; message?: string }
   | { type: "message"; role: "user" | "assistant"; content: string }
   | { type: "tool_call"; name: string; args: string }
   | { type: "tool_result"; name: string; result: string; is_error?: boolean }

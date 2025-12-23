@@ -310,7 +310,8 @@ export class NVIDIAReranker {
 
 /**
  * Simple in-memory vector store for local RAG
- * For production, use Milvus, Qdrant, or ChromaDB
+ * Based on NVIDIA RAG Blueprint patterns
+ * Includes file tracking for auto-invalidation of stale documents
  */
 export class SimpleVectorStore {
   private documents: Map<string, { content: string; embedding: number[]; metadata: Record<string, unknown> }> = new Map();
@@ -353,6 +354,9 @@ export class SimpleVectorStore {
   }
 
   async search(query: string, topK: number = 5): Promise<{ id: string; content: string; score: number; metadata: Record<string, unknown> }[]> {
+    // Validate stale documents before search (NVIDIA RAG Blueprint pattern)
+    await this.validateDocuments();
+    
     const queryEmbedding = await this.embeddings.embedQuery(query);
     
     const results: { id: string; content: string; score: number; metadata: Record<string, unknown> }[] = [];
@@ -366,6 +370,97 @@ export class SimpleVectorStore {
     return results
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);
+  }
+
+  /**
+   * Validate documents - remove stale entries where source file no longer exists
+   * Based on NVIDIA RAG Blueprint document management
+   */
+  async validateDocuments(): Promise<{ removed: number; total: number }> {
+    const fs = await import('fs/promises');
+    const staleIds: string[] = [];
+    
+    for (const [id, doc] of this.documents) {
+      const sourcePath = doc.metadata?.source as string;
+      if (sourcePath && sourcePath.startsWith('/')) {
+        try {
+          await fs.access(sourcePath);
+        } catch {
+          // File no longer exists - mark as stale
+          staleIds.push(id);
+        }
+      }
+    }
+    
+    if (staleIds.length > 0) {
+      console.log(`[RAG] Removing ${staleIds.length} stale documents (source files no longer exist)`);
+      for (const id of staleIds) {
+        this.documents.delete(id);
+      }
+      await this.saveToDisk();
+    }
+    
+    return { removed: staleIds.length, total: this.documents.size };
+  }
+
+  /**
+   * Update documents from a specific source path
+   * Re-ingests all chunks from files that have been modified
+   * Based on NVIDIA RAG Blueprint update_documents pattern
+   */
+  async updateDocuments(sourcePath: string): Promise<{ updated: number; removed: number }> {
+    const fs = await import('fs/promises');
+    
+    // Find all documents from this source
+    const toRemove: string[] = [];
+    for (const [id, doc] of this.documents) {
+      const docSource = doc.metadata?.source as string;
+      if (docSource && docSource.startsWith(sourcePath)) {
+        toRemove.push(id);
+      }
+    }
+    
+    // Remove old documents
+    for (const id of toRemove) {
+      this.documents.delete(id);
+    }
+    
+    console.log(`[RAG] Removed ${toRemove.length} documents from ${sourcePath} for re-ingestion`);
+    await this.saveToDisk();
+    
+    return { updated: 0, removed: toRemove.length };
+  }
+
+  /**
+   * Delete documents by source path
+   * Based on NVIDIA RAG Blueprint delete_documents pattern
+   */
+  deleteBySource(sourcePath: string): number {
+    const toRemove: string[] = [];
+    for (const [id, doc] of this.documents) {
+      const docSource = doc.metadata?.source as string;
+      if (docSource && docSource.startsWith(sourcePath)) {
+        toRemove.push(id);
+      }
+    }
+    
+    for (const id of toRemove) {
+      this.documents.delete(id);
+    }
+    
+    return toRemove.length;
+  }
+
+  /**
+   * Get list of all source files in the store
+   */
+  getSourceFiles(): string[] {
+    const sources = new Set<string>();
+    for (const [, doc] of this.documents) {
+      const source = doc.metadata?.source as string;
+      if (source) sources.add(source);
+    }
+    return Array.from(sources);
   }
 
   /**

@@ -16,13 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, estimateTokens } from "@/lib/utils";
 
-type AgentMode = "dory" | "dory-supervised";
-
-const modes = [
-  { id: "dory" as const, name: "Dory", icon: MessageSquare },
-  { id: "dory-supervised" as const, name: "Dory (Supervised)", icon: Users },
-];
-
 interface ChatInputProps {
   onSend: (message: string, images?: string[]) => void;
   onStop?: () => void;
@@ -31,8 +24,6 @@ interface ChatInputProps {
   disabled?: boolean;
   placeholder?: string;
   maxLength?: number;
-  agentMode?: AgentMode;
-  onModeChange?: (mode: AgentMode) => void;
   streamingMetrics?: { tokensPerSec: number; totalTokens: number } | null;
 }
 
@@ -42,10 +33,8 @@ export function ChatInput({
   isLoading = false,
   isStreaming = false,
   disabled = false,
-  placeholder = "Message dory...",
+  placeholder = "Message Dory...",
   maxLength = 100000,
-  agentMode = "dory",
-  onModeChange,
   streamingMetrics,
 }: ChatInputProps) {
   const [value, setValue] = React.useState("");
@@ -55,8 +44,6 @@ export function ChatInput({
 
   const charCount = value.length;
   const tokenEstimate = estimateTokens(value);
-  const currentMode = modes.find((m) => m.id === agentMode) || modes[0];
-  const ModeIcon = currentMode.icon;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -127,37 +114,6 @@ export function ChatInput({
 
         <div className="max-w-4xl mx-auto">
           <div className="flex items-end gap-2 p-2 rounded-xl border bg-background shadow-sm focus-within:border-[#76B900] transition-colors">
-            {/* Mode selector */}
-            {onModeChange && (
-              <DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0">
-                        <ModeIcon className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">{currentMode.name}</TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent align="start" side="top">
-                  {modes.map((m) => {
-                    const Icon = m.icon;
-                    return (
-                      <DropdownMenuItem
-                        key={m.id}
-                        onClick={() => onModeChange(m.id)}
-                        className={cn("gap-2", agentMode === m.id && "bg-accent")}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {m.name}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
             {/* Attachment button */}
             <Tooltip>
               <TooltipTrigger asChild>

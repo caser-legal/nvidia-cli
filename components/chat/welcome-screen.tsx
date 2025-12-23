@@ -1,35 +1,10 @@
 // Welcome Screen Component
-// Mode selection cards for different dory capabilities
+// Unified Dory - all capabilities always available
 
 "use client";
 
 import * as React from "react";
-import { MessageSquare, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-export type AgentType = "dory" | "dory-supervised";
-
-interface WelcomeScreenProps {
-  onAgentSelect: (agent: AgentType) => void;
-  currentAgent?: AgentType;
-}
-
-const MODES = [
-  {
-    id: "dory" as const,
-    name: "Dory",
-    description: "Full autonomy — coding, research, file ops, web search",
-    icon: MessageSquare,
-    color: "from-[#76B900] to-[#5a8f00]",
-  },
-  {
-    id: "dory-supervised" as const,
-    name: "Dory (Supervised)",
-    description: "Multi-agent research with quality review loops",
-    icon: Users,
-    color: "from-yellow-500 to-yellow-600",
-  },
-];
+import { MessageSquare, Zap, Brain, Search, FileCode, Terminal } from "lucide-react";
 
 // NVIDIA Logo SVG
 function NvidiaLogo({ className = "" }: { className?: string }) {
@@ -45,52 +20,51 @@ function NvidiaLogo({ className = "" }: { className?: string }) {
   );
 }
 
-export function WelcomeScreen({ onAgentSelect, currentAgent = "dory" }: WelcomeScreenProps) {
+const CAPABILITIES = [
+  { icon: FileCode, label: "iOS Development", desc: "SwiftUI, Xcode, builds" },
+  { icon: Search, label: "Deep Research", desc: "Multi-source with quality review" },
+  { icon: Terminal, label: "Full System Access", desc: "Bash, file ops, automation" },
+  { icon: Brain, label: "RAG & Memory", desc: "Persistent context across sessions" },
+];
+
+export function WelcomeScreen() {
   return (
     <div className="flex flex-col items-center justify-center h-full p-8">
       {/* NVIDIA Logo */}
       <NvidiaLogo className="w-16 h-16 text-[#76B900] mb-6" />
 
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-semibold mb-2">dory</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="text-2xl font-semibold mb-2">Dory</h1>
+        <p className="text-muted-foreground text-sm mb-4">
           Powered by NVIDIA NIM × Nemotron
         </p>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#76B900]/10 border border-[#76B900]/30">
+          <Zap className="w-4 h-4 text-[#76B900]" />
+          <span className="text-sm text-[#76B900] font-medium">All capabilities enabled</span>
+        </div>
       </div>
 
-      {/* Mode selection grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-3xl">
-        {MODES.map((mode) => {
-          const Icon = mode.icon;
-          const isSelected = currentAgent === mode.id;
+      {/* Capabilities grid */}
+      <div className="grid grid-cols-2 gap-3 w-full max-w-md mb-8">
+        {CAPABILITIES.map((cap) => {
+          const Icon = cap.icon;
           return (
-            <button
-              key={mode.id}
-              onClick={() => onAgentSelect(mode.id)}
-              className={cn(
-                "relative p-4 rounded-xl border text-left transition-all group",
-                isSelected
-                  ? "border-[#76B900] bg-[#76B900]/10"
-                  : "border-border hover:border-[#76B900]/50 bg-background/50 hover:bg-background"
-              )}
+            <div
+              key={cap.label}
+              className="p-3 rounded-lg border border-border/50 bg-background/50"
             >
-              <div className={cn(
-                "w-10 h-10 rounded-lg flex items-center justify-center mb-3 bg-gradient-to-br",
-                mode.color
-              )}>
-                <Icon className="h-5 w-5 text-white" />
-              </div>
-              <div className="font-medium mb-1">{mode.name}</div>
-              <div className="text-xs text-muted-foreground line-clamp-2">
-                {mode.description}
-              </div>
-              {isSelected && (
-                <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#76B900]" />
-              )}
-            </button>
+              <Icon className="w-5 h-5 text-[#76B900] mb-2" />
+              <div className="text-sm font-medium">{cap.label}</div>
+              <div className="text-xs text-muted-foreground">{cap.desc}</div>
+            </div>
           );
         })}
       </div>
+
+      <p className="text-xs text-muted-foreground text-center max-w-md">
+        Dory automatically uses specialist agents for complex research tasks.
+        Quality over speed — no shortcuts.
+      </p>
     </div>
   );
 }

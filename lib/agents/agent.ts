@@ -1,6 +1,7 @@
 // Agent Core
 // Main agent loop using NVIDIA NIM API with tool execution
 // Integrated with Data Flywheel for continuous model improvement
+// Context management for handling API token limits
 
 import OpenAI from "openai";
 import type {
@@ -20,14 +21,25 @@ import { ToolOrchestrator } from "./tool-orchestrator";
 import { FeedbackOptimizer } from "./feedback-optimizer";
 import { AutoRAGUpdater } from "./rag/auto-updater";
 import { FlywheelEvaluator } from "./flywheel/evaluator";
+import { 
+  ContextManager, 
+  getContextLimits, 
+  estimateMessagesTokens,
+  estimateToolsTokens 
+} from "../context-manager";
 
-// Default to Nano-30B: SWE-Bench 38.8%, AIME25 89.1%, 1M context
+// Check if using local LLM
+const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
+const CONTEXT_LIMITS = getContextLimits(USE_LOCAL_LLM);
+
+// Default to Nano-30B with correct context limits
 const DEFAULT_CONFIG: AgentConfig = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
   maxTokens: 16384,
   temperature: 1.0,
   topP: 1.0,
-  contextWindowTokens: 1000000,  // 1M context for large codebases
+  // Use actual API limit, not model native limit
+  contextWindowTokens: CONTEXT_LIMITS.maxInputTokens,
 };
 
 export class Agent {
@@ -49,6 +61,7 @@ export class Agent {
   private autoRAGUpdater?: AutoRAGUpdater;
   private evaluator?: FlywheelEvaluator;
   private abortSignal?: AbortSignal;
+  private contextManager: ContextManager;
 
   constructor(options: {
     apiKey?: string;
@@ -94,6 +107,11 @@ export class Agent {
     this.autoRAGUpdater = options.autoRAGUpdater;
     this.evaluator = options.evaluator;
     this.abortSignal = options.abortSignal;
+    
+    // Initialize Context Manager with correct backend limits
+    this.contextManager = new ContextManager(useLocalLLM);
+    const limits = this.contextManager.getLimits();
+    console.log(`[Agent] Context limits: ${limits.maxInputTokens.toLocaleString()} tokens (${useLocalLLM ? 'local' : 'hosted API'})`);
     
     // Initialize Security & Observability
     this.piiGuard = new PIIGuard();
@@ -268,15 +286,36 @@ export class Agent {
 
       try {
         const toolDefs = this.tools.size > 0 ? this.getToolDefinitions(activeToolNames) : undefined;
+        
+        // Context management: Check and truncate if needed
+        const contextCheck = this.contextManager.prepareForAPI(
+          apiMessages,
+          toolDefs as OpenAI.ChatCompletionTool[] | undefined,
+          "tool_results_first"
+        );
+        
+        if (contextCheck.warning) {
+          console.log(`[Agent] Context warning: ${contextCheck.warning}`);
+          this.emit({ 
+            type: "status", 
+            status: "thinking", 
+            message: contextCheck.warning 
+          });
+        }
+        
+        // Use truncated messages if needed
+        const finalMessages = contextCheck.truncated ? contextCheck.messages : apiMessages;
+        
         console.log("[Agent] Sending to LLM with", toolDefs?.length || 0, "tools");
+        console.log(`[Agent] Context: ${contextCheck.stats.finalTokens.toLocaleString()} tokens`);
         if (toolDefs && toolDefs.length > 0) {
           console.log("[Agent] Tool names:", toolDefs.map(t => t.function.name).join(", "));
         }
         
-        // Call NVIDIA NIM API
+        // Call NVIDIA NIM API with managed context
         const response = await this.client.chat.completions.create({
           model: this.config.model,
-          messages: apiMessages,
+          messages: finalMessages,
           max_tokens: this.config.maxTokens,
           temperature: this.config.temperature,
           top_p: this.config.topP,
@@ -478,9 +517,29 @@ export class Agent {
 
       try {
         const toolDefs = this.tools.size > 0 ? this.getToolDefinitions(activeToolNames) : undefined;
+        
+        // Context management: Check and truncate if needed
+        const contextCheck = this.contextManager.prepareForAPI(
+          apiMessages,
+          toolDefs as OpenAI.ChatCompletionTool[] | undefined,
+          "tool_results_first"
+        );
+        
+        if (contextCheck.warning) {
+          console.log(`[Agent] Context warning: ${contextCheck.warning}`);
+          yield { 
+            type: "status", 
+            status: "thinking", 
+            message: contextCheck.warning 
+          };
+        }
+        
+        // Use truncated messages if needed
+        const finalMessages = contextCheck.truncated ? contextCheck.messages : apiMessages;
+        
         const stream = await this.client.chat.completions.create({
           model: this.config.model,
-          messages: apiMessages,
+          messages: finalMessages,
           max_tokens: this.config.maxTokens,
           temperature: this.config.temperature,
           top_p: this.config.topP,

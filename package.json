@@ -1,6 +1,7 @@
 {
   "name": "nvidia-cli",
   "version": "1.0.0",
+  "description": "Dory - Private enterprise iOS/SwiftUI coding agent for large codebase handling. Built on NVIDIA Nemotron 3 Nano (1M context) with RAG for indexing entire Xcode projects.",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -26,7 +26,7 @@ interface LogEntry {
 }
 
 export function CoderPanel({ projectDir, onBack, onClose }: CoderPanelProps) {
-  const [status, setStatus] = React.useState<"idle" | "running" | "paused" | "completed" | "error">("idle");
+  const [status, setStatus] = React.useState<"idle" | "running" | "paused" | "completed" | "error" | "thinking">("idle");
   const [logs, setLogs] = React.useState<LogEntry[]>([]);
   const [progress, setProgress] = React.useState({ passing: 0, total: 0 });
   const [iteration, setIteration] = React.useState(0);

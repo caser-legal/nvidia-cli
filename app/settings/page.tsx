@@ -769,14 +769,14 @@ export default function SettingsPage() {
                   </p>
                 </div>
 
-                {/* Modes */}
+                {/* Capabilities */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What are the modes?</h3>
+                  <h3 className="font-medium">What can Dory do?</h3>
                   <p className="text-sm text-muted-foreground">
-                    <strong>Dory</strong> — Full access to everything. Dory decides which tools to use based on what you ask. 
-                    This is the default and handles 99% of tasks.<br/><br/>
-                    <strong>Dory (Supervised)</strong> — For complex research. Uses multiple specialist "sub-workers" that 
-                    check each other's work. Takes longer but produces more thorough, reviewed results.
+                    <strong>Dory</strong> has full access to everything — file operations, shell commands, web search, 
+                    RAG, memory, and specialist agents for complex research. All capabilities are always available.
+                    Dory automatically uses specialist sub-agents (search_specialist, report_planner, quality_reviewer, etc.) 
+                    for complex tasks that require multi-source research or quality review loops.
                   </p>
                 </div>
               </div>

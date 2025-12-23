@@ -9,7 +9,6 @@ import {
   MessageSquare,
   PanelLeftClose,
   PanelLeft,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,7 +30,7 @@ export function Sidebar({ onNewChat }: SidebarProps) {
     setMounted(true);
   }, []);
 
-  const { sidebarOpen, toggleSidebar, setAgentMode } = useUIStore();
+  const { sidebarOpen, toggleSidebar } = useUIStore();
   const { sessions, activeSessionId, setActiveSession, deleteSession, resetStaleSessions } = useAgentSessionsStore();
 
   React.useEffect(() => {
@@ -40,16 +39,8 @@ export function Sidebar({ onNewChat }: SidebarProps) {
 
   const handleNewChat = () => {
     setActiveSession(null);
-    setAgentMode("dory");
     router.push("/");
     onNewChat?.();
-  };
-
-  const getAgentIcon = (type: string) => {
-    switch (type) {
-      case "dory-supervised": return Users;
-      default: return MessageSquare;
-    }
   };
 
   if (!sidebarOpen) {
@@ -114,7 +105,6 @@ export function Sidebar({ onNewChat }: SidebarProps) {
             ) : (
               <div className="space-y-1">
                 {sessions.map((session) => {
-                  const Icon = getAgentIcon(session.type);
                   const isActive = activeSessionId === session.id;
                   return (
                     <div
@@ -125,7 +115,7 @@ export function Sidebar({ onNewChat }: SidebarProps) {
                       )}
                       onClick={() => setActiveSession(session.id)}
                     >
-                      <Icon className={cn("h-4 w-4 flex-shrink-0", session.status === "running" && "text-[#76B900] animate-pulse")} />
+                      <MessageSquare className={cn("h-4 w-4 flex-shrink-0", session.status === "running" && "text-[#76B900] animate-pulse")} />
                       <span className="flex-1 truncate text-sm">
                         {session.name.slice(0, 25)}{session.name.length > 25 ? "..." : ""}
                       </span>

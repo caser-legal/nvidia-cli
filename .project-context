@@ -1,0 +1,55 @@
+# Dory - Project Context
+
+## What This Is
+
+Private enterprise iOS/SwiftUI coding agent designed for large codebase handling.
+Single-user, private use only.
+
+## Primary Objective
+
+Eliminate traditional AI constraints on exceptionally large iOS SwiftUI projects:
+- No time limits on sessions
+- No context size restrictions (1M tokens via Nemotron 3 Nano)
+- No file count limitations (RAG indexes entire Xcode projects)
+
+## Target Use Case
+
+- 100k+ line iOS projects
+- 500+ Swift files
+- XIBs, storyboards, assets, plists
+- Full Xcode project comprehension
+
+## Architecture
+
+```
+iOS Project (100k+ lines)
+         │
+         ▼
+RAG Pipeline (nvidia/llama-3.2-nv-embedqa-1b-v2)
+  • Index .swift, .xib, .storyboard, .plist
+  • Chunk by class/struct/extension boundaries
+         │
+         ▼
+Nemotron 3 Nano (1M context)
+  • Load 50-100 relevant files at once
+  • Reason across entire feature/module
+```
+
+## NVIDIA Stack
+
+| Component | Model ID |
+|-----------|----------|
+| Main LLM | nvidia/nemotron-3-nano-30b-a3b |
+| Embeddings | nvidia/llama-3.2-nv-embedqa-1b-v2 |
+| Reranker | nvidia/llama-3.2-nv-rerankqa-1b-v2 |
+
+## Not Using (by design)
+
+- Nemotron Safety models (private use, no guardrails needed)
+- Nemotron Personas datasets (not a consumer chatbot)
+- RL/fine-tuning datasets (using base models)
+
+## Key Insight
+
+1M context + RAG = load 20-50 most relevant files into single context,
+reason holistically across entire feature instead of file-by-file.

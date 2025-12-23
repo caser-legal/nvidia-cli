@@ -203,7 +203,7 @@ npm run dev          # Start Next.js on localhost:3000
 
 - **MCP**: Tools are built-in, not exposed via protocol
 - **NeMo Agent Toolkit**: Custom TS agent is sufficient for personal use
-- **Claude Desktop/Cursor**: This IS the UI replacement
+- **External AI IDEs**: This IS the UI replacement
 
 ---
 

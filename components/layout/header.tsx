@@ -1,10 +1,10 @@
 // Header Component
-// Features 201-203, 212: Persistent header with mode/model selectors
+// Features 201-203, 212: Persistent header with model selector
 
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Pencil, Check, X, MessageSquare, Users } from "lucide-react";
+import { ChevronDown, Pencil, Check, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,17 +16,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useConversationStore } from "@/lib/store/conversations";
-import { useUIStore, useSettingsStore } from "@/lib/store";
+import { useSettingsStore } from "@/lib/store";
 import { NVIDIA_MODELS, type ModelId } from "@/lib/nvidia";
 import { cn } from "@/lib/utils";
-
-// Agent modes
-const MODES = [
-  { id: "dory", name: "Dory", icon: MessageSquare, color: "#76B900" },
-  { id: "dory-supervised", name: "Dory (Supervised)", icon: Users, color: "#EAB308" },
-] as const;
-
-type AgentMode = typeof MODES[number]["id"];
 
 // NVIDIA Logo SVG
 function NvidiaLogo({ className = "" }: { className?: string }) {
@@ -49,7 +41,6 @@ export function Header() {
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const { getCurrentConversation, updateConversation } = useConversationStore();
-  const { agentMode, setAgentMode } = useUIStore();
   const { defaultModel, setDefaultModel } = useSettingsStore();
 
   // Prevent hydration mismatch
@@ -58,8 +49,6 @@ export function Header() {
   }, []);
 
   const conversation = mounted ? getCurrentConversation() : null;
-  const currentMode = MODES.find((m) => m.id === agentMode) || MODES[0];
-  const ModeIcon = currentMode.icon;
 
   // Feature 212: Editable conversation title
   const handleStartEdit = () => {
@@ -96,35 +85,11 @@ export function Header() {
 
   return (
     <header className="h-14 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center px-4 gap-4">
-      {/* Mode selector */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="gap-2">
-            <ModeIcon className="h-4 w-4" style={{ color: currentMode.color }} />
-            <span className="max-w-[150px] truncate">
-              {currentMode.name}
-            </span>
-            <ChevronDown className="h-4 w-4 opacity-50" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuLabel>Mode</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {MODES.map((mode) => {
-            const Icon = mode.icon;
-            return (
-              <DropdownMenuItem
-                key={mode.id}
-                onClick={() => setAgentMode(mode.id)}
-                className={cn("gap-2", agentMode === mode.id && "bg-accent")}
-              >
-                <Icon className="h-4 w-4" style={{ color: mode.color }} />
-                {mode.name}
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Dory branding - unified mode */}
+      <div className="flex items-center gap-2">
+        <Zap className="h-4 w-4 text-[#76B900]" />
+        <span className="font-medium text-[#76B900]">Dory</span>
+      </div>
 
       {/* Feature 212: Conversation title */}
       <div className="flex-1 flex items-center justify-center">

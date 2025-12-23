@@ -2,7 +2,6 @@
 // Purpose: Main entry point for Dory agent modes (full autonomy + supervised research)
 // Last updated: December 23, 2025 — Ultra-comprehensive prompt with ALL reference sections
 import { NextRequest } from "next/server";
-import { ReadableStream } from "node:stream/web";
 
 import { Agent } from "@/lib/agents/agent";
 import { FileReadTool } from "@/lib/agents/tools/file-read";
@@ -46,6 +45,8 @@ import {
   RAGResearchTool,
   RAGStatsTool,
   RAGClearTool,
+  RAGValidateTool,
+  RAGUpdateTool,
 } from "@/lib/agents/tools/rag-tools";
 
 import { RAGPipeline } from "@/lib/agents/rag/pipeline";
@@ -927,32 +928,39 @@ xcodebuild -exportArchive -archivePath App.xcarchive -exportPath Export -exportO
 \`\`\`
 
 You are a production-grade senior engineer who has shipped multiple enterprise iOS apps to the App Store.
-Act like it — every single time.`,
+Act like it — every single time.
 
-  "dory-supervised": `You are Dory in SUPERVISED mode — research quality coordinator using multi-agent delegation.
+================================================================================
+30. MULTI-AGENT RESEARCH DELEGATION — ALWAYS AVAILABLE
+================================================================================
 
-TEAM (Supervised Mode):
-- search_specialist — deep research
-- report_planner — structured outline
-- section_author — individual sections
-- report_writer — fast full draft
-- quality_reviewer — evaluates with 0-10 scores
-- report_extender — merges new findings
-- report_compiler — final assembly
-- deduplicate_sources — clean citations
-- documentation_specialist — codebase docs
-- mermaid_generator — diagrams
-- think — planning
+For complex research, reports, or documentation tasks, you have specialist sub-agents:
 
-WORKFLOW:
-A. search_specialist
-B. report_planner (if complex)
-C. section_author
-D. report_compiler
-E. quality_reviewer → loop max 3× if NEEDS_MORE_RESEARCH
-Deliver only when APPROVED with scores.
+SPECIALIST TEAM:
+- search_specialist — deep multi-source research with quality scoring
+- report_planner — creates structured outlines for complex deliverables
+- section_author — writes individual sections with citations
+- report_writer — fast full draft generation
+- quality_reviewer — evaluates output with 0-10 scores, flags gaps
+- report_extender — merges new findings into existing reports
+- report_compiler — final assembly and formatting
+- deduplicate_sources — cleans and deduplicates citations
+- documentation_specialist — generates codebase documentation
 
-You are COORDINATOR only — never search/write directly. Always show phase.`
+WHEN TO USE SPECIALISTS:
+- Research requiring multiple sources → search_specialist
+- Reports/documentation → report_planner → section_author → report_compiler
+- Quality assurance → quality_reviewer (loop max 3× until APPROVED)
+- Always deduplicate_sources before final delivery
+
+WORKFLOW FOR COMPLEX TASKS:
+A. search_specialist (gather comprehensive information)
+B. report_planner (if deliverable is structured)
+C. section_author (write each section)
+D. report_compiler (assemble final output)
+E. quality_reviewer → loop until score ≥ 8/10 or max 3 iterations
+
+You can ALWAYS use these specialists. Quality over speed.`
 } as const;
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -964,12 +972,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const {
-      messages,
-      mode = "dory",
-    } = body as {
+    const { messages } = body as {
       messages: { role: string; content: string }[];
-      mode?: "dory" | "dory-supervised";
     };
 
     const apiKey =
@@ -994,34 +998,46 @@ export async function POST(request: NextRequest) {
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-    const doryTools = [
+    // ALL tools combined - base tools + specialist agents (always available)
+    const tools = [
+      // Project Management
       new SetProjectTool(),
       new GetProjectTool(),
+      // File System
       new FileReadTool(),
       new FileWriteTool(),
+      // Shell
       new BashTool(),
+      // Reasoning
       new ThinkTool(),
+      // Memory
       new MemoryTool(),
       new EntityMemoryTool(),
+      // Search
       new GoogleSearchTool(),
       new TavilySearchTool(),
       new ParallelSearchTool(),
       new ParallelTavilySearchTool(),
       new LocalDocsSearchTool(),
+      // GitHub
       new GitHubAnalyzerTool(),
       new GitHubFileReaderTool(),
+      // Documentation
       new CodeDocumentationTool(apiKey),
+      new DocumentationSpecialistTool(apiKey),
+      // Diagrams
       new MermaidGeneratorTool(apiKey),
       new QuickDiagramTool(),
+      // RAG
       RAGIngestTool,
       RAGSearchTool,
       RAGQueryTool,
       RAGResearchTool,
       RAGStatsTool,
       RAGClearTool,
-    ];
-
-    const supervisedTools = [
+      RAGValidateTool,
+      RAGUpdateTool,
+      // Specialist Agents (always available for complex tasks)
       new SearchSpecialistTool(apiKey),
       new ReportPlannerTool(apiKey),
       new SectionAuthorTool(apiKey),
@@ -1030,13 +1046,9 @@ export async function POST(request: NextRequest) {
       new ReportExtenderTool(apiKey),
       new ReportCompilerTool(),
       new SourceDeduplicatorTool(),
-      new DocumentationSpecialistTool(apiKey),
-      new MermaidGeneratorTool(apiKey),
-      new ThinkTool(),
     ];
 
-    const tools = mode === "dory-supervised" ? supervisedTools : doryTools;
-    const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.dory;
+    const systemPrompt = SYSTEM_PROMPTS.dory;
 
     const sessionId = `session-${Date.now()}`;
     const flywheelLogger = getFlywheelLogger({
@@ -1079,6 +1091,10 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         const abortSignal = request.signal;
+        
+        // Get correct context limits based on backend
+        const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
+        const contextLimit = useLocalLLM ? 1000000 : 262144; // 1M local, 262K hosted
 
         const agent = new Agent({
           apiKey,
@@ -1089,7 +1105,7 @@ export async function POST(request: NextRequest) {
             maxTokens: 32768,
             temperature: 1.0,
             topP: 1.0,
-            contextWindowTokens: 1000000,
+            contextWindowTokens: contextLimit,
           },
           onEvent: (event) => {
             if (abortSignal.aborted) return;
@@ -1098,7 +1114,6 @@ export async function POST(request: NextRequest) {
             );
           },
           flywheelLogger,
-          mode,
           unifiedContext,
           toolOrchestrator,
           feedbackOptimizer,

@@ -4,13 +4,10 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type AgentType = "dory" | "dory-supervised";
-
 export type AgentStatus = "idle" | "starting" | "running" | "stopped" | "error";
 
 export interface AgentSession {
   id: string;
-  type: AgentType;
   name: string;
   status: AgentStatus;
   projectDir?: string;
@@ -26,7 +23,7 @@ interface AgentSessionsState {
   activeSessionId: string | null;
   
   // Actions
-  createSession: (type: AgentType, name: string, projectDir?: string) => string;
+  createSession: (name: string, projectDir?: string) => string;
   updateSession: (id: string, updates: Partial<AgentSession>) => void;
   appendOutput: (id: string, output: string) => void;
   setActiveSession: (id: string | null) => void;
@@ -43,11 +40,10 @@ export const useAgentSessionsStore = create<AgentSessionsState>()(
       sessions: [],
       activeSessionId: null,
 
-      createSession: (type, name, projectDir) => {
+      createSession: (name, projectDir) => {
         const id = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         const session: AgentSession = {
           id,
-          type,
           name,
           status: "idle",
           projectDir,

@@ -20,22 +20,11 @@ export default function ChatPage() {
   const [activeArtifact, setActiveArtifact] = React.useState<Artifact | null>(null);
   const router = useRouter();
 
-  const { sidebarOpen, artifactPanelOpen, closeArtifactPanel, toggleSidebar, agentMode, setAgentMode } = useUIStore();
-  const { createSession, updateSession, appendOutput, activeSessionId, sessions, setActiveSession } = useAgentSessionsStore();
-
-  // When clicking a session in sidebar, switch to its mode
-  React.useEffect(() => {
-    if (activeSessionId) {
-      const session = sessions.find(s => s.id === activeSessionId);
-      if (session && session.type !== agentMode) {
-        setAgentMode(session.type);
-      }
-    }
-  }, [activeSessionId, sessions, agentMode, setAgentMode]);
+  const { artifactPanelOpen, closeArtifactPanel } = useUIStore();
+  const { activeSessionId, setActiveSession } = useAgentSessionsStore();
 
   const handleNewChat = () => {
     setActiveSession(null);
-    setAgentMode("dory");
   };
 
   React.useEffect(() => {
@@ -58,9 +47,8 @@ export default function ChatPage() {
       <main id="main-content" className="flex-1 flex flex-col min-w-0">
         <Header />
 
-        {/* Dory and Dory (Supervised) modes */}
+        {/* Unified Dory - all capabilities always available */}
         <AgentChat 
-          mode={agentMode} 
           sessionId={activeSessionId}
           className="flex-1 min-h-0" 
         />
