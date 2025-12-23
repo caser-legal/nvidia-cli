@@ -373,25 +373,47 @@ export function AgentChat({ mode, sessionId, className }: AgentChatProps) {
         );
 
       case "tool_call":
+        // Parse args to show friendly description
+        const toolName = event.name || "";
+        let friendlyDesc = "";
+        try {
+          const args = JSON.parse(event.args || "{}");
+          if (toolName === "file_read" && args.path) {
+            friendlyDesc = `Reading: ${args.path}`;
+          } else if (toolName === "file_write" && args.path) {
+            friendlyDesc = `Writing: ${args.path}`;
+          } else if (toolName === "bash" && args.command) {
+            friendlyDesc = `Running: ${args.command}`;
+          } else if (toolName === "think" && args.thought) {
+            friendlyDesc = `Thinking: ${args.thought}`;
+          } else if (toolName === "google_search" || toolName === "tavily_search") {
+            friendlyDesc = `Searching: ${args.query || args.q || ""}`;
+          } else if (toolName === "set_project") {
+            friendlyDesc = `Setting project: ${args.path || args.directory || ""}`;
+          } else if (toolName === "rag_search" || toolName === "rag_query") {
+            friendlyDesc = `RAG search: ${args.query || ""}`;
+          } else {
+            friendlyDesc = `${toolName}: ${event.args}`;
+          }
+        } catch {
+          friendlyDesc = `${toolName}: ${event.args}`;
+        }
         return (
-          <div key={index} className="flex items-start gap-2 py-1 font-mono text-sm">
-            <span className="text-yellow-400">⚡</span>
-            <span className="text-yellow-400">{event.name}</span>
-            <span className="text-gray-500 truncate max-w-[500px]">({event.args})</span>
+          <div key={index} className="flex items-start gap-2 py-0.5 text-xs text-gray-400">
+            <span className="text-yellow-500 shrink-0">⚡</span>
+            <span className="break-all">{friendlyDesc}</span>
           </div>
         );
 
       case "tool_result":
-        const isError = event.is_error;
         const resultLines = (event.result || "").split("\n");
-        const truncated = resultLines.length > 10;
-        const displayLines = truncated ? resultLines.slice(0, 10) : resultLines;
-        
+        const truncated = resultLines.length > 15;
+        const displayLines = truncated ? resultLines.slice(0, 15) : resultLines;
         return (
-          <div key={index} className="py-1 pl-4 border-l-2 border-gray-700 ml-4 text-xs">
-            <div className={cn("font-mono whitespace-pre-wrap", isError ? "text-red-400" : "text-gray-500")}>
+          <div key={index} className="py-0.5 pl-6 text-xs">
+            <div className={cn("font-mono whitespace-pre-wrap break-all", event.is_error ? "text-red-400" : "text-gray-500")}>
               {displayLines.join("\n")}
-              {truncated && <div className="text-gray-600 italic">... ({resultLines.length - 10} more lines)</div>}
+              {truncated && <div className="text-gray-600 italic">... ({resultLines.length - 15} more lines)</div>}
             </div>
           </div>
         );

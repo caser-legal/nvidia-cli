@@ -3,15 +3,23 @@
 
 import OpenAI from "openai";
 
-// API Configuration
-const NVIDIA_API_BASE = "https://integrate.api.nvidia.com/v1";
+// API Configuration - supports local Ollama or NVIDIA NIM
+const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://192.168.50.50:11434/v1";
+const NVIDIA_API_BASE = USE_LOCAL_LLM ? OLLAMA_BASE_URL : "https://integrate.api.nvidia.com/v1";
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || "";
+
+// Model name mapping: NVIDIA API name -> Ollama name
+const OLLAMA_MODEL_MAP: Record<string, string> = {
+  "nvidia/nemotron-3-nano-30b-a3b": "nemotron-3-nano",
+};
 
 // Available Models - Streamlined for agents and coding
 export const NVIDIA_MODELS = {
   // Nemotron 3 Nano - Main agent model, 1M context
   "nvidia/nemotron-3-nano-30b-a3b": {
     id: "nvidia/nemotron-3-nano-30b-a3b",
+    ollamaId: "nemotron-3-nano",
     name: "Nemotron 3 Nano",
     description: "31.6B params, 3.6B active, 1M context, reasoning ON/OFF",
     contextWindow: 1000000,
@@ -69,12 +77,25 @@ export const NVIDIA_MODELS = {
 
 export type ModelId = keyof typeof NVIDIA_MODELS;
 
-// Create OpenAI-compatible client for NVIDIA NIM
+// Create OpenAI-compatible client for NVIDIA NIM or Ollama
 export function createNvidiaClient(apiKey?: string) {
   return new OpenAI({
     baseURL: NVIDIA_API_BASE,
-    apiKey: apiKey || NVIDIA_API_KEY,
+    apiKey: USE_LOCAL_LLM ? "ollama" : (apiKey || NVIDIA_API_KEY),
   });
+}
+
+// Get the correct model name for the current backend
+export function getModelName(model: ModelId): string {
+  if (USE_LOCAL_LLM && OLLAMA_MODEL_MAP[model]) {
+    return OLLAMA_MODEL_MAP[model];
+  }
+  return model;
+}
+
+// Check if using local LLM
+export function isUsingLocalLLM(): boolean {
+  return USE_LOCAL_LLM;
 }
 
 // Message types
@@ -194,10 +215,10 @@ export async function createChatCompletion(
 ): Promise<ChatCompletionResponse> {
   const client = createNvidiaClient(apiKey);
   const modelConfig = NVIDIA_MODELS[options.model];
-  const reasoningParams = buildReasoningParams(options, modelConfig);
+  const reasoningParams = USE_LOCAL_LLM ? undefined : buildReasoningParams(options, modelConfig);
 
   const response = await client.chat.completions.create({
-    model: options.model,
+    model: getModelName(options.model),
     messages: options.messages as OpenAI.ChatCompletionMessageParam[],
     temperature: options.temperature ?? 1,
     max_tokens: options.maxTokens ?? modelConfig.maxTokens,
@@ -219,10 +240,10 @@ export async function* streamChatCompletion(
 ): AsyncGenerator<ChatCompletionChunk> {
   const client = createNvidiaClient(apiKey);
   const modelConfig = NVIDIA_MODELS[options.model];
-  const reasoningParams = buildReasoningParams(options, modelConfig);
+  const reasoningParams = USE_LOCAL_LLM ? undefined : buildReasoningParams(options, modelConfig);
 
   const stream = await client.chat.completions.create({
-    model: options.model,
+    model: getModelName(options.model),
     messages: options.messages as OpenAI.ChatCompletionMessageParam[],
     temperature: options.temperature ?? 1,
     max_tokens: options.maxTokens ?? modelConfig.maxTokens,

@@ -66,17 +66,24 @@ export class Agent {
     evaluator?: FlywheelEvaluator;
     abortSignal?: AbortSignal;
   }) {
-    const apiKey = options.apiKey || process.env.NVIDIA_API_KEY;
-    if (!apiKey) {
+    const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
+    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://192.168.50.50:11434/v1";
+    const apiKey = useLocalLLM ? "ollama" : (options.apiKey || process.env.NVIDIA_API_KEY);
+    
+    if (!useLocalLLM && !apiKey) {
       throw new Error("NVIDIA_API_KEY is required. Set it in .env.local or pass it to the Agent constructor.");
     }
     
     this.client = new OpenAI({
-      baseURL: options.baseUrl || "https://integrate.api.nvidia.com/v1",
+      baseURL: useLocalLLM ? ollamaBaseUrl : (options.baseUrl || "https://integrate.api.nvidia.com/v1"),
       apiKey,
     });
 
     this.config = { ...DEFAULT_CONFIG, ...options.config };
+    // Map model name for Ollama
+    if (useLocalLLM && this.config.model === "nvidia/nemotron-3-nano-30b-a3b") {
+      this.config.model = "nemotron-3-nano" as any;
+    }
     this.systemPrompt = options.systemPrompt;
     this.tools = new Map();
     this.messages = [];
@@ -219,7 +226,7 @@ export class Agent {
     this.messages.push({ role: "user", content: sanitizedUserMessage });
 
     let iterations = 0;
-    const maxIterations = 50; // Safety limit
+    const maxIterations = 100; // Safety limit
     let finalResponse = "";
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
@@ -316,10 +323,15 @@ export class Agent {
         // Check if we need to execute tools
         if (message.tool_calls && message.tool_calls.length > 0) {
           console.log("[Agent] Executing", message.tool_calls.length, "tool(s)...");
-          // Execute all tool calls
-          const results = await Promise.all(
-            message.tool_calls.map((tc) => this.executeToolCall(tc as ToolCall))
-          );
+          
+          // Execute tools and emit events
+          const results: ToolResult[] = [];
+          for (const tc of message.tool_calls as ToolCall[]) {
+            this.emit({ type: "tool_call", name: tc.function.name, args: tc.function.arguments });
+            const result = await this.executeToolCall(tc);
+            this.emit({ type: "tool_result", name: tc.function.name, result: result.content, is_error: result.is_error });
+            results.push(result);
+          }
           
           console.log("[Agent] Tool results:", JSON.stringify(results.map(r => ({ 
             id: r.tool_call_id, 
@@ -429,7 +441,7 @@ export class Agent {
     this.messages.push({ role: "user", content: sanitizedUserMessage });
 
     let iterations = 0;
-    const maxIterations = 50;
+    const maxIterations = 100;
 
     while (iterations < maxIterations) {
       // Check for abort

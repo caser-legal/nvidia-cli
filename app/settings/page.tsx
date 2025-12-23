@@ -230,12 +230,24 @@ export default function SettingsPage() {
   const [saveStatus, setSaveStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
   const [expandedTool, setExpandedTool] = React.useState<string | null>(null);
   const [statsResetDate, setStatsResetDate] = React.useState<string>(new Date().toISOString());
+  const [useLocalLLM, setUseLocalLLM] = React.useState(false);
+  const [ollamaUrl, setOllamaUrl] = React.useState("http://192.168.50.50:11434/v1");
+  const [embedUrl, setEmbedUrl] = React.useState("http://192.168.50.50:8000");
 
   // Hydration fix
   React.useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem("statsResetDate");
     if (saved) setStatsResetDate(saved);
+    // Load LLM backend settings
+    fetch("/api/settings/api-key")
+      .then(res => res.json())
+      .then(data => {
+        if (data.useLocalLLM !== undefined) setUseLocalLLM(data.useLocalLLM);
+        if (data.ollamaUrl) setOllamaUrl(data.ollamaUrl);
+        if (data.embedUrl) setEmbedUrl(data.embedUrl);
+      })
+      .catch(() => {});
   }, []);
 
   // Load current API key on mount
@@ -271,6 +283,31 @@ export default function SettingsPage() {
     const now = new Date().toISOString();
     setStatsResetDate(now);
     localStorage.setItem("statsResetDate", now);
+  };
+
+  const handleBackendChange = async (local: boolean) => {
+    setUseLocalLLM(local);
+    await fetch("/api/settings/api-key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ useLocalLLM: local, ollamaUrl, embedUrl }),
+    });
+  };
+
+  const handleSaveOllamaUrl = async () => {
+    await fetch("/api/settings/api-key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ useLocalLLM, ollamaUrl, embedUrl }),
+    });
+  };
+
+  const handleSaveEmbedUrl = async () => {
+    await fetch("/api/settings/api-key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ useLocalLLM, ollamaUrl, embedUrl }),
+    });
   };
 
   // Calculate stats from sessions since reset date
@@ -417,13 +454,91 @@ export default function SettingsPage() {
                 </p>
               </div>
 
+              {/* LLM Backend Toggle */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">LLM Backend</label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={!useLocalLLM ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => handleBackendChange(false)}
+                  >
+                    ☁️ NVIDIA NIM API
+                  </Button>
+                  <Button
+                    variant={useLocalLLM ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => handleBackendChange(true)}
+                  >
+                    🖥️ Local Ollama
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {useLocalLLM 
+                    ? `Using local Ollama at ${ollamaUrl}. Requires Ollama running with nemotron-3-nano.`
+                    : "Using NVIDIA cloud API. Requires API key above."}
+                </p>
+              </div>
+
+              {/* Ollama URL (only show when local) */}
+              {useLocalLLM && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Ollama URL (Main LLM - Port 11434)</label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={ollamaUrl}
+                        onChange={(e) => setOllamaUrl(e.target.value)}
+                        placeholder="http://192.168.50.50:11434/v1"
+                      />
+                      <Button onClick={handleSaveOllamaUrl}>Save</Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Ollama serves the main chat model (Nemotron 3 Nano). This handles all conversations and reasoning.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Embedding Server URL (Port 8000)</label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={embedUrl}
+                        onChange={(e) => setEmbedUrl(e.target.value)}
+                        placeholder="http://192.168.50.50:8000"
+                      />
+                      <Button onClick={handleSaveEmbedUrl}>Save</Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Python server for embeddings &amp; reranking. Used by RAG (document search) features.
+                    </p>
+                  </div>
+                </>
+              )}
+
               {/* Model Info */}
-              <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                <div className="font-medium">Active Model: Nemotron 3 Nano 30B</div>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p><strong>NIM</strong> (NVIDIA Inference Microservices) - NVIDIA's cloud API for running language models.</p>
-                  <p><strong>MoE</strong> (Mixture of Experts) - Architecture where only some "expert" networks activate per request, making it faster. This model has 30B total parameters but only 3.5B activate per token.</p>
-                  <p><strong>Context Window:</strong> 128K tokens (~100,000 words) - how much text the model can "see" at once.</p>
+              <div className="p-4 rounded-lg bg-muted/50 space-y-3">
+                <div className="font-medium">
+                  Active Model: Nemotron 3 Nano 30B 
+                  <span className="ml-2 text-xs px-2 py-0.5 rounded bg-primary/20">
+                    {useLocalLLM ? "Local" : "Cloud"}
+                  </span>
+                </div>
+                <div className="text-sm text-muted-foreground space-y-2">
+                  {useLocalLLM ? (
+                    <>
+                      <p><strong>Ollama (Port 11434)</strong> - Local inference server running on your network. Runs the main Nemotron 3 Nano model for chat and reasoning.</p>
+                      <p><strong>Embedding Server (Port 8000)</strong> - Python server running llama-nemotron-embed-1b-v2 and llama-nemotron-rerank-1b-v2. Converts text to vectors for semantic search (RAG).</p>
+                      <p><strong>Quantized</strong> - Q4_K_M quantization reduces model size from ~60GB to ~24GB while keeping quality. Fits on consumer GPUs like RTX 3080/3090.</p>
+                      <p><strong>How it works:</strong> When you chat, your message goes to Ollama. When you use RAG (document search), text goes to the embedding server first, then results go to Ollama for the final answer.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p><strong>NIM</strong> (NVIDIA Inference Microservices) - NVIDIA's cloud API for running language models. No local GPU required.</p>
+                      <p><strong>MoE</strong> (Mixture of Experts) - Architecture where only some "expert" networks activate per request, making it faster. This model has 30B total parameters but only 3.5B activate per token.</p>
+                      <p><strong>Rate Limit:</strong> Free tier allows 40 requests per minute.</p>
+                    </>
+                  )}
+                  <p><strong>Context Window:</strong> 1M tokens (~750,000 words) - how much text the model can "see" at once. Great for analyzing large codebases.</p>
                 </div>
               </div>
             </section>

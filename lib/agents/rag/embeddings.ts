@@ -1,15 +1,23 @@
 /**
  * NVIDIA Embeddings Client
- * Uses NVIDIA NIM endpoints for text embeddings
+ * Uses local embedding server or NVIDIA NIM endpoints
  * Based on NVIDIA RAG Blueprint
  */
 
 import { EmbeddingConfig } from './types';
 
+// Check if using local LLM
+const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
+const LOCAL_EMBED_URL = process.env.LOCAL_EMBED_URL || "http://192.168.50.50:8000";
+
 const NVIDIA_EMBEDDING_MODELS = {
   'llama-3.2-nv-embedqa-1b-v2': {
     dimensions: 2048,
-    maxTokens: 8192,  // NVIDIA spec: 8192 tokens
+    maxTokens: 8192,
+  },
+  'llama-nemotron-embed-1b-v2': {
+    dimensions: 2048,
+    maxTokens: 8192,
   },
   'llama-3.2-nemoretriever-300m-embed-v2': {
     dimensions: 2048,
@@ -40,20 +48,28 @@ const NVIDIA_EMBEDDING_MODELS = {
 export class NVIDIAEmbeddings {
   private config: EmbeddingConfig;
   private baseUrl: string;
+  private useLocal: boolean;
 
   constructor(config: EmbeddingConfig) {
     this.config = config;
-    this.baseUrl = config.baseUrl || 'https://integrate.api.nvidia.com/v1';
+    this.useLocal = USE_LOCAL_LLM;
+    this.baseUrl = this.useLocal ? LOCAL_EMBED_URL : (config.baseUrl || 'https://integrate.api.nvidia.com/v1');
   }
 
   async embed(texts: string[]): Promise<number[][]> {
+    if (texts.length === 0) {
+      return [];
+    }
+
+    // Use local embedding server
+    if (this.useLocal) {
+      return this.embedLocal(texts);
+    }
+
+    // Use NVIDIA API
     const apiKey = this.config.apiKey || process.env.NVIDIA_API_KEY;
     if (!apiKey) {
       throw new Error('NVIDIA API key required for embeddings');
-    }
-
-    if (texts.length === 0) {
-      return [];
     }
 
     // NVIDIA API supports up to 64 inputs per request - use max
@@ -106,7 +122,52 @@ export class NVIDIAEmbeddings {
     return allEmbeddings;
   }
 
+  // Local embedding server methods
+  private async embedLocal(texts: string[]): Promise<number[][]> {
+    console.log(`[RAG Embeddings] Using local server at ${this.baseUrl}`);
+    
+    const response = await fetch(`${this.baseUrl}/v1/embeddings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: texts,
+        input_type: 'passage',
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Local embedding error: ${error}`);
+    }
+
+    const data = await response.json();
+    return data.data.map((d: { embedding: number[] }) => d.embedding);
+  }
+
+  private async embedQueryLocal(query: string): Promise<number[]> {
+    const response = await fetch(`${this.baseUrl}/v1/embeddings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: [query],
+        input_type: 'query',
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Local embedding error: ${error}`);
+    }
+
+    const data = await response.json();
+    return data.data[0].embedding;
+  }
+
   async embedQuery(query: string): Promise<number[]> {
+    if (this.useLocal) {
+      return this.embedQueryLocal(query);
+    }
+
     const apiKey = this.config.apiKey || process.env.NVIDIA_API_KEY;
     if (!apiKey) {
       throw new Error('NVIDIA API key required for embeddings');
@@ -145,29 +206,37 @@ export class NVIDIAEmbeddings {
 }
 
 /**
- * NVIDIA Reranker Client
- * Uses NVIDIA NIM endpoints for document reranking
+ * Reranker Client
+ * Uses local server or NVIDIA NIM endpoints for document reranking
  */
 export class NVIDIAReranker {
   private model: string;
   private topN: number;
   private baseUrl: string;
+  private useLocal: boolean;
+  private localUrl: string;
 
   constructor(model: string = 'nvidia/llama-3.2-nv-rerankqa-1b-v2', topN: number = 5) {
     this.model = model;
     this.topN = topN;
-    // Reranking uses ai.api.nvidia.com with model-specific path
+    this.useLocal = USE_LOCAL_LLM;
+    this.localUrl = LOCAL_EMBED_URL;
     this.baseUrl = 'https://ai.api.nvidia.com/v1/retrieval';
   }
 
   async rerank(query: string, documents: { content: string; metadata?: Record<string, unknown> }[]): Promise<{ index: number; score: number; content: string; metadata?: Record<string, unknown> }[]> {
+    if (documents.length === 0) {
+      return [];
+    }
+
+    // Use local reranker
+    if (this.useLocal) {
+      return this.rerankLocal(query, documents);
+    }
+
     const apiKey = process.env.NVIDIA_API_KEY;
     if (!apiKey) {
       throw new Error('NVIDIA API key required for reranking');
-    }
-
-    if (documents.length === 0) {
-      return [];
     }
 
     // Model path uses underscores: nvidia/llama-3_2-nv-rerankqa-1b-v2
@@ -201,6 +270,33 @@ export class NVIDIAReranker {
     return data.rankings.map((ranking: { index: number; logit: number }) => ({
       index: ranking.index,
       score: this.logitToScore(ranking.logit),
+      content: documents[ranking.index].content,
+      metadata: documents[ranking.index].metadata,
+    }));
+  }
+
+  private async rerankLocal(query: string, documents: { content: string; metadata?: Record<string, unknown> }[]): Promise<{ index: number; score: number; content: string; metadata?: Record<string, unknown> }[]> {
+    console.log(`[RAG Reranker] Using local server at ${this.localUrl}`);
+    
+    const response = await fetch(`${this.localUrl}/v1/rerank`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        documents: documents.map(d => d.content),
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Local reranking error: ${error}`);
+    }
+
+    const data = await response.json();
+    
+    return data.rankings.map((ranking: { index: number; score: number }) => ({
+      index: ranking.index,
+      score: ranking.score,
       content: documents[ranking.index].content,
       metadata: documents[ranking.index].metadata,
     }));

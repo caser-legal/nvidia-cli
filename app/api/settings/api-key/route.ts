@@ -1,4 +1,4 @@
-// API Route: Read/Write API Key to .env.local
+// API Route: Read/Write API Key and LLM Backend settings to .env.local
 
 import { NextResponse } from "next/server";
 import * as fs from "fs";
@@ -9,43 +9,81 @@ const ENV_PATH = path.join(process.cwd(), ".env.local");
 export async function GET() {
   try {
     if (!fs.existsSync(ENV_PATH)) {
-      return NextResponse.json({ apiKey: "" });
+      return NextResponse.json({ apiKey: "", useLocalLLM: false, ollamaUrl: "", embedUrl: "" });
     }
     
     const content = fs.readFileSync(ENV_PATH, "utf-8");
-    const match = content.match(/NVIDIA_API_KEY=(.+)/);
-    const apiKey = match ? match[1].trim() : "";
+    const apiKeyMatch = content.match(/NVIDIA_API_KEY=(.+)/);
+    const useLocalMatch = content.match(/USE_LOCAL_LLM=(.+)/);
+    const ollamaUrlMatch = content.match(/OLLAMA_BASE_URL=(.+)/);
+    const embedUrlMatch = content.match(/LOCAL_EMBED_URL=(.+)/);
     
-    return NextResponse.json({ apiKey, hasKey: !!apiKey });
+    return NextResponse.json({ 
+      apiKey: apiKeyMatch ? apiKeyMatch[1].trim() : "",
+      hasKey: !!apiKeyMatch,
+      useLocalLLM: useLocalMatch ? useLocalMatch[1].trim() === "true" : false,
+      ollamaUrl: ollamaUrlMatch ? ollamaUrlMatch[1].trim() : "http://192.168.50.50:11434/v1",
+      embedUrl: embedUrlMatch ? embedUrlMatch[1].trim() : "http://192.168.50.50:8000",
+    });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to read API key" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to read settings" }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const { apiKey } = await request.json();
-    
-    if (!apiKey || !apiKey.startsWith("nvapi-")) {
-      return NextResponse.json({ error: "Invalid API key format" }, { status: 400 });
-    }
+    const body = await request.json();
+    const { apiKey, useLocalLLM, ollamaUrl, embedUrl } = body;
     
     let content = "";
     if (fs.existsSync(ENV_PATH)) {
       content = fs.readFileSync(ENV_PATH, "utf-8");
     }
     
-    // Update or add NVIDIA_API_KEY
-    if (content.includes("NVIDIA_API_KEY=")) {
-      content = content.replace(/NVIDIA_API_KEY=.+/, `NVIDIA_API_KEY=${apiKey}`);
-    } else {
-      content = content.trim() + `\nNVIDIA_API_KEY=${apiKey}\n`;
+    // Update API key if provided
+    if (apiKey !== undefined) {
+      if (apiKey && !apiKey.startsWith("nvapi-")) {
+        return NextResponse.json({ error: "Invalid API key format" }, { status: 400 });
+      }
+      if (content.includes("NVIDIA_API_KEY=")) {
+        content = content.replace(/NVIDIA_API_KEY=.+/, `NVIDIA_API_KEY=${apiKey}`);
+      } else if (apiKey) {
+        content = content.trim() + `\nNVIDIA_API_KEY=${apiKey}`;
+      }
     }
     
-    fs.writeFileSync(ENV_PATH, content);
+    // Update USE_LOCAL_LLM if provided
+    if (useLocalLLM !== undefined) {
+      const value = useLocalLLM ? "true" : "false";
+      if (content.includes("USE_LOCAL_LLM=")) {
+        content = content.replace(/USE_LOCAL_LLM=.+/, `USE_LOCAL_LLM=${value}`);
+      } else {
+        content = content.trim() + `\nUSE_LOCAL_LLM=${value}`;
+      }
+    }
     
-    return NextResponse.json({ success: true, message: "API key saved. Restart server to apply." });
+    // Update OLLAMA_BASE_URL if provided
+    if (ollamaUrl !== undefined) {
+      if (content.includes("OLLAMA_BASE_URL=")) {
+        content = content.replace(/OLLAMA_BASE_URL=.+/, `OLLAMA_BASE_URL=${ollamaUrl}`);
+      } else {
+        content = content.trim() + `\nOLLAMA_BASE_URL=${ollamaUrl}`;
+      }
+    }
+
+    // Update LOCAL_EMBED_URL if provided
+    if (embedUrl !== undefined) {
+      if (content.includes("LOCAL_EMBED_URL=")) {
+        content = content.replace(/LOCAL_EMBED_URL=.+/, `LOCAL_EMBED_URL=${embedUrl}`);
+      } else {
+        content = content.trim() + `\nLOCAL_EMBED_URL=${embedUrl}`;
+      }
+    }
+    
+    fs.writeFileSync(ENV_PATH, content.trim() + "\n");
+    
+    return NextResponse.json({ success: true, message: "Settings saved. Restart server to apply." });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to save API key" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });
   }
 }
