@@ -30,6 +30,7 @@ import {
   ShortTermMemory,
   LongTermMemory,
 } from "@/lib/agents/tools/memory";
+import { UnifiedMemoryTool } from "@/lib/agents/tools/unified-memory";
 import {
   CodeDocumentationTool,
   DocumentationSpecialistTool,
@@ -1015,8 +1016,8 @@ export async function POST(request: NextRequest) {
       new VisionAnalysisTool(),
       new iOSUIReviewTool(),
       new MockupComparisonTool(),
-      // Memory
-      new MemoryTool(),
+      // Memory - unified vector-based (NVIDIA multi-turn pattern)
+      new UnifiedMemoryTool(),
       new EntityMemoryTool(),
       // Search
       new GoogleSearchTool(),

@@ -113,7 +113,10 @@ export function Sidebar({ onNewChat }: SidebarProps) {
                         "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors",
                         isActive ? "bg-accent" : "hover:bg-accent/50"
                       )}
-                      onClick={() => setActiveSession(session.id)}
+                      onClick={() => {
+                        setActiveSession(session.id);
+                        router.push("/");
+                      }}
                     >
                       <MessageSquare className={cn("h-4 w-4 flex-shrink-0", session.status === "running" && "text-[#76B900] animate-pulse")} />
                       <span className="flex-1 truncate text-sm">

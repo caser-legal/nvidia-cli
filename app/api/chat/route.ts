@@ -27,6 +27,7 @@ import {
   MemoryTool,
   EntityMemoryTool,
 } from "@/lib/agents/tools/memory";
+import { UnifiedMemoryTool } from "@/lib/agents/tools/unified-memory";
 import {
   CodeDocumentationTool,
   DocumentationSpecialistTool,
@@ -351,8 +352,8 @@ function initializeTools(apiKey: string) {
     new FileWriteTool(),
     // Shell
     new BashTool(),
-    // Memory
-    new MemoryTool(),
+    // Memory - using unified vector-based memory (NVIDIA pattern)
+    new UnifiedMemoryTool(),
     new EntityMemoryTool(),
     // Search
     new GoogleSearchTool(),

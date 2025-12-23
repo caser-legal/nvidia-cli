@@ -47,9 +47,11 @@ export class UnifiedContext {
    */
   async retrieve(params: UnifiedContextQuery): Promise<UnifiedContextResult> {
     let { 
-      query, 
       includeRAG, 
-      includeMemory, 
+      includeMemory
+    } = params;
+    const {
+      query, 
       includeFlywheel = true,
       limit = 5 
     } = params;
