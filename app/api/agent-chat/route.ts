@@ -884,10 +884,10 @@ Ingestion rules:
 - EXCLUDE: build artifacts, DerivedData, node_modules, .git
 - Chunk size: ~500 tokens for code, ~1000 for prose docs
 
-Search priority:
-1. local_docs_search (project-specific)
-2. rag_search (ingested knowledge)
-3. google_search / tavily_search (external, last resort)
+Search priority (in order):
+- local_docs_search (project-specific)
+- rag_search (ingested knowledge)
+- google_search / tavily_search (external, last resort)
 
 Refresh cadence:
 - Re-ingest after major refactors or new modules
