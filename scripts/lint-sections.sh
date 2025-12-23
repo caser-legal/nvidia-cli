@@ -1,8 +1,8 @@
 #!/bin/bash
 # CI guard: Validate section header format in Dory system prompt
 # Fails if:
-#   1. Any main header (^[0-9]+\. [A-Z]) lacks em-dash (—)
-#   2. Any numbered list (^[0-9]+\.) appears inside section body (sub-steps must use bullets/letters)
+#   1. Any line ^[0-9]+\. lacks em-dash (numbered sub-steps not allowed)
+#   2. Section count != 29
 
 set -e
 
@@ -11,11 +11,11 @@ EMDASH=$'\xe2\x80\x94'  # U+2014
 
 echo "Checking section headers in $FILE..."
 
-# Check 1: All main headers must contain em-dash
-HEADERS_WITHOUT_EMDASH=$(grep -nE "^[0-9]+\. [A-Z]" "$FILE" | grep -v "$EMDASH" || true)
-if [ -n "$HEADERS_WITHOUT_EMDASH" ]; then
-    echo "❌ FAIL: Section headers missing em-dash (—):"
-    echo "$HEADERS_WITHOUT_EMDASH"
+# Check 1: Any line starting with digit. must contain em-dash
+NUMBERED_WITHOUT_EMDASH=$(grep -nE "^[0-9]+\. " "$FILE" | grep -v "$EMDASH" || true)
+if [ -n "$NUMBERED_WITHOUT_EMDASH" ]; then
+    echo "❌ FAIL: Numbered lines missing em-dash (use bullets/letters for sub-steps):"
+    echo "$NUMBERED_WITHOUT_EMDASH"
     exit 1
 fi
 
@@ -26,13 +26,4 @@ if [ "$SECTION_COUNT" -ne 29 ]; then
     exit 1
 fi
 
-# Check 3: No numbered sub-steps (lines starting with digit. inside prompt string)
-# Exclude: section headers (have em-dash), workflow letters (A., B., etc.)
-NUMBERED_SUBSTEPS=$(grep -nE "^[0-9]+\. [a-z]" "$FILE" | grep -v "$EMDASH" || true)
-if [ -n "$NUMBERED_SUBSTEPS" ]; then
-    echo "❌ FAIL: Numbered sub-steps found (use bullets or letters instead):"
-    echo "$NUMBERED_SUBSTEPS"
-    exit 1
-fi
-
-echo "✅ PASS: 29 sections, all with em-dash, no numbered sub-steps"
+echo "✅ PASS: 29 sections, all numbered lines have em-dash"
