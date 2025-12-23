@@ -82,7 +82,7 @@ If coverage_score >= 8 and recommendation is SUFFICIENT, the report is ready.`;
     const report = args.report as string;
     const sources = (args.sources_used as string) || "Not provided";
 
-    // Super-49B for reflection - best instruction following for analysis (IFEval 88.6%)
+    // Nemotron 3 Nano for reflection - best reasoning for analysis
     const reflectionAgent = new Agent({
       apiKey: this.apiKey,
       systemPrompt: REFLECTION_PROMPT,
@@ -213,7 +213,7 @@ Seamlessly integrates new information into the existing report structure.`;
     const newFindings = args.new_findings as string;
     const gapsAddressed = (args.gaps_addressed as string) || "General improvements";
 
-    // Super-49B for report extension - best writing quality (ArenaHard 92%)
+    // Nemotron 3 Nano for report extension - best writing quality
     const extenderAgent = new Agent({
       apiKey: this.apiKey,
       systemPrompt: EXTENDED_REPORT_WRITER_PROMPT,

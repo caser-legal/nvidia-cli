@@ -46,7 +46,7 @@ export class QueryDecomposer {
   private llmEndpoint: string;
   private model: string;
 
-  // Use Super-49B v1.5 for query decomposition - best instruction following
+  // Use Nemotron 3 Nano for query decomposition - best reasoning and instruction following
   constructor(llmEndpoint: string = 'https://integrate.api.nvidia.com/v1', model: string = 'nvidia/nemotron-3-nano-30b-a3b') {
     this.llmEndpoint = llmEndpoint;
     this.model = model;

@@ -67,7 +67,7 @@ Use for: architecture diagrams, API flows, class hierarchies, database schemas`;
     const description = args.description as string;
     const title = (args.title as string) || "Diagram";
 
-    // Super-49B for diagram generation - best instruction following
+    // Nemotron 3 Nano for diagram generation - best reasoning and instruction following
     const agent = new Agent({
       apiKey: this.apiKey,
       systemPrompt: DIAGRAM_GENERATOR_PROMPT,

@@ -115,7 +115,7 @@ Operations:
   }
 
   private async analyzeCodebase(repoUrl?: string, localPath?: string): Promise<string> {
-    // Super-49B for code analysis - best instruction following (IFEval 88.6%)
+    // Nemotron 3 Nano for code analysis - best reasoning and instruction following
     const analyst = new Agent({
       apiKey: this.apiKey,
       systemPrompt: CODEBASE_ANALYST_PROMPT,

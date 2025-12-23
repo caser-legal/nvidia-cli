@@ -20,7 +20,7 @@ const MODEL_PRICING: Record<string, { input: string; output: string; limit: stri
   "nvidia/nemotron-3-nano-30b-a3b": { input: "Free", output: "Free", limit: "40 RPM" },
   "nvidia/llama-3.2-nv-embedqa-1b-v2": { input: "Free", output: "Free", limit: "40 RPM" },
   "nvidia/llama-3.2-nv-rerankqa-1b-v2": { input: "Free", output: "Free", limit: "40 RPM" },
-  "nvidia/llama-3.1-nemotron-nano-vl-8b-v1": { input: "Free", output: "Free", limit: "40 RPM" },
+  "nvidia/nemotron-nano-12b-v2-vl": { input: "Free", output: "Free", limit: "40 RPM" },
 };
 
 export function ModelComparisonDialog() {

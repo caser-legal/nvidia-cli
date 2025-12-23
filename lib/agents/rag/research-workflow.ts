@@ -84,7 +84,7 @@ export class ResearchWorkflow {
   private llmEndpoint: string;
   private model: string;
 
-  // Use Super-49B for research workflow - best for report generation (ArenaHard 92%)
+  // Use Nemotron 3 Nano for research workflow - best for report generation
   constructor(
     config: ResearchConfig = {
       maxReflections: 3,

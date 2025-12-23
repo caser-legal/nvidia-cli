@@ -61,7 +61,7 @@ export class ReflectionSystem {
   private relevanceThreshold: number;
   private groundednessThreshold: number;
 
-  // Use Super-49B for reflection - best instruction following for evaluation tasks
+  // Use Nemotron 3 Nano for reflection - best reasoning for evaluation tasks
   constructor(
     llmEndpoint: string = 'https://integrate.api.nvidia.com/v1',
     model: string = 'nvidia/nemotron-3-nano-30b-a3b',

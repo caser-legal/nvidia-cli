@@ -8,7 +8,7 @@ import { GoogleSearchTool } from "./google-search";
 import { ParallelSearchTool, deduplicateCitations } from "./parallel-search";
 import { LocalDocsSearchTool } from "./local-docs-search";
 
-// Specialist agents use Super-49B for best instruction following (ArenaHard 92%, IFEval 88.6%)
+// Specialist agents use Nemotron 3 Nano for best reasoning and instruction following
 const SPECIALIST_CONFIG = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
   maxTokens: 16384,

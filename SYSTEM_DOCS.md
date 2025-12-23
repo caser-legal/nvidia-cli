@@ -38,7 +38,7 @@ All models via single `NVIDIA_API_KEY`:
 
 | Component | Model ID | Purpose |
 |-----------|----------|---------|
-| **Main LLM** | `nvidia/nemotron-3-nano-30b-a3b` | 1M context, MoE (3.6B active) |
+| **Main LLM** | `nvidia/nemotron-3-nano-30b-a3b` | 1M context, MoE (3.5B active) |
 | **Embeddings** | `nvidia/llama-3.2-nv-embedqa-1b-v2` | 2048-dim vectors for RAG |
 | **Reranker** | `nvidia/llama-3.2-nv-rerankqa-1b-v2` | Re-scores retrieval results |
 | **Vision** | `nvidia/nemotron-nano-12b-v2-vl` | UI analysis, mockup comparison |
