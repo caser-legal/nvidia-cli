@@ -20,12 +20,13 @@ const OLLAMA_MODEL_MAP: Record<string, string> = {
 // - Self-hosted NIM / Ollama: Up to 1,000,000 tokens (model native limit)
 export const NVIDIA_MODELS = {
   // Nemotron 3 Nano - Main agent model
-  // Native: 1M context, Hosted API: 262K limit
+  // NVIDIA's newest model with highest compute efficiency and accuracy for agentic AI
+  // Fully open: weights, datasets, recipes for maximum customization and privacy
   "nvidia/nemotron-3-nano-30b-a3b": {
     id: "nvidia/nemotron-3-nano-30b-a3b",
     ollamaId: "nemotron-3-nano",
     name: "Nemotron 3 Nano",
-    description: "31.6B params, 3.6B active, reasoning ON/OFF",
+    description: "30B MoE (~3.5B active), 1M context, reasoning ON/OFF, fully open",
     // Context windows by backend:
     nativeContextWindow: 1000000,      // Self-hosted NIM / Ollama
     hostedContextWindow: 262144,       // integrate.api.nvidia.com (free tier)

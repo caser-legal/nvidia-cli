@@ -294,11 +294,12 @@ export const RAGStatsTool: Tool = {
   execute: async (): Promise<string> => {
     try {
       const pipeline = getRAGPipeline();
+      const homeDir = process.env.HOME || process.env.USERPROFILE || "/tmp";
       
       return JSON.stringify({
         success: true,
         documentCount: pipeline.getDocumentCount(),
-        persistentStorage: '/Users/home/Documents/nvidia-cli/.rag-store.json',
+        persistentStorage: `${homeDir}/.nvidia-cli/.rag-store.json`,
         config: {
           embeddingModel: 'nvidia/llama-3.2-nv-embedqa-1b-v2',
           rerankModel: 'nvidia/llama-3.2-nv-rerankqa-1b-v2',

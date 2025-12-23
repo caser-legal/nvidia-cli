@@ -110,10 +110,14 @@ flowchart LR
 
 ### Why Nemotron 3 Nano?
 
-- **MoE Architecture**: 30B total, only 3B active per token
-- **1M native context**: Hold ~750k lines of Swift at once
-- **3.3x faster** than dense models of similar quality
-- **Hybrid Mamba-Transformer**: Efficient long-context processing
+NVIDIA's newest model with highest compute efficiency and accuracy for agentic AI systems.
+
+- **Fully Open**: Open weights, datasets, and training recipes for maximum customization
+- **MoE Architecture**: 30B total, ~3.5B active per token for optimal efficiency
+- **1M Native Context**: Process ~750k lines of Swift in a single context window
+- **Hybrid Mamba-Transformer**: Purpose-built for long-context agentic workflows
+- **Reasoning ON/OFF**: Configurable thinking budget with `/think` toggle
+- **Best-in-class**: Top scores on SWE-Bench, GPQA Diamond, and agentic benchmarks
 
 ### Context Limits
 

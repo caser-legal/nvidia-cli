@@ -85,7 +85,7 @@ export function ModelComparisonDialog() {
                         )}
                       </td>
                       <td className="text-center p-3">
-                        {id.includes("deepseek-r1") || id.includes("nemotron-super") ? (
+                        {id.includes("deepseek-r1") || id.includes("nemotron-3-nano") ? (
                           <Brain className="h-4 w-4 text-orange-500 mx-auto" />
                         ) : (
                           <X className="h-4 w-4 text-muted-foreground mx-auto" />

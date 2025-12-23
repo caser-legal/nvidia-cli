@@ -355,7 +355,7 @@ export const useUIStore = create<UIState>()(
       
       sidebarLiveLogsMode: false,
       
-      coderProjectDir: "/Users/home/Documents/iOS",
+      coderProjectDir: "",
       
       settingsModalOpen: false,
       commandPaletteOpen: false,

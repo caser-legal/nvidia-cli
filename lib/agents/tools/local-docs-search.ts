@@ -10,10 +10,11 @@ import * as path from "path";
 
 const execAsync = promisify(exec);
 
-// Default paths to search for documentation
+// Default paths to search for documentation - relative to home
+const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
 const DEFAULT_DOC_PATHS = [
-  "/Users/home/Documents/iOS/dev-docs",
-  "/Users/home/nvidia-cli/dev-docs.rtf",
+  `${HOME_DIR}/Documents/iOS/dev-docs`,
+  `${HOME_DIR}/nvidia-cli/dev-docs.rtf`,
 ];
 
 interface SearchMatch {
