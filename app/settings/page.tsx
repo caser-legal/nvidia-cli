@@ -694,7 +694,10 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold border-b pb-2">Search API Keys</h2>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium">Tavily API Key</label>
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  Tavily API Key
+                </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
@@ -726,7 +729,10 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Google API Key</label>
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  Google API Key
+                </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
@@ -755,7 +761,10 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Google Custom Search Engine ID</label>
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  Google Custom Search Engine ID
+                </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
