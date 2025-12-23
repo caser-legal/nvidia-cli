@@ -262,7 +262,7 @@ User Query
     ↓
 📚 Unified Context (aggregates all sources)
     ↓
-🤖 Agent Core (37 tools + 8 specialists)
+🤖 Agent Core (40 tools)
     ↓
 📊 Data Flywheel (logs for improvement)
     ↓

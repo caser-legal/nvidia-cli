@@ -565,40 +565,6 @@ export default function SettingsPage() {
             {/* API Section */}
             <section className="space-y-4">
               <h2 className="text-lg font-semibold border-b pb-2">API Configuration</h2>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  NVIDIA API Key
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={showApiKey ? "text" : "password"}
-                      value={localApiKey}
-                      onChange={(e) => setLocalApiKey(e.target.value)}
-                      placeholder="nvapi-..."
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1 h-7 w-7"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  <Button onClick={handleSaveApiKey} disabled={saveStatus === "saving"}>
-                    {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved ✓" : "Save"}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Saves to .env.local file. Restart server after changing. Get your key from{" "}
-                  <a href="https://build.nvidia.com" target="_blank" rel="noopener" className="text-primary underline">
-                    build.nvidia.com
-                  </a>
-                </p>
-              </div>
 
               {/* LLM Backend Toggle */}
               <div className="space-y-2">
@@ -662,140 +628,239 @@ export default function SettingsPage() {
               )}
 
               {/* Model Info */}
-              <div className="p-4 rounded-lg bg-muted/50 space-y-3">
-                <div className="font-medium">
-                  Active Model: Nemotron 3 Nano 30B 
-                  <span className="ml-2 text-xs px-2 py-0.5 rounded bg-primary/20">
-                    {useLocalLLM ? "Local" : "Cloud"}
-                  </span>
+              <div className="p-4 rounded-lg bg-muted/50 space-y-4">
+                <div className="font-medium text-lg">
+                  🧠 Your AI Model Stack
                 </div>
-                <div className="text-sm text-muted-foreground space-y-2">
-                  {useLocalLLM ? (
-                    <>
-                      <p><strong>Ollama (Port 11434)</strong> - Local inference server running on your network. Runs the main Nemotron 3 Nano model for chat and reasoning.</p>
-                      <p><strong>Embedding Server (Port 8000)</strong> - Python server running llama-nemotron-embed-1b-v2 and llama-nemotron-rerank-1b-v2. Converts text to vectors for semantic search (RAG).</p>
-                      <p><strong>Quantized</strong> - Q4_K_M quantization reduces model size from ~60GB to ~24GB while keeping quality. Fits on consumer GPUs like RTX 3080/3090.</p>
-                      <p><strong>How it works:</strong> When you chat, your message goes to Ollama. When you use RAG (document search), text goes to the embedding server first, then results go to Ollama for the final answer.</p>
-                    </>
-                  ) : (
-                    <>
-                      <p><strong>NIM</strong> (NVIDIA Inference Microservices) - NVIDIA&apos;s cloud API for running language models. No local GPU required.</p>
-                      <p><strong>MoE</strong> (Mixture of Experts) - Architecture where only some &quot;expert&quot; networks activate per request, making it faster. This model has 30B total parameters but only 3.5B activate per token.</p>
-                      <p><strong>Rate Limit:</strong> Free tier allows 40 requests per minute.</p>
-                    </>
-                  )}
-                  <p><strong>Context Window:</strong> 1M tokens (~750,000 words) - how much text the model can &quot;see&quot; at once. Great for analyzing large codebases.</p>
+                
+                {/* Main LLM */}
+                <div className="border-l-2 border-green-500 pl-3 space-y-1">
+                  <div className="font-medium flex items-center gap-2">
+                    Main LLM: Nemotron 3 Nano 30B
+                    <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400">
+                      {useLocalLLM ? "Local" : "Cloud"}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    This is the &quot;brain&quot; - handles all your conversations, code generation, and reasoning.
+                  </p>
+                  <div className="text-xs text-muted-foreground space-y-1 mt-2">
+                    <p>• <strong>MoE (Mixture of Experts)</strong> - Only 3B of 30B parameters activate per request = faster + cheaper</p>
+                    <p>• <strong>1M token context</strong> - Can &quot;see&quot; ~750,000 words at once (your entire iOS codebase)</p>
+                    <p>• <strong>Rate Limit:</strong> 40 requests/min on free tier</p>
+                  </div>
+                </div>
+
+                {/* Embeddings */}
+                <div className="border-l-2 border-blue-500 pl-3 space-y-1">
+                  <div className="font-medium flex items-center gap-2">
+                    Embeddings: NV-EmbedQA 1B v2
+                    <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">RAG</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Converts your code/docs into numbers (vectors) so the AI can search them semantically.
+                  </p>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    <p>• When you use <code className="bg-muted px-1 rounded">rag_ingest</code>, this model reads your files and creates searchable embeddings</p>
+                    <p>• 2048-dimensional vectors - high accuracy for code search</p>
+                  </div>
+                </div>
+
+                {/* Reranker */}
+                <div className="border-l-2 border-purple-500 pl-3 space-y-1">
+                  <div className="font-medium flex items-center gap-2">
+                    Reranker: NV-RerankQA 1B v2
+                    <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400">RAG</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Re-scores search results to find the MOST relevant code snippets.
+                  </p>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    <p>• Embeddings find 100 candidates → Reranker picks the best 10</p>
+                    <p>• Much more accurate than embeddings alone</p>
+                  </div>
+                </div>
+
+                {/* Vision */}
+                <div className="border-l-2 border-orange-500 pl-3 space-y-1">
+                  <div className="font-medium flex items-center gap-2">
+                    Vision: Nemotron Nano VL 12B v2
+                    <span className="text-xs px-2 py-0.5 rounded bg-orange-500/20 text-orange-400">UI Analysis</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Analyzes screenshots and images - finds UI bugs, compares mockups to implementations.
+                  </p>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    <p>• Use <code className="bg-muted px-1 rounded">ios_ui_review</code> to check button alignment, spacing issues</p>
+                    <p>• Use <code className="bg-muted px-1 rounded">compare_mockup</code> to compare Figma designs to your app</p>
+                  </div>
+                </div>
+
+                {/* How it all works together */}
+                <div className="mt-4 p-3 rounded bg-muted/30 text-sm">
+                  <div className="font-medium mb-2">🔄 How They Work Together</div>
+                  <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>You ask a question about your code</li>
+                    <li><strong>Embeddings</strong> search your indexed codebase for relevant files</li>
+                    <li><strong>Reranker</strong> picks the most relevant snippets</li>
+                    <li><strong>Main LLM</strong> reads those snippets + your question and generates an answer</li>
+                    <li>If you share a screenshot, <strong>Vision</strong> analyzes it first</li>
+                  </ol>
+                </div>
+
+                {/* Single API Key note */}
+                <div className="text-xs text-muted-foreground border-t pt-3 mt-3">
+                  <strong>💡 One API Key:</strong> Your NVIDIA_API_KEY above powers ALL of these models. No separate keys needed.
+                </div>
+              </div>
+
+              {/* All API Keys Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="text-sm font-medium">API Keys</div>
+                
+                {/* NVIDIA Key */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    NVIDIA API Key
+                    <span className="text-xs text-green-500">(Required)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showApiKey ? "text" : "password"}
+                        value={localApiKey}
+                        onChange={(e) => setLocalApiKey(e.target.value)}
+                        placeholder="nvapi-..."
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1 h-7 w-7"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                      >
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button onClick={handleSaveApiKey} disabled={saveStatus === "saving"}>
+                      {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved ✓" : "Save"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Powers all NVIDIA models (LLM, Embeddings, Reranker, Vision). Get from{" "}
+                    <a href="https://build.nvidia.com" target="_blank" rel="noopener" className="text-primary underline">build.nvidia.com</a>
+                  </p>
+                </div>
+
+                {/* Tavily Key */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    Tavily API Key
+                    <span className="text-xs text-muted-foreground">(Web Search)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showApiKey ? "text" : "password"}
+                        value={tavilyKey}
+                        onChange={(e) => setTavilyKey(e.target.value)}
+                        placeholder="tvly-..."
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1 h-7 w-7"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                      >
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button onClick={async () => {
+                      await fetch("/api/settings/api-key", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ tavilyKey }),
+                      });
+                    }}>Save</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    AI-optimized web search. Get from <a href="https://tavily.com" target="_blank" rel="noopener" className="text-primary underline">tavily.com</a>
+                  </p>
+                </div>
+
+                {/* Google Key */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    Google API Key
+                    <span className="text-xs text-muted-foreground">(Web Search)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showApiKey ? "text" : "password"}
+                        value={googleKey}
+                        onChange={(e) => setGoogleKey(e.target.value)}
+                        placeholder="AIzaSy..."
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1 h-7 w-7"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                      >
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button onClick={async () => {
+                      await fetch("/api/settings/api-key", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ googleKey }),
+                      });
+                    }}>Save</Button>
+                  </div>
+                </div>
+
+                {/* Google CSE ID */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    Google Search Engine ID
+                    <span className="text-xs text-muted-foreground">(Web Search)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showApiKey ? "text" : "password"}
+                        value={googleCseId}
+                        onChange={(e) => setGoogleCseId(e.target.value)}
+                        placeholder="abc123..."
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1 h-7 w-7"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                      >
+                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button onClick={async () => {
+                      await fetch("/api/settings/api-key", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ googleCseId }),
+                      });
+                    }}>Save</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Google Custom Search. Get from <a href="https://programmablesearchengine.google.com" target="_blank" rel="noopener" className="text-primary underline">programmablesearchengine.google.com</a>
+                  </p>
                 </div>
               </div>
             </section>
-
-            {/* Search API Keys Section */}
-            <section className="space-y-4">
-              <h2 className="text-lg font-semibold border-b pb-2">Search API Keys</h2>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Tavily API Key
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={showApiKey ? "text" : "password"}
-                      value={tavilyKey}
-                      onChange={(e) => setTavilyKey(e.target.value)}
-                      placeholder="tvly-..."
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1 h-7 w-7"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  <Button onClick={async () => {
-                    await fetch("/api/settings/api-key", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ tavilyKey }),
-                    });
-                  }}>Save</Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  AI-optimized search. Get key from <a href="https://tavily.com" target="_blank" rel="noopener" className="text-primary underline">tavily.com</a>
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Google API Key
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={showApiKey ? "text" : "password"}
-                      value={googleKey}
-                      onChange={(e) => setGoogleKey(e.target.value)}
-                      placeholder="AIzaSy..."
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1 h-7 w-7"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  <Button onClick={async () => {
-                    await fetch("/api/settings/api-key", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ googleKey }),
-                    });
-                  }}>Save</Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Google Custom Search Engine ID
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={showApiKey ? "text" : "password"}
-                      value={googleCseId}
-                      onChange={(e) => setGoogleCseId(e.target.value)}
-                      placeholder="abc123..."
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1 h-7 w-7"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  <Button onClick={async () => {
-                    await fetch("/api/settings/api-key", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ googleCseId }),
-                    });
-                  }}>Save</Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Google Custom Search. Get from <a href="https://programmablesearchengine.google.com" target="_blank" rel="noopener" className="text-primary underline">programmablesearchengine.google.com</a>
-                </p>
-              </div>
-            </section>
-
             {/* Usage Section */}
             <section className="space-y-4">
               <div className="flex items-center justify-between border-b pb-2">
