@@ -54,7 +54,7 @@ import {
   MockupComparisonTool,
 } from "@/lib/agents/tools/vision-analysis";
 
-import { RAGPipeline } from "@/lib/agents/rag/pipeline";
+import { RAGPipelineV2, getRAGPipeline, IOS_DEVELOPMENT_PROFILE } from "@/lib/agents/rag";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
 import { UnifiedContext } from "@/lib/agents/unified-context";
 import { RetrievalRouter } from "@/lib/agents/retrieval-router";
@@ -1066,7 +1066,7 @@ export async function POST(request: NextRequest) {
       enabled: true,
     });
 
-    const ragPipeline = new RAGPipeline();
+    const ragPipeline = getRAGPipeline({ profile: IOS_DEVELOPMENT_PROFILE });
     const shortTermMemory = new ShortTermMemory(sessionId);
     const longTermMemory = new LongTermMemory();
     const retrievalRouter = new RetrievalRouter(apiKey);

@@ -12,7 +12,7 @@ import { getCurrentProjectDir } from './project';
 
 // Use V2 pipeline singleton with iOS development profile
 function getRAGPipeline(): RAGPipelineV2 {
-  return getV2Pipeline(IOS_DEVELOPMENT_PROFILE);
+  return getV2Pipeline({ profile: IOS_DEVELOPMENT_PROFILE });
 }
 
 function createToolDefinition(name: string, description: string, parameters: Record<string, unknown>): ToolDefinition {

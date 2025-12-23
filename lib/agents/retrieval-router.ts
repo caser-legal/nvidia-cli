@@ -1,6 +1,5 @@
 
 import OpenAI from "openai";
-import { RAGPipeline } from "./rag/pipeline";
 
 export enum RetrievalSource {
   RAG = "rag",
