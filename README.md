@@ -173,34 +173,85 @@ flowchart TB
 ### Query Processing Flow
 
 ```mermaid
-flowchart LR
-    subgraph Input
-        Q[Complex Query]
-    end
-
-    subgraph Decomposition["Query Decomposition"]
-        Q --> QD{Needs<br/>decomposition?}
-        QD -->|Yes| SUB[Generate Sub-queries]
-        QD -->|No| SINGLE[Single Query]
-        SUB --> MQ[Multiple Queries]
-    end
-
-    subgraph Search["Parallel Search"]
-        MQ --> PS[Parallel Hybrid Search]
-        SINGLE --> PS
-        PS --> MERGE[Merge & Deduplicate]
-    end
-
-    subgraph Reflection["Self-Correction Loop"]
-        MERGE --> REL{Relevant?}
-        REL -->|No| RW[Rewrite Query]
-        RW --> PS
-        REL -->|Yes| FINAL[Final Results]
-    end
-
-    style Decomposition fill:#2d3436
-    style Search fill:#636e72
-    style Reflection fill:#b2bec3
+flowchart TB
+    %% User Input
+    USER[/"👤 User Query<br/>'How do I implement OAuth in SwiftUI?'"/]
+    
+    %% Step 1: Query Analysis
+    USER --> ANALYZE["🔍 Analyze Query Complexity"]
+    
+    ANALYZE --> COMPLEX{Is it complex?<br/>Multiple topics?}
+    
+    %% Simple path
+    COMPLEX -->|"No - Simple"| SINGLE["Single Query"]
+    SINGLE --> SEARCH
+    
+    %% Complex path - Decomposition
+    COMPLEX -->|"Yes - Complex"| DECOMPOSE["📋 Query Decomposition<br/>Break into sub-questions"]
+    
+    DECOMPOSE --> SUB1["Sub-query 1:<br/>'What is OAuth?'"]
+    DECOMPOSE --> SUB2["Sub-query 2:<br/>'SwiftUI authentication patterns'"]
+    DECOMPOSE --> SUB3["Sub-query 3:<br/>'OAuth libraries for iOS'"]
+    
+    SUB1 --> PARALLEL
+    SUB2 --> PARALLEL
+    SUB3 --> PARALLEL
+    
+    %% Parallel Search
+    PARALLEL["⚡ Parallel Search<br/>All queries at once"]
+    PARALLEL --> SEARCH
+    
+    %% Hybrid Search
+    SEARCH["🔎 Hybrid Search"]
+    SEARCH --> BM25["BM25 Search<br/>Exact keyword matches"]
+    SEARCH --> VECTOR["Vector Search<br/>Semantic similarity"]
+    
+    BM25 --> FUSION["🔀 RRF Fusion<br/>Combine & score results"]
+    VECTOR --> FUSION
+    
+    %% Get candidates
+    FUSION --> CANDIDATES["📚 100 Candidate Chunks"]
+    
+    %% Rerank
+    CANDIDATES --> RERANK["⚡ NV-RerankQA<br/>Re-score by relevance"]
+    RERANK --> TOP10["🎯 Top 10 Results"]
+    
+    %% Reflection Check
+    TOP10 --> CHECK{{"🤔 Are results relevant<br/>to original query?"}}
+    
+    %% Not relevant - loop back
+    CHECK -->|"❌ No - Poor results"| REWRITE["✏️ Rewrite Query<br/>Try different terms"]
+    REWRITE -->|"Loop back"| SEARCH
+    
+    %% Relevant - continue
+    CHECK -->|"✅ Yes - Good results"| CONTEXT["📄 Build Context<br/>Format for LLM"]
+    
+    %% Generate
+    CONTEXT --> LLM["🧠 Nemotron 3 Nano<br/>Generate answer"]
+    LLM --> GROUND{{"📏 Is answer grounded<br/>in the sources?"}}
+    
+    %% Not grounded - regenerate
+    GROUND -->|"❌ No - Hallucination"| REGEN["🔄 Regenerate<br/>Stick to sources"]
+    REGEN --> LLM
+    
+    %% Final output
+    GROUND -->|"✅ Yes - Factual"| ANSWER[/"💬 Final Answer<br/>with citations [1][2][3]"/]
+    
+    %% Styling
+    style USER fill:#76b900,color:#000
+    style ANSWER fill:#76b900,color:#000
+    style DECOMPOSE fill:#0984e3
+    style PARALLEL fill:#0984e3
+    style SEARCH fill:#6c5ce7
+    style BM25 fill:#a29bfe
+    style VECTOR fill:#a29bfe
+    style FUSION fill:#6c5ce7
+    style RERANK fill:#e17055
+    style CHECK fill:#fdcb6e,color:#000
+    style GROUND fill:#fdcb6e,color:#000
+    style REWRITE fill:#d63031
+    style REGEN fill:#d63031
+    style LLM fill:#00b894
 ```
 
 ### Key Features
