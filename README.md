@@ -73,6 +73,34 @@ Get your key from [build.nvidia.com](https://build.nvidia.com)
 
 All models accessed via single `NVIDIA_API_KEY`:
 
+```mermaid
+flowchart LR
+    subgraph API["NVIDIA NIM API"]
+        KEY[NVIDIA_API_KEY]
+    end
+
+    subgraph Models["Model Stack"]
+        KEY --> LLM["🧠 Nemotron 3 Nano 30B<br/>Main LLM<br/>1M context, MoE"]
+        KEY --> EMB["📊 NV-EmbedQA 1B v2<br/>Embeddings<br/>2048 dimensions"]
+        KEY --> RR["⚡ NV-RerankQA 1B v2<br/>Reranker<br/>Score refinement"]
+        KEY --> VIS["👁️ Nemotron Nano VL 12B v2<br/>Vision<br/>UI analysis"]
+    end
+
+    subgraph Usage["Usage"]
+        LLM --> CHAT[Chat & Reasoning]
+        LLM --> TOOLS[Tool Calling]
+        EMB --> RAG_E[RAG Indexing]
+        EMB --> RAG_Q[RAG Query]
+        RR --> RAG_R[RAG Reranking]
+        VIS --> UI[iOS UI Review]
+        VIS --> MOCK[Mockup Comparison]
+    end
+
+    style API fill:#76b900
+    style Models fill:#1a1a2e
+    style Usage fill:#2d3436
+```
+
 | Component | Model | Purpose |
 |-----------|-------|---------|
 | **Main LLM** | `nvidia/nemotron-3-nano-30b-a3b` | 1M context, MoE (3B active) |
@@ -101,13 +129,78 @@ All models accessed via single `NVIDIA_API_KEY`:
 
 Full implementation based on **NVIDIA RAG Blueprint (Dec 2025)**.
 
-### Architecture
+### RAG Pipeline Architecture
 
+```mermaid
+flowchart TB
+    subgraph Ingestion["📥 Document Ingestion"]
+        D[Documents<br/>.swift, .md, .txt] --> TS[SwiftTextSplitter<br/>800 chars, 120 overlap]
+        TS --> CH[Chunks with Metadata]
+        CH --> EMB[NVIDIA NV-EmbedQA 1B v2<br/>2048-dim vectors]
+        EMB --> VS[(Vector Store<br/>.rag-store.json)]
+        CH --> BM[BM25 Index<br/>Lexical tokens]
+    end
+
+    subgraph Retrieval["🔍 Hybrid Retrieval"]
+        Q[User Query] --> QE[Query Embedding]
+        Q --> QT[Query Tokenization]
+        QE --> VEC[Vector Search<br/>Cosine similarity]
+        QT --> LEX[BM25 Search<br/>Exact matches]
+        VS --> VEC
+        BM --> LEX
+        VEC --> RRF[Reciprocal Rank Fusion<br/>α=0.5]
+        LEX --> RRF
+        RRF --> TOP[Top 100 Candidates]
+    end
+
+    subgraph Reranking["⚡ Contextual Compression"]
+        TOP --> RR[NVIDIA NV-RerankQA 1B v2]
+        RR --> TOPK[Top 10 Results]
+    end
+
+    subgraph Generation["💬 Response Generation"]
+        TOPK --> CTX[Build Context]
+        CTX --> LLM[Nemotron 3 Nano 30B<br/>1M context]
+        LLM --> ANS[Answer with Citations]
+    end
+
+    style Ingestion fill:#1a1a2e
+    style Retrieval fill:#16213e
+    style Reranking fill:#0f3460
+    style Generation fill:#e94560
 ```
-Documents → Chunking → Embeddings → Vector Store
-                                        ↓
-Query → BM25 + Vector → Rerank → Top K → Generate
-         (Hybrid)       (100→10)
+
+### Query Processing Flow
+
+```mermaid
+flowchart LR
+    subgraph Input
+        Q[Complex Query]
+    end
+
+    subgraph Decomposition["Query Decomposition"]
+        Q --> QD{Needs<br/>decomposition?}
+        QD -->|Yes| SUB[Generate Sub-queries]
+        QD -->|No| SINGLE[Single Query]
+        SUB --> MQ[Multiple Queries]
+    end
+
+    subgraph Search["Parallel Search"]
+        MQ --> PS[Parallel Hybrid Search]
+        SINGLE --> PS
+        PS --> MERGE[Merge & Deduplicate]
+    end
+
+    subgraph Reflection["Self-Correction Loop"]
+        MERGE --> REL{Relevant?}
+        REL -->|No| RW[Rewrite Query]
+        RW --> PS
+        REL -->|Yes| FINAL[Final Results]
+    end
+
+    style Decomposition fill:#2d3436
+    style Search fill:#636e72
+    style Reflection fill:#b2bec3
 ```
 
 ### Key Features
@@ -249,22 +342,105 @@ For iOS/Swift code search:
 
 ## Architecture
 
-### System Flow
+### Complete System Architecture
 
+```mermaid
+flowchart TB
+    subgraph Client["🖥️ Client"]
+        UI[Web UI<br/>localhost:3000]
+    end
+
+    subgraph Security["🛡️ Security Layer"]
+        PII[PII Guard<br/>Redacts emails, phones, API keys, IPs]
+    end
+
+    subgraph Intelligence["🧠 Intelligence Layer"]
+        RR[Retrieval Router]
+        RR --> RAG_PATH[RAG Path]
+        RR --> MEM_PATH[Memory Path]
+        RR --> SEARCH_PATH[Search Path]
+    end
+
+    subgraph Context["📚 Unified Context"]
+        RAG_PATH --> RAG[RAG Pipeline V2<br/>Hybrid BM25+Vector]
+        MEM_PATH --> STM[Short-term Memory<br/>Session]
+        MEM_PATH --> LTM[Long-term Memory<br/>~/.nvidia-cli/memory.json]
+        MEM_PATH --> ENT[Entity Memory<br/>People, Projects]
+        SEARCH_PATH --> WEB[Web Search<br/>Google]
+        
+        RAG --> UC[Context Aggregator]
+        STM --> UC
+        LTM --> UC
+        ENT --> UC
+        WEB --> UC
+    end
+
+    subgraph Agent["🤖 Agent Core"]
+        UC --> LLM[Nemotron 3 Nano 30B<br/>1M context, MoE]
+        LLM --> TOOLS[38 Tools]
+        TOOLS --> |Results| LLM
+        LLM --> |More tools needed| TOOLS
+    end
+
+    subgraph ToolCategories["🛠️ Tool Categories"]
+        TOOLS --> FS[File System<br/>read, write]
+        TOOLS --> SYS[System<br/>bash]
+        TOOLS --> RAGT[RAG Tools<br/>8 tools]
+        TOOLS --> VIS[Vision<br/>3 tools]
+        TOOLS --> SRCH[Search<br/>3 tools]
+        TOOLS --> SPEC[Specialists<br/>8 sub-agents]
+    end
+
+    subgraph Learning["📊 Data Flywheel"]
+        LLM --> LOG[Flywheel Logger]
+        LOG --> DS[Dataset Creator<br/>Train/Eval/Test]
+        LOG --> EVAL[LLM-as-Judge<br/>Quality Scoring]
+    end
+
+    UI --> PII
+    PII --> RR
+    LLM --> |Response| UI
+
+    style Client fill:#2d3436
+    style Security fill:#d63031
+    style Intelligence fill:#0984e3
+    style Context fill:#00b894
+    style Agent fill:#6c5ce7
+    style ToolCategories fill:#fdcb6e
+    style Learning fill:#e17055
 ```
-User Query
-    ↓
-🛡️ PII Guard (redacts sensitive data)
-    ↓
-🧠 Retrieval Router (decides: RAG / Memory / Search)
-    ↓
-📚 Unified Context (aggregates all sources)
-    ↓
-🤖 Agent Core (38 tools)
-    ↓
-📊 Data Flywheel (logs for improvement)
-    ↓
-Response
+
+### Agent Tool Execution Loop
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Agent Core
+    participant L as LLM (Nemotron)
+    participant T as Tools (38)
+    participant F as Flywheel
+
+    U->>A: Query
+    A->>A: PII Redaction
+    A->>A: Build Context (RAG + Memory)
+    
+    loop Until Complete
+        A->>L: Messages + Tools
+        L->>A: Response + Tool Calls
+        
+        alt Has Tool Calls
+            loop For Each Tool
+                A->>T: Execute Tool
+                T->>A: Result
+            end
+            A->>A: Add Results to Messages
+        else No Tool Calls
+            A->>U: Final Response
+        end
+    end
+    
+    A->>F: Log Interaction
+    F->>F: Calculate Quality Signals
 ```
 
 ### Key Files
@@ -283,6 +459,45 @@ Response
 ## Data Flywheel
 
 Based on **NVIDIA Data Flywheel Blueprint**.
+
+### Flywheel Architecture
+
+```mermaid
+flowchart LR
+    subgraph Production["🚀 Production"]
+        INT[Agent Interactions]
+    end
+
+    subgraph Logging["📝 Logging"]
+        INT --> LOG[FlywheelLogger]
+        LOG --> REC[Records:<br/>Query, Response, Tools,<br/>Tokens, Latency]
+    end
+
+    subgraph Evaluation["⚖️ Evaluation"]
+        REC --> JUDGE[LLM-as-Judge<br/>FlywheelEvaluator]
+        JUDGE --> SCORES[Quality Scores:<br/>Helpfulness, Accuracy,<br/>Completeness 0-10]
+    end
+
+    subgraph Dataset["📊 Dataset Creation"]
+        SCORES --> FILTER[Filter High Quality<br/>Rating ≥ 4]
+        FILTER --> SPLIT[DatasetCreator<br/>80/10/10 Split]
+        SPLIT --> TRAIN[Training Set]
+        SPLIT --> EVAL_SET[Eval Set]
+        SPLIT --> TEST[Test Set]
+    end
+
+    subgraph Future["🔮 Future Use"]
+        TRAIN --> FINETUNE[LoRA Fine-tuning]
+        FINETUNE --> SMALLER[Smaller Model<br/>Lower Cost]
+        SMALLER --> |Deploy| Production
+    end
+
+    style Production fill:#00b894
+    style Logging fill:#0984e3
+    style Evaluation fill:#6c5ce7
+    style Dataset fill:#fdcb6e
+    style Future fill:#e17055
+```
 
 ### What Gets Logged
 
