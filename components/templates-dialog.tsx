@@ -101,7 +101,7 @@ const CONVERSATION_TEMPLATES = [
 export function TemplatesDialog() {
   const { templatesDialogOpen, setTemplatesDialogOpen } = useUIStore();
   const { createProject } = useProjectStore();
-  const { createConversation, addMessage } = useConversationStore();
+  const { createConversation } = useConversationStore();
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const handleUseProjectTemplate = (template: typeof PROJECT_TEMPLATES[0]) => {
@@ -109,9 +109,8 @@ export function TemplatesDialog() {
     setTemplatesDialogOpen(false);
   };
 
-  const handleUseConversationTemplate = (template: typeof CONVERSATION_TEMPLATES[0]) => {
-    const convId = createConversation();
-    // Note: In a real implementation, you'd set the first message
+  const handleUseConversationTemplate = () => {
+    createConversation();
     setTemplatesDialogOpen(false);
   };
 
@@ -201,7 +200,7 @@ export function TemplatesDialog() {
                 <div
                   key={template.id}
                   className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleUseConversationTemplate(template)}
+                  onClick={() => handleUseConversationTemplate()}
                 >
                   <div className="flex items-center justify-between">
                     <div>

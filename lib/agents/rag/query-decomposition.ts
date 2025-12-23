@@ -4,7 +4,7 @@
  * Breaks complex queries into simpler sub-queries for better retrieval
  */
 
-import { SubQuery, DecomposedQuery } from './types';
+import { DecomposedQuery } from './types';
 
 const DECOMPOSITION_PROMPT = `You are an expert at breaking down complex questions into simpler sub-questions.
 

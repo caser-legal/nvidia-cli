@@ -23,9 +23,7 @@ import { AutoRAGUpdater } from "./rag/auto-updater";
 import { FlywheelEvaluator } from "./flywheel/evaluator";
 import { 
   ContextManager, 
-  getContextLimits, 
-  estimateMessagesTokens,
-  estimateToolsTokens 
+  getContextLimits
 } from "../context-manager";
 
 // Check if using local LLM
@@ -95,6 +93,7 @@ export class Agent {
     this.config = { ...DEFAULT_CONFIG, ...options.config };
     // Map model name for Ollama
     if (useLocalLLM && this.config.model === "nvidia/nemotron-3-nano-30b-a3b") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.config.model = "nemotron-3-nano" as any;
     }
     this.systemPrompt = options.systemPrompt;
@@ -166,7 +165,7 @@ export class Agent {
       console.log("[Agent] Function name:", name);
 
       // Extract parameters
-      const args: Record<string, any> = {};
+      const args: Record<string, unknown> = {};
       const paramRegex = /<parameter=([a-zA-Z0-9_]+)>([\s\S]*?)<\/parameter>/g;
       let paramMatch;
       while ((paramMatch = paramRegex.exec(inner)) !== null) {
@@ -220,7 +219,7 @@ export class Agent {
     // Dynamic Tool Selection - DISABLED for simplicity
     // The ToolOrchestrator was filtering tools but causing issues
     // Just pass all tools and let the LLM decide
-    let activeToolNames: string[] | undefined = undefined; // undefined = use all tools
+    const activeToolNames: string[] | undefined = undefined; // undefined = use all tools
     
     /*
     if (this.toolOrchestrator) {
@@ -642,11 +641,11 @@ export class Agent {
 
   private async executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
     const { name, arguments: argsString } = toolCall.function;
-    let args: any;
+    let args: Record<string, unknown>;
     try {
       args = JSON.parse(argsString);
-    } catch (e) {
-      args = argsString; // Fallback for poorly formatted JSON
+    } catch {
+      args = { raw: argsString }; // Fallback for poorly formatted JSON
     }
     
     const tool = this.tools.get(name);
@@ -743,7 +742,9 @@ export class Agent {
 
     // 2. Run feedback optimizer and auto RAG updater if available
     await Promise.all([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this.feedbackOptimizer as any)?.generateOptimizations?.(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this.autoRAGUpdater as any)?.sync?.(),
     ].filter(Boolean));
   }

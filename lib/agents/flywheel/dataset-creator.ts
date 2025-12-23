@@ -4,8 +4,7 @@
 
 import { 
   FlywheelRecord, 
-  FlywheelDataset,
-  WorkloadClassification 
+  FlywheelDataset
 } from "./types";
 import { FlywheelLogger } from "./logger";
 

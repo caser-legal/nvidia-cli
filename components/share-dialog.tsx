@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUIStore } from "@/lib/store";
 import { useConversationStore } from "@/lib/store/conversations";
-import { Copy, Check, Link, Globe, Lock, Calendar, Eye } from "lucide-react";
+import { Copy, Check, Globe, Lock, Calendar, Eye } from "lucide-react";
 import { nanoid } from "nanoid";
 
 export function ShareDialog() {

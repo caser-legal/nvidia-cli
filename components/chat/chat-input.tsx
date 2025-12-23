@@ -4,17 +4,10 @@
 "use client";
 
 import * as React from "react";
-import { Send, Paperclip, Square, Loader2, MessageSquare, Code, Terminal, Monitor, Globe, Headphones, Users, FileText } from "lucide-react";
+import { Send, Paperclip, Square, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn, estimateTokens } from "@/lib/utils";
 
 interface ChatInputProps {
   onSend: (message: string, images?: string[]) => void;
@@ -43,7 +36,6 @@ export function ChatInput({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const charCount = value.length;
-  const tokenEstimate = estimateTokens(value);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

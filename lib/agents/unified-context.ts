@@ -74,6 +74,7 @@ export class UnifiedContext {
     }
 
     // Parallel retrieval
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const promises: Promise<any>[] = [];
 
     // 1. RAG Search
@@ -114,7 +115,11 @@ export class UnifiedContext {
     }
 
     // Wait for async operations
-    const [ragDocs, longTermMems, entityMems] = await Promise.all(promises);
+    const [ragDocs, longTermMems, entityMems] = await Promise.all(promises) as [
+      Document[],
+      MemoryEntry[],
+      MemoryEntry[]
+    ];
 
     // Synchronous Memory Retrieval
     let shortTermMems: MemoryEntry[] = [];

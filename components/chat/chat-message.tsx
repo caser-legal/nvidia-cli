@@ -137,7 +137,7 @@ export function ChatMessage({
                 rehypePlugins={[rehypeKatex]}
                 components={{
                   // Feature 4-5: Code blocks with syntax highlighting
-                  code({ node, className, children, ...props }) {
+                  code({ className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || "");
                     const language = match ? match[1] : "";
                     const codeString = String(children).replace(/\n$/, "");

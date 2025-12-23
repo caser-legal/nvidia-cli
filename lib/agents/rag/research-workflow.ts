@@ -4,7 +4,7 @@
  * Implements: Generate Queries → Research → Summarize → Reflect → Finalize
  */
 
-import { Document, WorkflowState, SubQuery } from './types';
+import { Document, SubQuery } from './types';
 import { QueryDecomposer } from './query-decomposition';
 import { ReflectionSystem, ReflectionCounter } from './reflection';
 import { NVIDIAReranker } from './embeddings';

@@ -90,12 +90,6 @@ export function OnboardingTour() {
     setIsOpen(false);
   };
 
-  // Feature 172: Resume onboarding
-  const handleResume = () => {
-    setIsOpen(true);
-    setCurrentStep(onboardingStep);
-  };
-
   if (onboardingComplete && !isOpen) return null;
 
   const step = TOUR_STEPS[currentStep];

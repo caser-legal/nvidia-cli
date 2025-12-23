@@ -4,7 +4,7 @@
 "use client";
 
 import * as React from "react";
-import { MessageSquare, Zap, Brain, Search, FileCode, Terminal } from "lucide-react";
+import { Zap, Brain, Search, FileCode, Terminal } from "lucide-react";
 
 // NVIDIA Logo SVG
 function NvidiaLogo({ className = "" }: { className?: string }) {

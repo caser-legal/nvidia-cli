@@ -7,7 +7,7 @@ export interface Span {
   name: string;
   startTime: number;
   endTime?: number;
-  attributes: Record<string, any>;
+  attributes: Record<string, unknown>;
   status: "ok" | "error" | "running";
 }
 
@@ -15,7 +15,7 @@ export class Tracer {
   private spans: Map<string, Span> = new Map();
   private activeSpans: string[] = [];
 
-  startSpan(name: string, attributes: Record<string, any> = {}): string {
+  startSpan(name: string, attributes: Record<string, unknown> = {}): string {
     const id = uuidv4();
     const parentId = this.activeSpans.length > 0 ? this.activeSpans[this.activeSpans.length - 1] : undefined;
     
@@ -33,7 +33,7 @@ export class Tracer {
     return id;
   }
 
-  endSpan(id: string, attributes: Record<string, any> = {}): void {
+  endSpan(id: string, attributes: Record<string, unknown> = {}): void {
     const span = this.spans.get(id);
     if (!span) return;
 

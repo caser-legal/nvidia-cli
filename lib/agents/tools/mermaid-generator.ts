@@ -207,7 +207,7 @@ sequenceDiagram
     if (services.length < 2) {
       services = ["ServiceA", "ServiceB", "ServiceC"];
     }
-    const connections = services.slice(1).map((s, i) => 
+    const connections = services.slice(1).map((s) => 
       `    ${services[0]} --> ${s}`
     ).join("\n");
     

@@ -7,7 +7,7 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, ghcolors, dracula } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { MessageSquare, Square, Zap } from "lucide-react";
+import { Square, Zap } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -116,7 +116,6 @@ export function AgentChat({ sessionId, className }: AgentChatProps) {
   };
 
   const config = DORY_CONFIG;
-  const Icon = config.icon;
 
   // Load session if sessionId provided
   React.useEffect(() => {
@@ -322,7 +321,7 @@ export function AgentChat({ sessionId, className }: AgentChatProps) {
                 <div className="text-gray-200 flex-1 prose prose-invert prose-sm max-w-none prose-headings:text-white prose-strong:text-white prose-li:text-gray-200">
                   <ReactMarkdown
                     components={{
-                      code({ node, className, children, ...props }) {
+                      code({ className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || "");
                         const inline = !match;
                         return !inline ? (

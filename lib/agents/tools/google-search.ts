@@ -41,6 +41,7 @@ Use this for fact-checking, research, and finding information.`;
         return `No results found for: ${query}`;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const results = data.items.map((item: any, i: number) => 
         `${i + 1}. ${item.title}\n   ${item.link}\n   ${item.snippet || ""}`
       ).join("\n\n");

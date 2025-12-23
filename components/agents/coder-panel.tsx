@@ -4,7 +4,7 @@
 "use client";
 
 import * as React from "react";
-import { Play, Pause, Square, RefreshCw, CheckCircle, XCircle, Loader2, ArrowLeft } from "lucide-react";
+import { Play, Square, CheckCircle, XCircle, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
@@ -25,7 +25,7 @@ interface LogEntry {
   isError?: boolean;
 }
 
-export function CoderPanel({ projectDir, onBack, onClose }: CoderPanelProps) {
+export function CoderPanel({ projectDir, onBack }: CoderPanelProps) {
   const [status, setStatus] = React.useState<"idle" | "running" | "paused" | "completed" | "error" | "thinking">("idle");
   const [logs, setLogs] = React.useState<LogEntry[]>([]);
   const [progress, setProgress] = React.useState({ passing: 0, total: 0 });

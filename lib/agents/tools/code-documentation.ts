@@ -5,7 +5,6 @@ import { BaseTool } from "../base-tool";
 import { Agent } from "../agent";
 import { GitHubAnalyzerTool, GitHubFileReaderTool } from "./github-analyzer";
 import { MermaidGeneratorTool } from "./mermaid-generator";
-import { MemoryTool } from "./memory";
 
 // Specialist prompts
 const CODEBASE_ANALYST_PROMPT = `You are a Codebase Analyst specializing in understanding software architecture.

@@ -50,6 +50,7 @@ Results are automatically deduplicated by URL.`;
         return [];
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return data.items.map((item: any) => ({
         title: item.title,
         url: item.link,

@@ -19,7 +19,7 @@ const USAGE_LIMIT = 40; // 40 RPM free tier
 
 export function UsageDashboard() {
   const { usageDashboardOpen, setUsageDashboardOpen } = useUIStore();
-  const { records, getTotalUsage, getUsageByModel, getDailyUsage, getMonthlyUsage } = useUsageStore();
+  const { records, getUsageByModel, getDailyUsage, getMonthlyUsage } = useUsageStore();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -29,7 +29,6 @@ export function UsageDashboard() {
   const today = mounted ? new Date().toISOString().split("T")[0] : "2024-01-01";
   const thisMonth = today.slice(0, 7);
 
-  const totalUsage = getTotalUsage();
   const usageByModel = getUsageByModel();
   const dailyUsage = getDailyUsage(today);
   const monthlyUsage = getMonthlyUsage(thisMonth);

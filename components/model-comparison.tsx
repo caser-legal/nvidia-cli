@@ -11,9 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
 import { useUIStore } from "@/lib/store";
-import { NVIDIA_MODELS, type ModelId } from "@/lib/nvidia";
+import { NVIDIA_MODELS } from "@/lib/nvidia";
 import { Check, X, Zap, Brain, Eye, Code } from "lucide-react";
 
 // Feature 89: Model pricing info (free tier)

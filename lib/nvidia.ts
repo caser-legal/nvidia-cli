@@ -279,7 +279,8 @@ export function estimateTokens(text: string): number {
 }
 
 // Cost estimation (free tier)
-export function estimateCost(inputTokens: number, outputTokens: number, model: ModelId): number {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function estimateCost(_inputTokens: number, _outputTokens: number, _model: ModelId): number {
   return 0;
 }
 

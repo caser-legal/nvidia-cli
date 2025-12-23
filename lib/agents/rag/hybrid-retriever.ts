@@ -7,8 +7,6 @@
  * Vector: Semantic similarity for conceptual queries
  */
 
-import { Document } from './types';
-
 /**
  * BM25 Parameters
  * k1: Term frequency saturation (1.2-2.0 typical)

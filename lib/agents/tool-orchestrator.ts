@@ -34,7 +34,6 @@ export class ToolOrchestrator {
     }));
 
     // If flywheel exists, check for historical tool usage for similar tasks
-    let historicalHint = "";
     if (this.flywheel) {
       // Logic to fetch historical successful tool chains would go here
       // For now, we simulate it

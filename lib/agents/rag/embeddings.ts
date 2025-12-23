@@ -409,7 +409,7 @@ export class SimpleVectorStore {
    * Based on NVIDIA RAG Blueprint update_documents pattern
    */
   async updateDocuments(sourcePath: string): Promise<{ updated: number; removed: number }> {
-    const fs = await import('fs/promises');
+    await import('fs/promises');
     
     // Find all documents from this source
     const toRemove: string[] = [];

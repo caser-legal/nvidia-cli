@@ -3,7 +3,6 @@
 
 import { BaseTool } from "../base-tool";
 import * as fs from "fs";
-import * as path from "path";
 
 // Global state for current project directory
 let currentProjectDir: string = process.cwd();

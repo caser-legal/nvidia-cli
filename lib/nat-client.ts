@@ -129,7 +129,7 @@ export function streamFromNAT(
     }
   };
 
-  ws.onerror = (event) => {
+  ws.onerror = () => {
     onError?.(new Error('WebSocket error'));
   };
 

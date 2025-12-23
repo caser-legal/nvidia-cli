@@ -3,7 +3,7 @@ export interface ToolPermission {
   toolName: string;
   allowed: boolean;
   requiresConfirmation: boolean;
-  allowedArgs?: Record<string, any>;
+  allowedArgs?: Record<string, unknown>;
 }
 
 export class ToolGuard {
@@ -24,7 +24,8 @@ export class ToolGuard {
     this.permissions.set(toolName, permission);
   }
 
-  check(toolName: string, args: any): { allowed: boolean; requiresConfirmation: boolean; reason?: string } {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  check(toolName: string, _args: unknown): { allowed: boolean; requiresConfirmation: boolean; reason?: string } {
     const perm = this.permissions.get(toolName);
     
     if (!perm) {

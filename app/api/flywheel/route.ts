@@ -27,7 +27,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ records, total: logger.getRecords().length });
       
     case "export":
-      const format = searchParams.get("format") || "jsonl";
       const includeTools = searchParams.get("tools") === "true";
       
       const creator = new DatasetCreator(logger);
@@ -78,6 +77,7 @@ export async function POST(request: Request) {
         });
         
         const records = logger.getRecords().slice(-10); // Evaluate last 10
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = await evaluator.runEvaluation(records, "base-eval" as any);
         return NextResponse.json(result);
         

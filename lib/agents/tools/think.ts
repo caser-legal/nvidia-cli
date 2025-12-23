@@ -14,8 +14,8 @@ export class ThinkTool extends BaseTool {
     },
   };
 
-  async execute(args: Record<string, unknown>): Promise<string> {
-    const thought = args.thought as string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async execute(_args: Record<string, unknown>): Promise<string> {
     // The thought is logged but we just acknowledge it
     return "Thinking complete.";
   }

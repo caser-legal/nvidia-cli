@@ -20,20 +20,6 @@ import { useSettingsStore } from "@/lib/store";
 import { NVIDIA_MODELS, type ModelId } from "@/lib/nvidia";
 import { cn } from "@/lib/utils";
 
-// NVIDIA Logo SVG
-function NvidiaLogo({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M8.948 8.798v-1.43a6.7 6.7 0 0 1 .424-.018c3.922-.124 6.493 3.374 6.493 3.374s-2.774 3.851-5.75 3.851c-.453 0-.87-.074-1.167-.181v-4.322c1.453.123 1.746.588 2.615 2.023l1.97-1.64s-1.665-1.9-4.16-1.9c-.142 0-.282.007-.425.018v-.775zm0-4.083v2.026a7.633 7.633 0 0 1 .424-.036c5.136-.04 8.508 4.386 8.508 4.386s-3.882 4.863-7.932 4.863a6.238 6.238 0 0 1-1-.08v1.482c.282.027.57.044.863.044 3.853 0 6.64-1.94 9.34-4.22.456.357 2.327 1.263 2.712 1.652-2.476 2.04-8.239 3.68-11.937 3.68-.33 0-.652-.015-.978-.044v1.632H24V4.715H8.948zm0 9.89v1.375c-3.95-.555-5.039-4.208-5.039-4.208s1.994-2.185 5.039-2.49v1.43c-1.236.093-2.217.672-2.846 1.315 0 0 .587 1.963 2.846 2.578zm-5.09-2.893s1.66-2.452 5.09-2.756V4.715H0v14.57h3.858v-7.573z" />
-    </svg>
-  );
-}
-
 export function Header() {
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [editTitle, setEditTitle] = React.useState("");

@@ -50,7 +50,7 @@ import {
   MockupComparisonTool,
 } from "@/lib/agents/tools/vision-analysis";
 
-import { RAGPipelineV2, getRAGPipeline, IOS_DEVELOPMENT_PROFILE } from "@/lib/agents/rag";
+import { getRAGPipeline, IOS_DEVELOPMENT_PROFILE } from "@/lib/agents/rag";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
 import { UnifiedContext } from "@/lib/agents/unified-context";
 import { RetrievalRouter } from "@/lib/agents/retrieval-router";

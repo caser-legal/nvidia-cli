@@ -200,7 +200,7 @@ export function truncateMessages(
     case "sliding_window":
       // Keep system prompt and most recent N messages
       const system = truncatedMessages[0];
-      let recent = truncatedMessages.slice(1);
+      const recent = truncatedMessages.slice(1);
       
       while (estimateMessagesTokens([system, ...recent]) > availableTokens && recent.length > 1) {
         recent.shift();

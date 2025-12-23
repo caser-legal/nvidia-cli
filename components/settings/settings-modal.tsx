@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSettingsStore, useUIStore } from "@/lib/store";
 import { useAgentSessionsStore } from "@/lib/store/agent-sessions";
-import { Sun, Moon, Monitor, Eye, EyeOff, Key, Terminal } from "lucide-react";
+import { Sun, Moon, Monitor, Key, Terminal } from "lucide-react";
 
 export function SettingsModal() {
   const { settingsModalOpen, setSettingsModalOpen } = useUIStore();
@@ -29,7 +29,6 @@ export function SettingsModal() {
   } = useSettingsStore();
   const { sessions } = useAgentSessionsStore();
 
-  const [showApiKey, setShowApiKey] = React.useState(false);
   const [localApiKey, setLocalApiKey] = React.useState("");
   const [saveStatus, setSaveStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -65,7 +64,7 @@ export function SettingsModal() {
   // Calculate stats from sessions
   const stats = React.useMemo(() => {
     let totalTokens = 0;
-    let totalRequests = sessions.length;
+    const totalRequests = sessions.length;
     
     sessions.forEach(session => {
       session.output?.forEach(out => {
@@ -234,7 +233,7 @@ export function SettingsModal() {
                     {sessions.length === 0 ? (
                       <div className="text-gray-500">No activity yet</div>
                     ) : (
-                      sessions.slice(0, 20).map((session, i) => {
+                      sessions.slice(0, 20).map((session) => {
                         const date = new Date(session.createdAt);
                         const time = date.toLocaleTimeString();
                         return (

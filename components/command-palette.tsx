@@ -21,8 +21,6 @@ import {
   Moon,
   Sun,
   Keyboard,
-  Download,
-  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

@@ -15,7 +15,6 @@ import {
   Sun, Moon, Monitor, Eye, EyeOff, Key, Terminal, ChevronDown, ChevronRight,
   ArrowLeft, RotateCcw
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 // Tool definitions with full documentation - All 38 tools
 const TOOLS = [

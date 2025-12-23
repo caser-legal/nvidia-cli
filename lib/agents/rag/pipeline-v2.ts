@@ -16,7 +16,7 @@ import { NVIDIAEmbeddings, NVIDIAReranker, SimpleVectorStore } from './embedding
 import { QueryDecomposer } from './query-decomposition';
 import { ReflectionSystem, ReflectionCounter } from './reflection';
 import { ResearchWorkflow, ResearchResult } from './research-workflow';
-import { RecursiveCharacterTextSplitter, SwiftTextSplitter, MarkdownTextSplitter } from './text-splitter';
+import { RecursiveCharacterTextSplitter, SwiftTextSplitter } from './text-splitter';
 import { ContextualCompressionRetriever, AgentControlledRetriever } from './contextual-retriever';
 import {
   RAGProfile,
@@ -264,7 +264,7 @@ export class RAGPipelineV2 {
     }
 
     // Step 3: Reflection loop (optional)
-    let finalDocs = result.documents;
+    const finalDocs = result.documents;
     if (this.profile.retrieval.enableReflection && finalDocs.length > 0) {
       const reflectionCounter = new ReflectionCounter(this.profile.retrieval.maxReflectionLoops);
 
