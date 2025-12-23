@@ -72,7 +72,7 @@ export function LiveLogs({ className, maxLines = 500 }: LiveLogsProps) {
   };
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative flex flex-col overflow-hidden", className)}>
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
         <span className={cn(
           "w-2 h-2 rounded-full",
@@ -84,7 +84,7 @@ export function LiveLogs({ className, maxLines = 500 }: LiveLogsProps) {
       </div>
       <ScrollArea 
         ref={scrollRef} 
-        className="h-full rounded-lg bg-black/95 p-2"
+        className="flex-1 min-h-0 rounded-lg bg-black/95 p-2"
         onScrollCapture={handleScroll}
       >
         <div className="font-mono text-[11px] leading-relaxed space-y-0.5">

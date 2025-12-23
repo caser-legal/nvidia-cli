@@ -13,24 +13,34 @@ export async function GET(req: NextRequest) {
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       start(controller) {
+        let closed = false;
+        const safeClose = () => {
+          if (!closed) {
+            closed = true;
+            try { controller.close(); } catch {}
+          }
+        };
+        const safeEnqueue = (data: Uint8Array) => {
+          if (!closed) {
+            try { controller.enqueue(data); } catch {}
+          }
+        };
+
         const tail = spawn("tail", ["-f", "-n", String(lines), LOG_FILE]);
 
         tail.stdout.on("data", (data: Buffer) => {
-          const text = data.toString();
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ log: text })}\n\n`));
+          safeEnqueue(encoder.encode(`data: ${JSON.stringify({ log: data.toString() })}\n\n`));
         });
 
         tail.stderr.on("data", (data: Buffer) => {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: data.toString() })}\n\n`));
+          safeEnqueue(encoder.encode(`data: ${JSON.stringify({ error: data.toString() })}\n\n`));
         });
 
-        tail.on("close", () => {
-          controller.close();
-        });
+        tail.on("close", safeClose);
 
         req.signal.addEventListener("abort", () => {
           tail.kill();
-          controller.close();
+          safeClose();
         });
       },
     });
