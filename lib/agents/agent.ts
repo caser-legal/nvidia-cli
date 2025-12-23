@@ -392,12 +392,13 @@ export class Agent {
         }
 
         // No tool calls - check if LLM actually responded or just gave up
-        if (!message.content && iterations < 3) {
-          // LLM returned nothing - nudge it to continue
-          console.log("[Agent] Empty response, nudging LLM to continue...");
+        const hasContent = message.content && message.content.trim().length > 50;
+        if (!hasContent && iterations < 10) {
+          // LLM returned nothing useful - nudge it to continue
+          console.log("[Agent] Empty/short response, nudging LLM to continue...");
           this.messages.push({
             role: "user",
-            content: "Continue. You have not completed the task. Use file_write to make the necessary code changes.",
+            content: "You stopped without completing the task. Use file_write(operation='edit', path='...', old_text='...', new_text='...') to make code changes NOW.",
           });
           this.tracer.endSpan(iterSpanId);
           continue;

@@ -37,13 +37,11 @@ Commands run in the current project directory (use set_project to change it).`;
     // Get current project directory
     const cwd = getCurrentProjectDir();
     
-    // Auto-exclude build folders from grep/find to prevent huge outputs
+    // Auto-exclude build folders from grep to prevent huge outputs
     if (command.includes("grep -r") && !command.includes("--exclude-dir")) {
       command = command.replace("grep -r", "grep -r --exclude-dir=build --exclude-dir=.build --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=DerivedData --exclude-dir='.git'");
     }
-    if (command.includes("find ") && command.includes("-name") && !command.includes("-not -path")) {
-      command = command.replace("find ", "find . -not -path '*/build/*' -not -path '*/.build/*' -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/DerivedData/*' -not -path '*/.git/*' ");
-    }
+    // Don't modify find commands - the injection was breaking syntax
 
     // Fix common command issues on macOS
     if (command.startsWith("python ") || command.startsWith("python\"") || command === "python") {
