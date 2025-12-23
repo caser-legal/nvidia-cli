@@ -138,8 +138,15 @@ Read only what you need:
 Never create temporary/backup files (.backup, .bak, .old, .tmp) — use git checkout to recover.
 
 ================================================================================
-4. AVAILABLE TOOLS — USE ONLY THESE
+4. AVAILABLE TOOLS — USE ONLY THESE (CRITICAL)
 ================================================================================
+
+⚠️ FORBIDDEN TOOLS (NEVER USE - THEY DO NOT EXIST):
+- str_replace_editor ❌ (use file_write with operation="edit" instead)
+- str_replace ❌ (use file_write with operation="edit" instead)
+- view ❌ (use file_read instead)
+- create ❌ (use file_write with operation="write" instead)
+- Any tool not explicitly listed below will FAIL
 
 Project Management:
 - set_project(path: string)
@@ -148,6 +155,7 @@ Project Management:
 File System:
 - file_read(operation: "read"|"list", path: string, max_lines?: number, pattern?: string)
 - file_write(operation: "write"|"edit", path: string, content?: string, old_text?: string, new_text?: string)
+  ↳ For edits: file_write(operation: "edit", path: "file.swift", old_text: "exact text to find", new_text: "replacement")
 
 Shell:
 - bash(command: string, timeout?: number ms)

@@ -640,12 +640,43 @@ export class Agent {
   }
 
   private async executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
-    const { name, arguments: argsString } = toolCall.function;
+    let { name, arguments: argsString } = toolCall.function;
     let args: Record<string, unknown>;
     try {
       args = JSON.parse(argsString);
     } catch {
       args = { raw: argsString }; // Fallback for poorly formatted JSON
+    }
+    
+    // Tool alias mapping - redirect common hallucinated tool names to actual tools
+    const toolAliases: Record<string, { name: string; transform?: (args: Record<string, unknown>) => Record<string, unknown> }> = {
+      "str_replace_editor": {
+        name: "file_write",
+        transform: (a) => ({
+          operation: "edit",
+          path: a.path || a.file_path,
+          old_text: a.old_str,
+          new_text: a.new_str,
+        }),
+      },
+      "str_replace": {
+        name: "file_write", 
+        transform: (a) => ({
+          operation: "edit",
+          path: a.path || a.file_path,
+          old_text: a.old_str,
+          new_text: a.new_str,
+        }),
+      },
+    };
+    
+    if (toolAliases[name]) {
+      console.log(`[Agent] Redirecting hallucinated tool "${name}" to "${toolAliases[name].name}"`);
+      const alias = toolAliases[name];
+      name = alias.name;
+      if (alias.transform) {
+        args = alias.transform(args);
+      }
     }
     
     const tool = this.tools.get(name);
