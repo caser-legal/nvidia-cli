@@ -437,8 +437,8 @@ export function AgentChat({ sessionId, className }: AgentChatProps) {
       .reduce((sum, e) => sum + (e.totalTokens || 0), 0);
   }, [events]);
 
-  // Context window usage (Nemotron 3 Nano = 128K)
-  const contextLimit = 128000;
+  // Context window usage (Nemotron hosted API = 262K input limit)
+  const contextLimit = 262144;
   const contextPercent = Math.min(100, (conversationTokens / contextLimit) * 100);
 
   return (
@@ -582,7 +582,7 @@ export function AgentChat({ sessionId, className }: AgentChatProps) {
         {/* Conversation stats */}
         {conversationTokens > 0 && (
           <div className="flex items-center justify-end gap-3 mt-2 text-[10px] text-gray-600">
-            <span>{conversationTokens.toLocaleString()} total tokens</span>
+            <span>{conversationTokens.toLocaleString()} / {(contextLimit / 1000).toFixed(0)}K tokens</span>
             <span className={cn(
               contextPercent > 80 ? "text-red-500" : 
               contextPercent > 50 ? "text-yellow-500" : "text-gray-600"
