@@ -17,7 +17,6 @@ export async function GET() {
     const useLocalMatch = content.match(/USE_LOCAL_LLM=(.+)/);
     const ollamaUrlMatch = content.match(/OLLAMA_BASE_URL=(.+)/);
     const embedUrlMatch = content.match(/LOCAL_EMBED_URL=(.+)/);
-    const tavilyKeyMatch = content.match(/TAVILY_API_KEY=(.+)/);
     const googleKeyMatch = content.match(/GOOGLE_API_KEY=(.+)/);
     const googleCseMatch = content.match(/GOOGLE_CSE_ID=(.+)/);
     
@@ -27,7 +26,6 @@ export async function GET() {
       useLocalLLM: useLocalMatch ? useLocalMatch[1].trim() === "true" : false,
       ollamaUrl: ollamaUrlMatch ? ollamaUrlMatch[1].trim() : "http://192.168.50.50:11434/v1",
       embedUrl: embedUrlMatch ? embedUrlMatch[1].trim() : "http://192.168.50.50:8000",
-      tavilyKey: tavilyKeyMatch ? tavilyKeyMatch[1].trim() : "",
       googleKey: googleKeyMatch ? googleKeyMatch[1].trim() : "",
       googleCseId: googleCseMatch ? googleCseMatch[1].trim() : "",
     });
@@ -39,7 +37,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { apiKey, useLocalLLM, ollamaUrl, embedUrl, tavilyKey, googleKey, googleCseId } = body;
+    const { apiKey, useLocalLLM, ollamaUrl, embedUrl, googleKey, googleCseId } = body;
     
     let content = "";
     if (fs.existsSync(ENV_PATH)) {
@@ -83,15 +81,6 @@ export async function POST(request: Request) {
         content = content.replace(/LOCAL_EMBED_URL=.+/, `LOCAL_EMBED_URL=${embedUrl}`);
       } else {
         content = content.trim() + `\nLOCAL_EMBED_URL=${embedUrl}`;
-      }
-    }
-
-    // Update TAVILY_API_KEY if provided
-    if (tavilyKey !== undefined) {
-      if (content.includes("TAVILY_API_KEY=")) {
-        content = content.replace(/TAVILY_API_KEY=.+/, `TAVILY_API_KEY=${tavilyKey}`);
-      } else if (tavilyKey) {
-        content = content.trim() + `\nTAVILY_API_KEY=${tavilyKey}`;
       }
     }
 

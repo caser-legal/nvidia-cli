@@ -1,13 +1,12 @@
 // Specialist Agent Tools
 // Sub-agents that the Coordinator can call for multi-agent workflows
-// Enhanced with Tavily search, report planning, and parallel section writing
+// Enhanced with Google search, report planning, and parallel section writing
 
 import { BaseTool } from "../base-tool";
 import { Agent } from "../agent";
 import { GoogleSearchTool } from "./google-search";
 import { ParallelSearchTool, deduplicateCitations } from "./parallel-search";
 import { LocalDocsSearchTool } from "./local-docs-search";
-import { TavilySearchTool, ParallelTavilySearchTool } from "./tavily-search";
 
 // Specialist agents use Super-49B for best instruction following (ArenaHard 92%, IFEval 88.6%)
 const SPECIALIST_CONFIG = {
@@ -20,26 +19,21 @@ const SPECIALIST_CONFIG = {
 
 // ============================================
 // 1. SEARCH SPECIALIST - Expert at finding information
-// Now uses Tavily (primary), Google (fallback), and local docs
+// Uses Google search and local docs
 // ============================================
 const SEARCH_SPECIALIST_PROMPT = `You are a Search Specialist Agent with advanced research capabilities.
 
 Your job is to gather comprehensive information using multiple search strategies:
 
 1. FIRST: Check local documentation (local_docs_search) for existing knowledge
-2. THEN: Use parallel_tavily_search for deep web research (best for AI agents)
-3. FALLBACK: Use parallel_search (Google) if Tavily quota is exhausted
+2. THEN: Use parallel_search for web research (multiple Google queries at once)
+3. FOLLOW UP: Use google_search for targeted single queries
 
 SEARCH STRATEGY:
 - Generate 3-5 different search queries for the topic (different angles)
-- Use parallel_tavily_search to run them all at once (better content extraction)
+- Use parallel_search to run them all at once
 - Review results and identify gaps
 - Do targeted follow-up searches if needed
-
-TAVILY TOPICS:
-- "general" - Default, broad search
-- "news" - Recent news and developments
-- "finance" - Financial data and reports
 
 ALWAYS:
 - Include source URLs for every piece of information
@@ -60,7 +54,7 @@ Format your response as:
 export class SearchSpecialistTool extends BaseTool {
   name = "search_specialist";
   description = `Call the Search Specialist to gather comprehensive information.
-Uses Tavily (AI-optimized) for deep research, checks local docs first.
+Uses Google search for web research, checks local docs first.
 Returns deduplicated findings with sources.`;
 
   parameters = {
@@ -71,11 +65,6 @@ Returns deduplicated findings with sources.`;
     search_depth: {
       type: "string",
       description: "How deep to search: 'quick' (3 queries), 'standard' (5 queries), 'deep' (8+ queries)",
-      optional: true,
-    },
-    topic_type: {
-      type: "string",
-      description: "Type of content: 'general', 'news', or 'finance'",
       optional: true,
     },
   };
@@ -90,14 +79,12 @@ Returns deduplicated findings with sources.`;
   async execute(args: Record<string, unknown>): Promise<string> {
     const topic = args.research_topic as string;
     const depth = (args.search_depth as string) || "standard";
-    const topicType = (args.topic_type as string) || "general";
     
     const searchAgent = new Agent({
       apiKey: this.apiKey,
       systemPrompt: SEARCH_SPECIALIST_PROMPT,
       tools: [
         new LocalDocsSearchTool(),
-        new ParallelTavilySearchTool(),
         new ParallelSearchTool(),
         new GoogleSearchTool(),
       ],
@@ -115,8 +102,7 @@ Returns deduplicated findings with sources.`;
 
 ${depthInstruction}
 
-Use topic type "${topicType}" for Tavily searches.
-First check local docs, then use parallel_tavily_search for web sources.`
+First check local docs, then use parallel_search for web sources.`
     );
     return result;
   }

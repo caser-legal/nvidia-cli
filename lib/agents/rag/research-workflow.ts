@@ -12,7 +12,7 @@ import { NVIDIAReranker } from './embeddings';
 export interface ResearchConfig {
   maxReflections: number;
   searchWeb: boolean;
-  tavilyApiKey?: string;
+  
   numQueries: number;
 }
 

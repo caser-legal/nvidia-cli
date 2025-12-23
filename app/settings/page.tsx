@@ -98,28 +98,12 @@ const TOOLS = [
     example: 'google_search({ query: "Swift async await tutorial" })',
   },
   {
-    name: "tavily_search",
-    path: "lib/agents/tools/tavily-search.ts",
-    category: "Search",
-    description: "AI-optimized web search with full content extraction.",
-    howItWorks: "Uses Tavily API designed specifically for AI agents. Returns more detailed content than Google, including full page text extraction. Better for research tasks where you need actual content, not just links.",
-    example: 'tavily_search({ query: "iOS 18 new features", topic: "general" })',
-  },
-  {
     name: "parallel_search",
     path: "lib/agents/tools/parallel-search.ts",
     category: "Search",
     description: "Runs multiple Google searches simultaneously.",
     howItWorks: "Takes an array of queries and executes them in parallel using Promise.all(). Much faster than sequential searches for multi-topic research. Deduplicates results automatically.",
     example: 'parallel_search({ queries: ["SwiftUI navigation", "UIKit navigation", "Combine framework"] })',
-  },
-  {
-    name: "parallel_tavily_search",
-    path: "lib/agents/tools/tavily-search.ts",
-    category: "Search",
-    description: "Runs multiple Tavily searches simultaneously.",
-    howItWorks: "Same as parallel_search but uses Tavily API for deeper content extraction. Best for comprehensive research on multiple related topics.",
-    example: 'parallel_tavily_search({ queries: ["React hooks best practices", "Vue composition API patterns"] })',
   },
   {
     name: "local_docs_search",
@@ -275,7 +259,7 @@ const TOOLS = [
     path: "lib/agents/tools/specialist-agents.ts",
     category: "Specialists",
     description: "Deep multi-source research agent.",
-    howItWorks: "A sub-agent specialized in research. Uses parallel searches across multiple sources (Tavily, Google, local docs), deduplicates findings, and synthesizes comprehensive research summaries with citations.",
+    howItWorks: "A sub-agent specialized in research. Uses parallel searches across multiple sources (Google, local docs), deduplicates findings, and synthesizes comprehensive research summaries with citations.",
     example: 'search_specialist({ topic: "iOS 18 SwiftUI changes", depth: "deep" })',
   },
   {
@@ -373,7 +357,6 @@ export default function SettingsPage() {
   const [useLocalLLM, setUseLocalLLM] = React.useState(false);
   const [ollamaUrl, setOllamaUrl] = React.useState("http://192.168.50.50:11434/v1");
   const [embedUrl, setEmbedUrl] = React.useState("http://192.168.50.50:8000");
-  const [tavilyKey, setTavilyKey] = React.useState("");
   const [googleKey, setGoogleKey] = React.useState("");
   const [googleCseId, setGoogleCseId] = React.useState("");
 
@@ -399,7 +382,6 @@ export default function SettingsPage() {
       .then(res => res.json())
       .then(data => {
         if (data.apiKey) setLocalApiKey(data.apiKey);
-        if (data.tavilyKey) setTavilyKey(data.tavilyKey);
         if (data.googleKey) setGoogleKey(data.googleKey);
         if (data.googleCseId) setGoogleCseId(data.googleCseId);
       })
@@ -749,43 +731,6 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground">
                     Powers all NVIDIA models (LLM, Embeddings, Reranker, Vision). Get from{" "}
                     <a href="https://build.nvidia.com" target="_blank" rel="noopener" className="text-primary underline">build.nvidia.com</a>
-                  </p>
-                </div>
-
-                {/* Tavily Key */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-2">
-                    <Key className="h-4 w-4" />
-                    Tavily API Key
-                    <span className="text-xs text-muted-foreground">(Web Search)</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        type={showApiKey ? "text" : "password"}
-                        value={tavilyKey}
-                        onChange={(e) => setTavilyKey(e.target.value)}
-                        placeholder="tvly-..."
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1 h-7 w-7"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                      >
-                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <Button onClick={async () => {
-                      await fetch("/api/settings/api-key", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ tavilyKey }),
-                      });
-                    }}>Save</Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    AI-optimized web search. Get from <a href="https://tavily.com" target="_blank" rel="noopener" className="text-primary underline">tavily.com</a>
                   </p>
                 </div>
 
@@ -1142,7 +1087,7 @@ export default function SettingsPage() {
                   <h3 className="font-medium">What can Dory do?</h3>
                   <p className="text-sm text-muted-foreground">
                     <strong>Everything is always enabled.</strong> Dory has full access to: file operations (read/write), 
-                    shell commands (bash), web search (Google/Tavily), RAG (document search with hybrid BM25+vector), 
+                    shell commands (bash), web search (Google), RAG (document search with hybrid BM25+vector), 
                     memory (short-term and long-term), vision analysis (screenshots/mockups), GitHub analysis, 
                     diagram generation, and 8 specialist agents for complex research and documentation tasks.
                   </p>

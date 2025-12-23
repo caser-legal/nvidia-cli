@@ -47,7 +47,7 @@ const DORY_CONFIG = {
     features: [
       "Read and write files on your system",
       "Execute shell commands (bash, git, xcodebuild, etc.)",
-      "Search the web (Google, Tavily) with parallel queries",
+      "Search the web (Google) with parallel queries",
       "Analyze GitHub repos and generate diagrams",
       "RAG: Index and search local documents",
       "Memory: Remembers context across sessions",
@@ -364,7 +364,7 @@ export function AgentChat({ sessionId, className }: AgentChatProps) {
             friendlyDesc = `Running: ${args.command}`;
           } else if (toolName === "think" && args.thought) {
             friendlyDesc = `Thinking: ${args.thought}`;
-          } else if (toolName === "google_search" || toolName === "tavily_search") {
+          } else if (toolName === "google_search" || toolName === "google_search") {
             friendlyDesc = `Searching: ${args.query || args.q || ""}`;
           } else if (toolName === "set_project") {
             friendlyDesc = `Setting project: ${args.path || args.directory || ""}`;

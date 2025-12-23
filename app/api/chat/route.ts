@@ -12,10 +12,6 @@ import { GoogleSearchTool } from "@/lib/agents/tools/google-search";
 import { ParallelSearchTool } from "@/lib/agents/tools/parallel-search";
 import { LocalDocsSearchTool } from "@/lib/agents/tools/local-docs-search";
 import {
-  TavilySearchTool,
-  ParallelTavilySearchTool,
-} from "@/lib/agents/tools/tavily-search";
-import {
   SearchSpecialistTool,
   ReportPlannerTool,
   SectionAuthorTool,
@@ -130,8 +126,8 @@ Memory:
 - entity_memory(operation: "add"|"get"|"list"|"update", entity_name, entity_type?, info?)
 Search:
 - google_search(query, num?)
-- tavily_search(query)
-- parallel_tavily_search(queries[])
+- google_search(query)
+- parallel_search(queries[])
 - local_docs_search(query, max_results?)
 GitHub:
 - github_analyzer(repo_url)
@@ -360,9 +356,7 @@ function initializeTools(apiKey: string) {
     new EntityMemoryTool(),
     // Search
     new GoogleSearchTool(),
-    new TavilySearchTool(),
     new ParallelSearchTool(),
-    new ParallelTavilySearchTool(),
     new LocalDocsSearchTool(),
     // GitHub
     new GitHubAnalyzerTool(),

@@ -13,7 +13,6 @@ export class ToolGuard {
     this.permissions = new Map();
     // Default safe permissions
     this.setPermission("google_search", { toolName: "google_search", allowed: true, requiresConfirmation: false });
-    this.setPermission("tavily_search", { toolName: "tavily_search", allowed: true, requiresConfirmation: false });
     this.setPermission("think", { toolName: "think", allowed: true, requiresConfirmation: false });
     
     // Default sensitive permissions

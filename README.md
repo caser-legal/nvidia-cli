@@ -193,9 +193,9 @@ For iOS/Swift code search:
 | Tool | Description |
 |------|-------------|
 | `google_search` | Google Custom Search |
-| `tavily_search` | AI-optimized search |
+| `google_search` | AI-optimized search |
 | `parallel_search` | Multiple Google searches |
-| `parallel_tavily_search` | Multiple Tavily searches |
+| `parallel_google_search` | Multiple Google searches |
 | `local_docs_search` | Search local docs |
 
 ### Memory (2)
@@ -357,7 +357,7 @@ NVIDIA_API_KEY=nvapi-xxx    # Single key for all NVIDIA services
 
 ```env
 # Web search (if using)
-TAVILY_API_KEY=tvly-xxx
+GOOGLE_API_KEY=tvly-xxx
 GOOGLE_API_KEY=xxx
 GOOGLE_CSE_ID=xxx
 

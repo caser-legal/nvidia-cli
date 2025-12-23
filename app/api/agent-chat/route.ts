@@ -13,10 +13,6 @@ import { GoogleSearchTool } from "@/lib/agents/tools/google-search";
 import { ParallelSearchTool } from "@/lib/agents/tools/parallel-search";
 import { LocalDocsSearchTool } from "@/lib/agents/tools/local-docs-search";
 import {
-  TavilySearchTool,
-  ParallelTavilySearchTool,
-} from "@/lib/agents/tools/tavily-search";
-import {
   SearchSpecialistTool,
   ReportPlannerTool,
   SectionAuthorTool,
@@ -165,8 +161,8 @@ Memory:
 
 Search:
 - google_search(query, num?)
-- tavily_search(query)
-- parallel_tavily_search(queries[])
+- google_search(query)
+- parallel_search(queries[])
 - local_docs_search(query, max_results?)
 
 GitHub:
@@ -893,7 +889,7 @@ Ingestion rules:
 Search priority (in order):
 - local_docs_search (project-specific)
 - rag_search (ingested knowledge)
-- google_search / tavily_search (external, last resort)
+- google_search / parallel_search (external, last resort)
 
 Refresh cadence:
 - Re-ingest after major refactors or new modules
@@ -1024,9 +1020,7 @@ export async function POST(request: NextRequest) {
       new EntityMemoryTool(),
       // Search
       new GoogleSearchTool(),
-      new TavilySearchTool(),
       new ParallelSearchTool(),
-      new ParallelTavilySearchTool(),
       new LocalDocsSearchTool(),
       // GitHub
       new GitHubAnalyzerTool(),

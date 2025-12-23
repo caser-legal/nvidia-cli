@@ -18,7 +18,7 @@ YOU  →  Web UI (localhost:3000)  →  Agent (TypeScript)  →  NVIDIA NIM API
                                           ├──→ Shell (bash)
                                           ├──→ RAG (8 tools - hybrid BM25+Vector)
                                           ├──→ Vision (3 tools - Nemotron VL)
-                                          ├──→ Search (5 tools - Google, Tavily)
+                                          ├──→ Search (5 tools - Google, Google)
                                           ├──→ Memory (2 tools - short/long term)
                                           ├──→ Code (4 tools - GitHub, docs)
                                           ├──→ Diagrams (2 tools - Mermaid)
@@ -84,7 +84,7 @@ All models via single `NVIDIA_API_KEY`:
 │     ├── Shell: bash                                                         │
 │     ├── RAG: rag_ingest, rag_search, rag_query, etc.                        │
 │     ├── Vision: vision_analyze, ios_ui_review, compare_mockup               │
-│     ├── Search: google_search, tavily_search, parallel variants             │
+│     ├── Search: google_search, google_search, parallel variants             │
 │     ├── Memory: memory, entity_memory                                       │
 │     ├── Code: github_analyzer, code_documentation                           │
 │     ├── Diagrams: mermaid_generator, quick_diagram                          │
@@ -138,9 +138,9 @@ All models via single `NVIDIA_API_KEY`:
 | Tool | File | Purpose |
 |------|------|---------|
 | `google_search` | google-search.ts | Google Custom Search |
-| `tavily_search` | tavily-search.ts | AI-optimized search |
+| `google_search` | google-search.ts | AI-optimized search |
 | `parallel_search` | parallel-search.ts | Multiple Google searches |
-| `parallel_tavily_search` | tavily-search.ts | Multiple Tavily searches |
+| `parallel_google_search` | google-search.ts | Multiple Google searches |
 | `local_docs_search` | local-docs-search.ts | Search local docs |
 
 ### Vision (3)
@@ -290,7 +290,7 @@ Based on **NVIDIA Data Flywheel Blueprint**.
 NVIDIA_API_KEY=nvapi-xxx
 
 # Optional - Web search
-TAVILY_API_KEY=tvly-xxx
+GOOGLE_API_KEY=tvly-xxx
 GOOGLE_API_KEY=xxx
 GOOGLE_CSE_ID=xxx
 
