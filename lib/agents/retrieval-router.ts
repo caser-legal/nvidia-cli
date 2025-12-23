@@ -77,7 +77,7 @@ Respond in JSON:
       }
 
       return plan;
-    } catch (error) {
+    } catch {
       // Silent fallback - don't log errors for routing
       return { source: RetrievalSource.HYBRID, queries: [query], reasoning: "Error fallback" };
     }

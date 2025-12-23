@@ -104,7 +104,7 @@ Returns matching content with file paths and context.`;
       
       if (currentMatch) matches.push(currentMatch);
       
-    } catch (error) {
+    } catch {
       // grep returns exit code 1 if no matches, which throws an error
       // This is expected behavior, not an error
     }

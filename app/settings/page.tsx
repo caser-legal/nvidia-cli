@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Tool definitions with full documentation - All 40 tools
+// Tool definitions with full documentation - All 38 tools
 const TOOLS = [
   // ============ PROJECT (2) ============
   {
@@ -88,7 +88,7 @@ const TOOLS = [
     howItWorks: "Specialized memory that categorizes and links related entities. Helps maintain context about things you frequently discuss. Entities have types (person, project, company, tech) and can have relationships.",
     example: 'entity_memory({ operation: "add", type: "project", name: "MyApp", details: "iOS SwiftUI app for task management" })',
   },
-  // ============ SEARCH (5) ============
+  // ============ SEARCH (3) ============
   {
     name: "google_search",
     path: "lib/agents/tools/google-search.ts",
@@ -962,7 +962,7 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground">
                     When you send a message, it goes to NVIDIA's servers where a powerful language model 
                     (Nemotron 3 Nano - think of it as a very sophisticated autocomplete that understands context) 
-                    figures out what you need. Then Dory uses its 40 tools — like reading files, running terminal 
+                    figures out what you need. Then Dory uses its 38 tools — like reading files, running terminal 
                     commands, or searching Google — to actually do the work. It's not just giving you answers; 
                     it's taking action.
                   </p>
@@ -974,7 +974,7 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground">
                     Tools are Dory's hands. Without tools, Dory could only talk. With tools, Dory can actually 
                     do things on your computer: create files, run programs, search the web, remember things you told it, 
-                    analyze images, and more. Each of the 40 tools listed above is a specific capability — like giving 
+                    analyze images, and more. Each of the 38 tools listed above is a specific capability — like giving 
                     someone access to your keyboard, your browser, or your file system.
                   </p>
                 </div>

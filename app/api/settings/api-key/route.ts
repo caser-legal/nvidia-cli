@@ -29,7 +29,7 @@ export async function GET() {
       googleKey: googleKeyMatch ? googleKeyMatch[1].trim() : "",
       googleCseId: googleCseMatch ? googleCseMatch[1].trim() : "",
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed to read settings" }, { status: 500 });
   }
 }
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     fs.writeFileSync(ENV_PATH, content.trim() + "\n");
     
     return NextResponse.json({ success: true, message: "Settings saved. Restart server to apply." });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });
   }
 }

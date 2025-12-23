@@ -79,7 +79,7 @@ All models via single `NVIDIA_API_KEY`:
 │         └── Model: nvidia/nemotron-3-nano-30b-a3b                           │
 │         └── Returns: Text + Tool calls                                      │
 │                                                                             │
-│  5. TOOL EXECUTION (40 tools)                                               │
+│  5. TOOL EXECUTION (38 tools)                                               │
 │     ├── File System: file_read, file_write                                  │
 │     ├── Shell: bash                                                         │
 │     ├── RAG: rag_ingest, rag_search, rag_query, etc.                        │
@@ -104,7 +104,7 @@ All models via single `NVIDIA_API_KEY`:
 
 ---
 
-## Tools (40 Total)
+## Tools (38 Total)
 
 ### Project (2)
 | Tool | File | Purpose |
@@ -134,13 +134,11 @@ All models via single `NVIDIA_API_KEY`:
 | `memory` | memory.ts | Short/long-term storage |
 | `entity_memory` | memory.ts | Track entities |
 
-### Search (5)
+### Search (3)
 | Tool | File | Purpose |
 |------|------|---------|
 | `google_search` | google-search.ts | Google Custom Search |
-| `google_search` | google-search.ts | AI-optimized search |
 | `parallel_search` | parallel-search.ts | Multiple Google searches |
-| `parallel_google_search` | google-search.ts | Multiple Google searches |
 | `local_docs_search` | local-docs-search.ts | Search local docs |
 
 ### Vision (3)
@@ -289,8 +287,7 @@ Based on **NVIDIA Data Flywheel Blueprint**.
 # Required
 NVIDIA_API_KEY=nvapi-xxx
 
-# Optional - Web search
-GOOGLE_API_KEY=tvly-xxx
+# Optional - Web search (Google Custom Search)
 GOOGLE_API_KEY=xxx
 GOOGLE_CSE_ID=xxx
 

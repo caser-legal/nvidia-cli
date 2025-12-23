@@ -66,14 +66,14 @@ The vision model (Nemotron Nano VL 12B v2) can:
 - Analyze up to 5 images or 1 video per request
 - Use /think mode for deeper reasoning on images
 
-## Tools (40 Total)
+## Tools (38 Total)
 
 - Project: set_project, get_project
 - File System: file_read, file_write
 - System: bash
 - Reasoning: think
 - Memory: memory, entity_memory
-- Search: google_search, tavily_search, parallel_search, parallel_tavily_search, local_docs_search
+- Search: google_search, parallel_search, local_docs_search
 - Vision: vision_analyze, ios_ui_review, compare_mockup
 - RAG: rag_ingest, rag_search, rag_query, rag_research, rag_stats, rag_clear, rag_validate, rag_update
 - Code: github_analyzer, github_file_reader, code_documentation, documentation_specialist

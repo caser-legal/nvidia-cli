@@ -13,7 +13,7 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#nvidia-model-stack">Models</a> •
   <a href="#rag-system-v2">RAG</a> •
-  <a href="#tools-40">Tools</a> •
+  <a href="#tools-38">Tools</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#data-flywheel">Flywheel</a> •
   <a href="#environment">Environment</a>
@@ -155,7 +155,7 @@ For iOS/Swift code search:
 
 ---
 
-## Tools (40)
+## Tools (38)
 
 ### File & System (5)
 
@@ -188,14 +188,12 @@ For iOS/Swift code search:
 | `rag_validate` | Validate documents (remove stale) |
 | `rag_update` | Update documents from source |
 
-### Search (5)
+### Search (3)
 
 | Tool | Description |
 |------|-------------|
 | `google_search` | Google Custom Search |
-| `google_search` | AI-optimized search |
 | `parallel_search` | Multiple Google searches |
-| `parallel_google_search` | Multiple Google searches |
 | `local_docs_search` | Search local docs |
 
 ### Memory (2)
@@ -262,7 +260,7 @@ User Query
     ↓
 📚 Unified Context (aggregates all sources)
     ↓
-🤖 Agent Core (40 tools)
+🤖 Agent Core (38 tools)
     ↓
 📊 Data Flywheel (logs for improvement)
     ↓
@@ -356,8 +354,7 @@ NVIDIA_API_KEY=nvapi-xxx    # Single key for all NVIDIA services
 ### Optional
 
 ```env
-# Web search (if using)
-GOOGLE_API_KEY=tvly-xxx
+# Web search (Google Custom Search)
 GOOGLE_API_KEY=xxx
 GOOGLE_CSE_ID=xxx
 
@@ -377,7 +374,7 @@ nvidia-cli/
 │   ├── page.tsx                    # Main interface
 │   ├── settings/page.tsx           # Settings
 │   └── api/
-│       ├── agent-chat/route.ts     # Main endpoint (40 tools)
+│       ├── agent-chat/route.ts     # Main endpoint (38 tools)
 │       └── chat/route.ts           # Alternative endpoint
 │
 ├── lib/
@@ -386,7 +383,7 @@ nvidia-cli/
 │   │   ├── unified-context.ts      # Context aggregation
 │   │   ├── retrieval-router.ts     # Query routing
 │   │   │
-│   │   ├── tools/                  # 40 tools
+│   │   ├── tools/                  # 38 tools
 │   │   │   ├── vision-analysis.ts  # VLM tools
 │   │   │   ├── rag-tools.ts        # RAG tools (8)
 │   │   │   ├── specialist-agents.ts # Multi-agent (8)
