@@ -3,7 +3,7 @@
 
 import { BaseTool } from "../base-tool";
 
-const TAVILY_API_KEY = "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";
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY || "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";
 const TAVILY_API_URL = "https://api.tavily.com/search";
 
 interface TavilyResult {

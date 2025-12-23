@@ -233,6 +233,9 @@ export default function SettingsPage() {
   const [useLocalLLM, setUseLocalLLM] = React.useState(false);
   const [ollamaUrl, setOllamaUrl] = React.useState("http://192.168.50.50:11434/v1");
   const [embedUrl, setEmbedUrl] = React.useState("http://192.168.50.50:8000");
+  const [tavilyKey, setTavilyKey] = React.useState("");
+  const [googleKey, setGoogleKey] = React.useState("");
+  const [googleCseId, setGoogleCseId] = React.useState("");
 
   // Hydration fix
   React.useEffect(() => {
@@ -256,6 +259,9 @@ export default function SettingsPage() {
       .then(res => res.json())
       .then(data => {
         if (data.apiKey) setLocalApiKey(data.apiKey);
+        if (data.tavilyKey) setTavilyKey(data.tavilyKey);
+        if (data.googleKey) setGoogleKey(data.googleKey);
+        if (data.googleCseId) setGoogleCseId(data.googleCseId);
       })
       .catch(() => {});
   }, []);
@@ -533,13 +539,111 @@ export default function SettingsPage() {
                     </>
                   ) : (
                     <>
-                      <p><strong>NIM</strong> (NVIDIA Inference Microservices) - NVIDIA's cloud API for running language models. No local GPU required.</p>
-                      <p><strong>MoE</strong> (Mixture of Experts) - Architecture where only some "expert" networks activate per request, making it faster. This model has 30B total parameters but only 3.5B activate per token.</p>
+                      <p><strong>NIM</strong> (NVIDIA Inference Microservices) - NVIDIA&apos;s cloud API for running language models. No local GPU required.</p>
+                      <p><strong>MoE</strong> (Mixture of Experts) - Architecture where only some &quot;expert&quot; networks activate per request, making it faster. This model has 30B total parameters but only 3.5B activate per token.</p>
                       <p><strong>Rate Limit:</strong> Free tier allows 40 requests per minute.</p>
                     </>
                   )}
-                  <p><strong>Context Window:</strong> 1M tokens (~750,000 words) - how much text the model can "see" at once. Great for analyzing large codebases.</p>
+                  <p><strong>Context Window:</strong> 1M tokens (~750,000 words) - how much text the model can &quot;see&quot; at once. Great for analyzing large codebases.</p>
                 </div>
+              </div>
+            </section>
+
+            {/* Search API Keys Section */}
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold border-b pb-2">Search API Keys</h2>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tavily API Key</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showApiKey ? "text" : "password"}
+                      value={tavilyKey}
+                      onChange={(e) => setTavilyKey(e.target.value)}
+                      placeholder="tvly-..."
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1 h-7 w-7"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                    >
+                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <Button onClick={async () => {
+                    await fetch("/api/settings/api-key", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ tavilyKey }),
+                    });
+                  }}>Save</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  AI-optimized search. Get key from <a href="https://tavily.com" target="_blank" rel="noopener" className="text-primary underline">tavily.com</a>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Google API Key</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showApiKey ? "text" : "password"}
+                      value={googleKey}
+                      onChange={(e) => setGoogleKey(e.target.value)}
+                      placeholder="AIzaSy..."
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1 h-7 w-7"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                    >
+                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <Button onClick={async () => {
+                    await fetch("/api/settings/api-key", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ googleKey }),
+                    });
+                  }}>Save</Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Google Custom Search Engine ID</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showApiKey ? "text" : "password"}
+                      value={googleCseId}
+                      onChange={(e) => setGoogleCseId(e.target.value)}
+                      placeholder="abc123..."
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1 h-7 w-7"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                    >
+                      {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <Button onClick={async () => {
+                    await fetch("/api/settings/api-key", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ googleCseId }),
+                    });
+                  }}>Save</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Google Custom Search. Get from <a href="https://programmablesearchengine.google.com" target="_blank" rel="noopener" className="text-primary underline">programmablesearchengine.google.com</a>
+                </p>
               </div>
             </section>
 

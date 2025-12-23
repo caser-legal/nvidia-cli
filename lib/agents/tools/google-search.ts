@@ -3,8 +3,8 @@
 
 import { BaseTool } from "../base-tool";
 
-const GOOGLE_API_KEY = "AIzaSyAItqaim6u_IqbbPbRUvLddZEAgZo9OU8E";
-const GOOGLE_SEARCH_ENGINE_ID = "c793827e2e54f4511";
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || "AIzaSyAItqaim6u_IqbbPbRUvLddZEAgZo9OU8E";
+const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_CSE_ID || "c793827e2e54f4511";
 
 export class GoogleSearchTool extends BaseTool {
   name = "google_search";
