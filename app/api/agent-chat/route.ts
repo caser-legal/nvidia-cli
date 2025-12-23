@@ -48,6 +48,11 @@ import {
   RAGValidateTool,
   RAGUpdateTool,
 } from "@/lib/agents/tools/rag-tools";
+import {
+  VisionAnalysisTool,
+  iOSUIReviewTool,
+  MockupComparisonTool,
+} from "@/lib/agents/tools/vision-analysis";
 
 import { RAGPipeline } from "@/lib/agents/rag/pipeline";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
@@ -1010,6 +1015,10 @@ export async function POST(request: NextRequest) {
       new BashTool(),
       // Reasoning
       new ThinkTool(),
+      // Vision Analysis (iOS UI review, mockup comparison)
+      new VisionAnalysisTool(),
+      new iOSUIReviewTool(),
+      new MockupComparisonTool(),
       // Memory
       new MemoryTool(),
       new EntityMemoryTool(),

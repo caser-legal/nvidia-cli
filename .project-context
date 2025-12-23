@@ -37,11 +37,21 @@ Nemotron 3 Nano (1M context)
 
 ## NVIDIA Stack
 
-| Component | Model ID |
-|-----------|----------|
-| Main LLM | nvidia/nemotron-3-nano-30b-a3b |
-| Embeddings | nvidia/llama-3.2-nv-embedqa-1b-v2 |
-| Reranker | nvidia/llama-3.2-nv-rerankqa-1b-v2 |
+| Component | Model ID | Purpose |
+|-----------|----------|---------|
+| Main LLM | nvidia/nemotron-3-nano-30b-a3b | 1M context reasoning |
+| Vision LLM | nvidia/nemotron-nano-12b-v2-vl | UI analysis, mockup comparison |
+| Embeddings | nvidia/llama-3.2-nv-embedqa-1b-v2 | RAG vector search |
+| Reranker | nvidia/llama-3.2-nv-rerankqa-1b-v2 | RAG result ordering |
+
+## Vision Analysis Capabilities
+
+The vision model can:
+- See misaligned buttons, spacing issues, centering problems
+- Compare mockup to implementation pixel-by-pixel
+- Check accessibility (touch targets, contrast, dynamic type)
+- Analyze up to 5 images or 1 video per request
+- Use /think mode for deeper reasoning on images
 
 ## Not Using (by design)
 

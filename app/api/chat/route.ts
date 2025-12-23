@@ -45,6 +45,11 @@ import {
   RAGValidateTool,
   RAGUpdateTool,
 } from "@/lib/agents/tools/rag-tools";
+import {
+  VisionAnalysisTool,
+  iOSUIReviewTool,
+  MockupComparisonTool,
+} from "@/lib/agents/tools/vision-analysis";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
 
 export const runtime = "nodejs";
@@ -323,6 +328,10 @@ function initializeTools(apiKey: string) {
   return [
     // Reasoning
     new ThinkTool(),
+    // Vision Analysis (iOS UI review, mockup comparison)
+    new VisionAnalysisTool(),
+    new iOSUIReviewTool(),
+    new MockupComparisonTool(),
     // Diagrams
     new MermaidGeneratorTool(apiKey),
     new QuickDiagramTool(),

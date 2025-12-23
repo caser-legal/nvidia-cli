@@ -209,9 +209,9 @@ Final Output
 
 ---
 
-## Tools (32)
+## Tools (37)
 
-Dory has 32 tools organized into categories. All tools are always available.
+Dory has 37 tools organized into categories. All tools are always available.
 
 ### Project Management (2)
 
@@ -238,6 +238,22 @@ Dory has 32 tools organized into categories. All tools are always available.
 | Tool | Description |
 |------|-------------|
 | `think` | Internal reasoning for complex problems |
+
+### Vision Analysis (3) — NEW
+
+| Tool | Description |
+|------|-------------|
+| `vision_analyze` | Analyze any image/video using Nemotron Nano VL 12B v2 |
+| `ios_ui_review` | Review iOS screenshots for alignment, spacing, accessibility issues |
+| `compare_mockup` | Compare Figma/Sketch mockup to iOS implementation |
+
+**Model:** `nvidia/nemotron-nano-12b-v2-vl` (128K context, up to 5 images or 1 video)
+
+**Use cases:**
+- "Check if buttons are aligned in this screenshot"
+- "Compare this mockup to the implementation"
+- "Find all UI issues in these 3 screens"
+- "Is the spacing consistent across these views?"
 
 ### Memory (2)
 

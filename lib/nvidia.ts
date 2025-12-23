@@ -66,18 +66,24 @@ export const NVIDIA_MODELS = {
     supportsThinkingBudget: false,
     disabled: false,
   },
-  // Vision Model - For screenshots and diagrams
-  "nvidia/llama-3.1-nemotron-nano-vl-8b-v1": {
-    id: "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
-    name: "Nemotron Nano VL 8B",
-    description: "Vision-language model for image understanding",
+  // Vision Model - Nemotron Nano VL 12B v2 (Latest - Dec 2025)
+  // For iOS UI analysis, screenshot review, mockup comparison
+  "nvidia/nemotron-nano-12b-v2-vl": {
+    id: "nvidia/nemotron-nano-12b-v2-vl",
+    name: "Nemotron Nano VL 12B v2",
+    description: "Vision-language model for UI analysis, document intelligence, multi-image reasoning",
     contextWindow: 128000,
     maxTokens: 4096,
     supportsTools: false,
     supportsImages: true,
+    supportsVideo: true,
     supportsStreaming: true,
     supportsParallelReasoning: false,
     supportsThinkingBudget: false,
+    supportsThinkToggle: true, // /think or /no_think in system prompt
+    maxImages: 5,
+    maxResolution: { width: 2048, height: 1536 }, // 4x3 tile layout
+    supportedFormats: ["png", "jpg", "jpeg", "webp", "mp4", "mov", "webm"],
     disabled: false,
   },
 } as const;
