@@ -286,6 +286,9 @@ interface UIState {
   artifactPanelOpen: boolean;
   artifactPanelWidth: number;
   
+  // Live logs mode for sidebar
+  sidebarLiveLogsMode: boolean;
+  
   // Coder project directory
   coderProjectDir: string;
   
@@ -336,6 +339,10 @@ interface UIState {
   
   // Coder project dir action
   setCoderProjectDir: (dir: string) => void;
+  
+  // Live logs toggle
+  toggleSidebarLiveLogsMode: () => void;
+  setSidebarLiveLogsMode: (enabled: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -345,6 +352,8 @@ export const useUIStore = create<UIState>()(
       sidebarWidth: 280,
       artifactPanelOpen: false,
       artifactPanelWidth: 500,
+      
+      sidebarLiveLogsMode: false,
       
       coderProjectDir: "/Users/home/Documents/iOS",
       
@@ -386,6 +395,9 @@ export const useUIStore = create<UIState>()(
       clearSearch: () => set({ searchQuery: "", searchFilter: {} }),
       
       setCoderProjectDir: (dir) => set({ coderProjectDir: dir }),
+      
+      toggleSidebarLiveLogsMode: () => set((state) => ({ sidebarLiveLogsMode: !state.sidebarLiveLogsMode })),
+      setSidebarLiveLogsMode: (enabled) => set({ sidebarLiveLogsMode: enabled }),
     }),
     {
       name: "nvidia-cli-ui",

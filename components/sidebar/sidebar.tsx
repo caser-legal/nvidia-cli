@@ -9,6 +9,7 @@ import {
   MessageSquare,
   PanelLeftClose,
   PanelLeft,
+  Terminal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,6 +18,7 @@ import { useUIStore } from "@/lib/store";
 import { useAgentSessionsStore } from "@/lib/store/agent-sessions";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { LiveLogs } from "@/components/live-logs";
 
 interface SidebarProps {
   onNewChat?: () => void;
@@ -30,7 +32,7 @@ export function Sidebar({ onNewChat }: SidebarProps) {
     setMounted(true);
   }, []);
 
-  const { sidebarOpen, toggleSidebar } = useUIStore();
+  const { sidebarOpen, toggleSidebar, sidebarLiveLogsMode, toggleSidebarLiveLogsMode } = useUIStore();
   const { sessions, activeSessionId, setActiveSession, deleteSession, resetStaleSessions } = useAgentSessionsStore();
 
   React.useEffect(() => {
@@ -64,6 +66,22 @@ export function Sidebar({ onNewChat }: SidebarProps) {
             </TooltipTrigger>
             <TooltipContent side="right">New chat</TooltipContent>
           </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={toggleSidebarLiveLogsMode}
+                className={cn(sidebarLiveLogsMode && "bg-accent text-[#76B900]")}
+              >
+                <Terminal className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {sidebarLiveLogsMode ? "Show chats" : "Show live logs"}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </TooltipProvider>
     );
@@ -77,39 +95,62 @@ export function Sidebar({ onNewChat }: SidebarProps) {
           <button onClick={handleNewChat} className="hover:opacity-80 transition-opacity">
             <img src="/nvidia-logo.webp" alt="NVIDIA" className="h-6" />
           </button>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                <PanelLeftClose className="h-4 w-4" />
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={toggleSidebarLiveLogsMode}
+                  className={cn(sidebarLiveLogsMode && "bg-accent text-[#76B900]")}
+                >
+                  <Terminal className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {sidebarLiveLogsMode ? "Show chats" : "Show live logs"}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Close sidebar</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+
+        {sidebarLiveLogsMode ? (
+          /* Live Logs View */
+          <LiveLogs className="flex-1 m-2" />
+        ) : (
+          /* Normal Chat View */
+          <>
+            {/* New chat button */}
+            <div className="p-3">
+              <Button onClick={handleNewChat} className="w-full justify-start gap-2 bg-[#76B900] hover:bg-[#5a8f00] text-white">
+                <Plus className="h-4 w-4" />
+                New Chat
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>Close sidebar</TooltipContent>
-          </Tooltip>
-        </div>
+            </div>
 
-        {/* New chat button */}
-        <div className="p-3">
-          <Button onClick={handleNewChat} className="w-full justify-start gap-2 bg-[#76B900] hover:bg-[#5a8f00] text-white">
-            <Plus className="h-4 w-4" />
-            New Chat
-          </Button>
-        </div>
-
-        {/* Session list */}
-        <ScrollArea className="flex-1">
-          <div className="px-3 pb-3">
-            {!mounted ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
-            ) : sessions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">No conversations yet</div>
-            ) : (
-              <div className="space-y-1">
-                {sessions.map((session) => {
-                  const isActive = activeSessionId === session.id;
-                  return (
-                    <div
-                      key={session.id}
-                      className={cn(
+            {/* Session list */}
+            <ScrollArea className="flex-1">
+              <div className="px-3 pb-3">
+                {!mounted ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
+                ) : sessions.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">No conversations yet</div>
+                ) : (
+                  <div className="space-y-1">
+                    {sessions.map((session) => {
+                      const isActive = activeSessionId === session.id;
+                      return (
+                        <div
+                          key={session.id}
+                          className={cn(
                         "group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors",
                         isActive ? "bg-accent" : "hover:bg-accent/50"
                       )}
@@ -140,6 +181,8 @@ export function Sidebar({ onNewChat }: SidebarProps) {
             )}
           </div>
         </ScrollArea>
+          </>
+        )}
 
         {/* Footer - Settings */}
         <div className="p-3 border-t">

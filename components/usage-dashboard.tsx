@@ -61,7 +61,7 @@ export function UsageDashboard() {
               <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-600 dark:text-yellow-400">
                 <AlertTriangle className="h-4 w-4" />
                 <span className="text-sm">
-                  You're approaching your daily limit ({dailyRequests}/{USAGE_LIMIT} requests)
+                  You&apos;re approaching your daily limit ({dailyRequests}/{USAGE_LIMIT} requests)
                 </span>
               </div>
             )}

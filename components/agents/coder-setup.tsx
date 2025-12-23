@@ -84,7 +84,7 @@ export function CoderSetup({ onStart }: CoderSetupProps) {
             <div className="pl-4 text-gray-600 mt-2">
               <div>• Never overflows context window</div>
               <div>• Never gets dumb—compact memory across sessions</div>
-              <div>• Never say "just do it" again</div>
+              <div>• Never say &quot;just do it&quot; again</div>
               <div>• Picks up exactly where it left off, everytime</div>
             </div>
           </div>

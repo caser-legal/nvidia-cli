@@ -15,6 +15,7 @@ import {
   Sun, Moon, Monitor, Eye, EyeOff, Key, Terminal, ChevronDown, ChevronRight,
   ArrowLeft, RotateCcw
 } from "lucide-react";
+import { LiveLogs } from "@/components/live-logs";
 
 // Tool definitions with full documentation - All 38 tools
 const TOOLS = [
@@ -834,33 +835,13 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Activity Log */}
+              {/* Live Dev Server Logs */}
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Terminal className="h-4 w-4" />
-                  Recent Activity
+                  Live Server Output
                 </label>
-                <ScrollArea className="h-[400px] rounded-lg border bg-black/90 p-3">
-                  <div className="font-mono text-xs text-green-400 space-y-1">
-                    {sessions.length === 0 ? (
-                      <div className="text-gray-500">No activity yet</div>
-                    ) : (
-                      sessions.slice(0, 60).map((session) => {
-                        const date = new Date(session.createdAt);
-                        const time = date.toLocaleTimeString();
-                        return (
-                          <div key={session.id} className="flex gap-2">
-                            <span className="text-gray-500">[{time}]</span>
-                            <span className={session.status === "running" ? "text-yellow-400" : "text-green-400"}>
-                              {session.status === "running" ? "●" : "✓"}
-                            </span>
-                            <span className="text-white truncate">{session.name}</span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </ScrollArea>
+                <LiveLogs className="h-[400px] rounded-lg border" />
               </div>
             </section>
 
@@ -950,7 +931,7 @@ export default function SettingsPage() {
                   <h3 className="font-medium">What is Dory?</h3>
                   <p className="text-sm text-muted-foreground">
                     Dory is your AI co-worker that lives in your computer. You type what you need, and Dory does it — 
-                    whether that's writing code, searching the internet, reading your files, or running commands. 
+                    whether that&apos;s writing code, searching the internet, reading your files, or running commands. 
                     Think of it like texting a really smart colleague who can actually touch your computer.
                   </p>
                 </div>
@@ -959,19 +940,19 @@ export default function SettingsPage() {
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
                   <h3 className="font-medium">How does it work?</h3>
                   <p className="text-sm text-muted-foreground">
-                    When you send a message, it goes to NVIDIA's servers where a powerful language model 
+                    When you send a message, it goes to NVIDIA&apos;s servers where a powerful language model 
                     (Nemotron 3 Nano - think of it as a very sophisticated autocomplete that understands context) 
                     figures out what you need. Then Dory uses its 38 tools — like reading files, running terminal 
-                    commands, or searching Google — to actually do the work. It's not just giving you answers; 
-                    it's taking action.
+                    commands, or searching Google — to actually do the work. It&apos;s not just giving you answers; 
+                    it&apos;s taking action.
                   </p>
                 </div>
 
                 {/* What are Tools */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What are "Tools"?</h3>
+                  <h3 className="font-medium">What are &quot;Tools&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
-                    Tools are Dory's hands. Without tools, Dory could only talk. With tools, Dory can actually 
+                    Tools are Dory&apos;s hands. Without tools, Dory could only talk. With tools, Dory can actually 
                     do things on your computer: create files, run programs, search the web, remember things you told it, 
                     analyze images, and more. Each of the 38 tools listed above is a specific capability — like giving 
                     someone access to your keyboard, your browser, or your file system.
@@ -980,22 +961,22 @@ export default function SettingsPage() {
 
                 {/* What is a Token */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What are "Tokens"?</h3>
+                  <h3 className="font-medium">What are &quot;Tokens&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
                     Tokens are how the system measures text. Roughly, 1 token ≈ 4 characters or about ¾ of a word. 
-                    When you see "238 tokens", that's roughly 180 words. Nemotron 3 Nano can handle up to 1 million 
-                    tokens at once — that's roughly 750,000 words or about 1,500 pages. The "context" percentage 
-                    shows how much of that capacity you've used in the current conversation.
+                    When you see &quot;238 tokens&quot;, that&apos;s roughly 180 words. Nemotron 3 Nano can handle up to 1 million 
+                    tokens at once — that&apos;s roughly 750,000 words or about 1,500 pages. The &quot;context&quot; percentage 
+                    shows how much of that capacity you&apos;ve used in the current conversation.
                   </p>
                 </div>
 
                 {/* What is RAG */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What is "RAG"?</h3>
+                  <h3 className="font-medium">What is &quot;RAG&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
-                    RAG stands for "Retrieval-Augmented Generation" — but forget the jargon. It just means Dory 
+                    RAG stands for &quot;Retrieval-Augmented Generation&quot; — but forget the jargon. It just means Dory 
                     can search through your own documents before answering. Instead of only knowing what it was 
-                    trained on, Dory can look up information in files you've added. It uses "hybrid search" — 
+                    trained on, Dory can look up information in files you&apos;ve added. It uses &quot;hybrid search&quot; — 
                     combining exact keyword matching (BM25) with semantic understanding (vector search) — so it 
                     finds both exact function names AND conceptually related code.
                   </p>
@@ -1003,57 +984,57 @@ export default function SettingsPage() {
 
                 {/* What is Hybrid Search */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What is "Hybrid Search"?</h3>
+                  <h3 className="font-medium">What is &quot;Hybrid Search&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
                     Dory uses two search methods combined: <strong>BM25</strong> finds exact matches (great for 
-                    searching "viewDidLoad" or "@Observable"), while <strong>Vector search</strong> finds 
-                    semantically similar content (great for "how do I handle state"). Results from both are 
-                    merged using "Reciprocal Rank Fusion" and then re-ranked by NVIDIA's reranker model. 
+                    searching &quot;viewDidLoad&quot; or &quot;@Observable&quot;), while <strong>Vector search</strong> finds 
+                    semantically similar content (great for &quot;how do I handle state&quot;). Results from both are 
+                    merged using &quot;Reciprocal Rank Fusion&quot; and then re-ranked by NVIDIA&apos;s reranker model. 
                     This gives you the best of both worlds.
                   </p>
                 </div>
 
                 {/* What is the Context Window */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What is "Context"?</h3>
+                  <h3 className="font-medium">What is &quot;Context&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
-                    Context is Dory's short-term memory for the current conversation. Everything you've said, 
+                    Context is Dory&apos;s short-term memory for the current conversation. Everything you&apos;ve said, 
                     everything Dory has replied, and all the tool results — it all stays in context so Dory 
-                    remembers what you're working on. When context fills up (100%), older messages get forgotten. 
+                    remembers what you&apos;re working on. When context fills up (100%), older messages get forgotten. 
                     Starting a new chat clears the context.
                   </p>
                 </div>
 
                 {/* What is Memory */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What is "Memory"?</h3>
+                  <h3 className="font-medium">What is &quot;Memory&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
-                    Memory is different from context. Memory persists across conversations — it's saved to a file 
-                    on your computer (~/.nvidia-cli/memory.json). When you tell Dory to "remember" something, it 
-                    stores it in memory. Next time you chat (even days later), Dory can recall it. Context is 
-                    temporary; memory is permanent.
+                    Memory is different from context. Memory persists across conversations — it&apos;s saved to a file 
+                    on your computer (~/.nvidia-cli/memory/). When you tell Dory to &quot;remember&quot; something, it 
+                    stores it in memory with semantic embeddings. Next time you chat (even days later), Dory can recall it 
+                    via semantic search. Context is temporary; memory is permanent.
                   </p>
                 </div>
 
                 {/* What are Specialist Agents */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What are "Specialist Agents"?</h3>
+                  <h3 className="font-medium">What are &quot;Specialist Agents&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
                     For complex tasks, Dory can delegate to specialized sub-agents. Think of them as expert 
                     colleagues: search_specialist does deep research, report_planner creates outlines, 
-                    quality_reviewer checks work, etc. When you ask for something complex like "write a 
-                    comprehensive guide", Dory automatically coordinates these specialists to produce 
+                    quality_reviewer checks work, etc. When you ask for something complex like &quot;write a 
+                    comprehensive guide&quot;, Dory automatically coordinates these specialists to produce 
                     higher-quality output than a single pass would.
                   </p>
                 </div>
 
                 {/* What is Vision Analysis */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What is "Vision Analysis"?</h3>
+                  <h3 className="font-medium">What is &quot;Vision Analysis&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
-                    Dory can "see" images using NVIDIA's Nemotron Nano VL 12B vision model. Send screenshots 
+                    Dory can &quot;see&quot; images using NVIDIA&apos;s Nemotron Nano VL 12B vision model. Send screenshots 
                     of your iOS app and Dory can identify UI issues, check alignment, compare to mockups, 
-                    and suggest improvements. It's like having a design reviewer who can actually look at 
+                    and suggest improvements. It&apos;s like having a design reviewer who can actually look at 
                     your screens.
                   </p>
                 </div>
@@ -1062,21 +1043,21 @@ export default function SettingsPage() {
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
                   <h3 className="font-medium">Is my data private?</h3>
                   <p className="text-sm text-muted-foreground">
-                    Your conversations are sent to NVIDIA's servers for processing — that's how the language model works. 
+                    Your conversations are sent to NVIDIA&apos;s servers for processing — that&apos;s how the language model works. 
                     However, your files, memory, RAG database, and conversation history are stored locally on your 
                     computer, not uploaded anywhere. The tools run on your machine. NVIDIA processes the text but 
-                    doesn't store your conversations permanently. PII (emails, phone numbers, API keys) is 
+                    doesn&apos;t store your conversations permanently. PII (emails, phone numbers, API keys) is 
                     automatically redacted before sending.
                   </p>
                 </div>
 
                 {/* What is the Data Flywheel */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
-                  <h3 className="font-medium">What is the "Data Flywheel"?</h3>
+                  <h3 className="font-medium">What is the &quot;Data Flywheel&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
                     Dory logs all interactions locally (not uploaded). This data could be used to: fine-tune 
                     smaller models for faster/cheaper inference, identify common failure patterns, or measure 
-                    quality over time. It's based on NVIDIA's Data Flywheel Blueprint — the idea that production 
+                    quality over time. It&apos;s based on NVIDIA&apos;s Data Flywheel Blueprint — the idea that production 
                     data can continuously improve AI systems.
                   </p>
                 </div>

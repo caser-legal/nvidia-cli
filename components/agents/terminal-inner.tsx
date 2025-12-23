@@ -126,11 +126,15 @@ export default function TerminalInner({ cwd, wsUrl = "ws://localhost:3001", onDa
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(terminalRef.current);
 
+    // Capture refs at effect time for cleanup
+    const currentReconnectTimeout = reconnectTimeoutRef.current;
+    const currentWs = wsRef.current;
+
     return () => {
       window.removeEventListener("resize", handleResize);
       resizeObserver.disconnect();
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-      wsRef.current?.close();
+      if (currentReconnectTimeout) clearTimeout(currentReconnectTimeout);
+      currentWs?.close();
       term.dispose();
     };
   }, [cwd, wsUrl, onData]);

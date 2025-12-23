@@ -164,6 +164,7 @@ export class VectorMemoryStore {
     return entries
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, count)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       .map(({ embedding: _, ...rest }) => rest);
   }
 
@@ -175,6 +176,7 @@ export class VectorMemoryStore {
     
     return Array.from(this.entries.values())
       .filter(e => e.type === type)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       .map(({ embedding: _, ...rest }) => rest);
   }
 

@@ -25,7 +25,6 @@ import {
 import { GitHubAnalyzerTool, GitHubFileReaderTool } from "@/lib/agents/tools/github-analyzer";
 import { MermaidGeneratorTool, QuickDiagramTool } from "@/lib/agents/tools/mermaid-generator";
 import {
-  MemoryTool,
   EntityMemoryTool,
   ShortTermMemory,
   LongTermMemory,

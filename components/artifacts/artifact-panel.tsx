@@ -12,7 +12,7 @@ import {
   Minimize2,
   Code,
   FileText,
-  Image,
+  Image as ImageIcon,
   Play,
   Check,
   Edit3,
@@ -103,7 +103,7 @@ export function ArtifactPanel({ artifact, onClose, onUpdate, onReprompt, onFork 
         return <Code className="h-4 w-4" />;
       case "html":
       case "svg":
-        return <Image className="h-4 w-4" />;
+        return <ImageIcon className="h-4 w-4" />;
       case "react":
         return <Play className="h-4 w-4" />;
       default:

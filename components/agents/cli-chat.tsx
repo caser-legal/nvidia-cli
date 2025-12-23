@@ -239,7 +239,7 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
               <div>Welcome to the future of software development:</div>
               <div className="pl-4 text-gray-600">
                 • Truly autonomous task execution<br />
-                • Never say "just do it" again<br />
+                • Never say &quot;just do it&quot; again<br />
                 • Starts and finishes on its own<br />
                 • Build entire apps with one file
               </div>
