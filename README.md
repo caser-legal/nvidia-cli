@@ -174,6 +174,18 @@ flowchart TB
 
 ```mermaid
 flowchart TB
+    %% ===== LEGEND =====
+    subgraph Legend["🗝️ LEGEND"]
+        direction LR
+        L1[🟢 Input/Output]
+        L2[🔵 Decomposition]
+        L3[🟣 Search]
+        L4[🟠 Rerank]
+        L5[🟡 Decisions]
+        L6[🔴 Corrections]
+        L7[🟢 Generation]
+    end
+
     %% User Input
     USER[/"👤 User Query<br/>'How do I implement OAuth in SwiftUI?'"/]
     
@@ -397,68 +409,132 @@ For iOS/Swift code search:
 
 ```mermaid
 flowchart TB
-    subgraph Client["🖥️ Client"]
-        UI[Web UI<br/>localhost:3000]
+    %% ===== LEGEND =====
+    subgraph Legend["🗝️ LEGEND"]
+        direction LR
+        L1[🟢 Input/Output]
+        L2[🔴 Security]
+        L3[🔵 Routing]
+        L4[🟢 Context Sources]
+        L5[🟣 Agent Core]
+        L6[🟡 Tools]
+        L7[🟠 Learning]
     end
 
-    subgraph Security["🛡️ Security Layer"]
-        PII[PII Guard<br/>Redacts emails, phones, API keys, IPs]
-    end
-
-    subgraph Intelligence["🧠 Intelligence Layer"]
-        RR[Retrieval Router]
-        RR --> RAG_PATH[RAG Path]
-        RR --> MEM_PATH[Memory Path]
-        RR --> SEARCH_PATH[Search Path]
-    end
-
-    subgraph Context["📚 Unified Context"]
-        RAG_PATH --> RAG[RAG Pipeline V2<br/>Hybrid BM25+Vector]
-        MEM_PATH --> STM[Short-term Memory<br/>Session]
-        MEM_PATH --> LTM[Long-term Memory<br/>~/.nvidia-cli/memory.json]
-        MEM_PATH --> ENT[Entity Memory<br/>People, Projects]
-        SEARCH_PATH --> WEB[Web Search<br/>Google]
-        
-        RAG --> UC[Context Aggregator]
-        STM --> UC
-        LTM --> UC
-        ENT --> UC
-        WEB --> UC
-    end
-
-    subgraph Agent["🤖 Agent Core"]
-        UC --> LLM[Nemotron 3 Nano 30B<br/>1M context, MoE]
-        LLM --> TOOLS[38 Tools]
-        TOOLS --> |Results| LLM
-        LLM --> |More tools needed| TOOLS
-    end
-
-    subgraph ToolCategories["🛠️ Tool Categories"]
-        TOOLS --> FS[File System<br/>read, write]
-        TOOLS --> SYS[System<br/>bash]
-        TOOLS --> RAGT[RAG Tools<br/>8 tools]
-        TOOLS --> VIS[Vision<br/>3 tools]
-        TOOLS --> SRCH[Search<br/>3 tools]
-        TOOLS --> SPEC[Specialists<br/>8 sub-agents]
-    end
-
-    subgraph Learning["📊 Data Flywheel"]
-        LLM --> LOG[Flywheel Logger]
-        LOG --> DS[Dataset Creator<br/>Train/Eval/Test]
-        LOG --> EVAL[LLM-as-Judge<br/>Quality Scoring]
-    end
-
-    UI --> PII
-    PII --> RR
-    LLM --> |Response| UI
-
-    style Client fill:#2d3436
-    style Security fill:#d63031
-    style Intelligence fill:#0984e3
-    style Context fill:#00b894
-    style Agent fill:#6c5ce7
-    style ToolCategories fill:#fdcb6e
-    style Learning fill:#e17055
+    %% ===== USER INPUT =====
+    USER[/"👤 User Message<br/>'Read my AppDelegate.swift and explain what it does'"/]
+    
+    %% ===== SECURITY =====
+    USER --> PII_CHECK["🛡️ PII Guard"]
+    PII_CHECK --> PII_SCAN{{"Contains sensitive data?"}}
+    
+    PII_SCAN -->|"Email found"| REDACT_EMAIL["Redact → [EMAIL_REDACTED]"]
+    PII_SCAN -->|"Phone found"| REDACT_PHONE["Redact → [PHONE_REDACTED]"]
+    PII_SCAN -->|"API key found"| REDACT_KEY["Redact → [API_KEY_REDACTED]"]
+    PII_SCAN -->|"Clean"| CLEAN["Pass through"]
+    
+    REDACT_EMAIL --> SANITIZED
+    REDACT_PHONE --> SANITIZED
+    REDACT_KEY --> SANITIZED
+    CLEAN --> SANITIZED["✅ Sanitized Query"]
+    
+    %% ===== ROUTING =====
+    SANITIZED --> ROUTER["🧠 Retrieval Router<br/>Analyze query intent"]
+    
+    ROUTER --> ROUTE_DECISION{{"What context needed?"}}
+    
+    %% ===== CONTEXT PATHS =====
+    ROUTE_DECISION -->|"Needs codebase knowledge"| RAG_PATH["📚 RAG Path"]
+    ROUTE_DECISION -->|"Needs past info"| MEM_PATH["🧠 Memory Path"]
+    ROUTE_DECISION -->|"Needs current info"| SEARCH_PATH["🌐 Search Path"]
+    
+    %% RAG Branch
+    RAG_PATH --> RAG_SEARCH["RAG Hybrid Search<br/>BM25 + Vector"]
+    RAG_SEARCH --> RAG_RERANK["NV-RerankQA<br/>Top 10 chunks"]
+    RAG_RERANK --> CONTEXT
+    
+    %% Memory Branch
+    MEM_PATH --> STM["Short-term Memory<br/>Current session"]
+    MEM_PATH --> LTM["Long-term Memory<br/>~/.nvidia-cli/memory.json"]
+    MEM_PATH --> ENT["Entity Memory<br/>People, projects you mentioned"]
+    STM --> CONTEXT
+    LTM --> CONTEXT
+    ENT --> CONTEXT
+    
+    %% Search Branch
+    SEARCH_PATH --> GOOGLE["Google Search<br/>parallel_search"]
+    GOOGLE --> CONTEXT
+    
+    %% ===== UNIFIED CONTEXT =====
+    CONTEXT["📋 Unified Context<br/>Aggregate all sources"]
+    
+    %% ===== AGENT CORE =====
+    CONTEXT --> AGENT["🤖 Agent Core"]
+    AGENT --> LLM["🧠 Nemotron 3 Nano 30B<br/>1M context window<br/>MoE: 3.6B active params"]
+    
+    LLM --> RESPONSE_CHECK{{"Response type?"}}
+    
+    %% ===== TOOL EXECUTION =====
+    RESPONSE_CHECK -->|"Needs to use tools"| TOOL_CALL["🛠️ Tool Call Detected"]
+    
+    TOOL_CALL --> TOOL_TYPE{{"Which tool?"}}
+    
+    TOOL_TYPE -->|"File operations"| FS_TOOLS["📁 File System<br/>file_read, file_write"]
+    TOOL_TYPE -->|"Run command"| SYS_TOOLS["💻 System<br/>bash"]
+    TOOL_TYPE -->|"Search docs"| RAG_TOOLS["📚 RAG Tools<br/>rag_search, rag_query"]
+    TOOL_TYPE -->|"Analyze image"| VIS_TOOLS["👁️ Vision<br/>ios_ui_review"]
+    TOOL_TYPE -->|"Web search"| SRCH_TOOLS["🌐 Search<br/>google_search"]
+    TOOL_TYPE -->|"Complex task"| SPEC_TOOLS["🎯 Specialists<br/>8 sub-agents"]
+    TOOL_TYPE -->|"Remember"| MEM_TOOLS["🧠 Memory<br/>memory, entity_memory"]
+    
+    FS_TOOLS --> TOOL_RESULT["📤 Tool Result"]
+    SYS_TOOLS --> TOOL_RESULT
+    RAG_TOOLS --> TOOL_RESULT
+    VIS_TOOLS --> TOOL_RESULT
+    SRCH_TOOLS --> TOOL_RESULT
+    SPEC_TOOLS --> TOOL_RESULT
+    MEM_TOOLS --> TOOL_RESULT
+    
+    TOOL_RESULT -->|"Add to messages"| LLM
+    
+    %% ===== FINAL RESPONSE =====
+    RESPONSE_CHECK -->|"Final answer ready"| FINAL["💬 Final Response"]
+    
+    %% ===== LEARNING =====
+    FINAL --> LOG["📊 Flywheel Logger<br/>Record interaction"]
+    LOG --> METRICS["Calculate metrics:<br/>Tokens, latency, tool count"]
+    
+    %% ===== OUTPUT =====
+    FINAL --> OUTPUT[/"📱 Response to User<br/>'Your AppDelegate.swift sets up...'"/]
+    
+    %% ===== STYLING =====
+    style Legend fill:#1a1a2e,color:#fff
+    style USER fill:#76b900,color:#000
+    style OUTPUT fill:#76b900,color:#000
+    style PII_CHECK fill:#d63031
+    style PII_SCAN fill:#d63031
+    style REDACT_EMAIL fill:#d63031
+    style REDACT_PHONE fill:#d63031
+    style REDACT_KEY fill:#d63031
+    style ROUTER fill:#0984e3
+    style ROUTE_DECISION fill:#0984e3
+    style RAG_PATH fill:#00b894
+    style MEM_PATH fill:#00b894
+    style SEARCH_PATH fill:#00b894
+    style CONTEXT fill:#00b894
+    style AGENT fill:#6c5ce7
+    style LLM fill:#6c5ce7
+    style TOOL_CALL fill:#fdcb6e,color:#000
+    style TOOL_TYPE fill:#fdcb6e,color:#000
+    style FS_TOOLS fill:#fdcb6e,color:#000
+    style SYS_TOOLS fill:#fdcb6e,color:#000
+    style RAG_TOOLS fill:#fdcb6e,color:#000
+    style VIS_TOOLS fill:#fdcb6e,color:#000
+    style SRCH_TOOLS fill:#fdcb6e,color:#000
+    style SPEC_TOOLS fill:#fdcb6e,color:#000
+    style MEM_TOOLS fill:#fdcb6e,color:#000
+    style LOG fill:#e17055
+    style METRICS fill:#e17055
 ```
 
 ### Agent Tool Execution Loop
@@ -514,40 +590,129 @@ Based on **NVIDIA Data Flywheel Blueprint**.
 ### Flywheel Architecture
 
 ```mermaid
-flowchart LR
-    subgraph Production["🚀 Production"]
-        INT[Agent Interactions]
+flowchart TB
+    %% ===== LEGEND =====
+    subgraph Legend["🗝️ LEGEND"]
+        direction LR
+        L1[🟢 Production]
+        L2[🔵 Logging]
+        L3[🟣 Evaluation]
+        L4[🟡 Dataset]
+        L5[🟠 Future]
     end
 
-    subgraph Logging["📝 Logging"]
-        INT --> LOG[FlywheelLogger]
-        LOG --> REC[Records:<br/>Query, Response, Tools,<br/>Tokens, Latency]
-    end
-
-    subgraph Evaluation["⚖️ Evaluation"]
-        REC --> JUDGE[LLM-as-Judge<br/>FlywheelEvaluator]
-        JUDGE --> SCORES[Quality Scores:<br/>Helpfulness, Accuracy,<br/>Completeness 0-10]
-    end
-
-    subgraph Dataset["📊 Dataset Creation"]
-        SCORES --> FILTER[Filter High Quality<br/>Rating ≥ 4]
-        FILTER --> SPLIT[DatasetCreator<br/>80/10/10 Split]
-        SPLIT --> TRAIN[Training Set]
-        SPLIT --> EVAL_SET[Eval Set]
-        SPLIT --> TEST[Test Set]
-    end
-
-    subgraph Future["🔮 Future Use"]
-        TRAIN --> FINETUNE[LoRA Fine-tuning]
-        FINETUNE --> SMALLER[Smaller Model<br/>Lower Cost]
-        SMALLER --> |Deploy| Production
-    end
-
-    style Production fill:#00b894
-    style Logging fill:#0984e3
-    style Evaluation fill:#6c5ce7
-    style Dataset fill:#fdcb6e
-    style Future fill:#e17055
+    %% ===== PRODUCTION =====
+    INTERACTION[/"👤 Agent Interaction<br/>'How do I fix this SwiftUI bug?'<br/>+ Response + Tool calls"/]
+    
+    %% ===== LOGGING =====
+    INTERACTION --> LOGGER["📝 FlywheelLogger<br/>lib/agents/flywheel/logger.ts"]
+    
+    LOGGER --> RECORD["📋 Create Record"]
+    
+    RECORD --> REC_FIELDS["Record Fields:"]
+    REC_FIELDS --> F1["⏰ Timestamp"]
+    REC_FIELDS --> F2["💬 User query"]
+    REC_FIELDS --> F3["🤖 Assistant response"]
+    REC_FIELDS --> F4["🛠️ Tools called + results"]
+    REC_FIELDS --> F5["📊 Token counts"]
+    REC_FIELDS --> F6["⚡ Latency (ms)"]
+    REC_FIELDS --> F7["🏷️ Session ID"]
+    
+    F1 --> STORE
+    F2 --> STORE
+    F3 --> STORE
+    F4 --> STORE
+    F5 --> STORE
+    F6 --> STORE
+    F7 --> STORE
+    
+    STORE["💾 Store Record<br/>In-memory Map"]
+    
+    %% ===== EVALUATION =====
+    STORE --> EVAL_CHECK{{"Run evaluation?"}}
+    
+    EVAL_CHECK -->|"Yes"| EVALUATOR["⚖️ FlywheelEvaluator<br/>lib/agents/flywheel/evaluator.ts"]
+    
+    EVALUATOR --> JUDGE["🧠 LLM-as-Judge<br/>Send to Nemotron for scoring"]
+    
+    JUDGE --> CRITERIA["Score on criteria:"]
+    CRITERIA --> C1["Helpfulness (0-10)"]
+    CRITERIA --> C2["Accuracy (0-10)"]
+    CRITERIA --> C3["Completeness (0-10)"]
+    CRITERIA --> C4["Clarity (0-10)"]
+    CRITERIA --> C5["Overall (0-10)"]
+    
+    C1 --> SCORES
+    C2 --> SCORES
+    C3 --> SCORES
+    C4 --> SCORES
+    C5 --> SCORES
+    
+    SCORES["📊 Quality Scores<br/>Attached to record"]
+    
+    EVAL_CHECK -->|"No"| SKIP["Skip evaluation"]
+    SKIP --> ACCUMULATE
+    SCORES --> ACCUMULATE
+    
+    %% ===== DATASET CREATION =====
+    ACCUMULATE["📚 Accumulate Records"]
+    
+    ACCUMULATE --> ENOUGH{{"Enough records?<br/>(min 10)"}}
+    
+    ENOUGH -->|"No"| WAIT["⏳ Wait for more data"]
+    WAIT -->|"New interaction"| INTERACTION
+    
+    ENOUGH -->|"Yes"| CREATOR["📊 DatasetCreator<br/>lib/agents/flywheel/dataset-creator.ts"]
+    
+    CREATOR --> FILTER["🔍 Filter Quality<br/>Keep rating ≥ 4"]
+    
+    FILTER --> VALIDATE["✅ Validate Records<br/>Has input + output?<br/>Response > 50 chars?<br/>Error rate < 50%?"]
+    
+    VALIDATE --> SPLIT["✂️ Split Dataset<br/>80% / 10% / 10%"]
+    
+    SPLIT --> TRAIN["📗 Training Set<br/>80% of data"]
+    SPLIT --> EVAL_SET["📘 Eval Set<br/>10% of data"]
+    SPLIT --> TEST["📙 Test Set<br/>10% of data"]
+    
+    %% ===== EXPORT =====
+    TRAIN --> EXPORT["📤 Export to JSONL<br/>OpenAI fine-tuning format"]
+    EVAL_SET --> EXPORT
+    TEST --> EXPORT
+    
+    EXPORT --> JSONL["📄 dataset.jsonl<br/>{messages: [...]}"]
+    
+    %% ===== FUTURE USE =====
+    JSONL --> FUTURE{{"Future: Fine-tune?"}}
+    
+    FUTURE -->|"Yes"| FINETUNE["🔧 LoRA Fine-tuning<br/>On smaller model"]
+    
+    FINETUNE --> SMALLER["🚀 Optimized Model<br/>Llama-3.2-1B<br/>98% cost reduction"]
+    
+    SMALLER -->|"Deploy"| DEPLOY["☁️ Deploy to Production"]
+    DEPLOY -->|"Handles new queries"| INTERACTION
+    
+    FUTURE -->|"Not yet"| STORE_DATA["💾 Store for later"]
+    
+    %% ===== STYLING =====
+    style Legend fill:#1a1a2e,color:#fff
+    style INTERACTION fill:#76b900,color:#000
+    style LOGGER fill:#0984e3
+    style RECORD fill:#0984e3
+    style STORE fill:#0984e3
+    style EVALUATOR fill:#6c5ce7
+    style JUDGE fill:#6c5ce7
+    style SCORES fill:#6c5ce7
+    style CREATOR fill:#fdcb6e,color:#000
+    style FILTER fill:#fdcb6e,color:#000
+    style VALIDATE fill:#fdcb6e,color:#000
+    style SPLIT fill:#fdcb6e,color:#000
+    style TRAIN fill:#fdcb6e,color:#000
+    style EVAL_SET fill:#fdcb6e,color:#000
+    style TEST fill:#fdcb6e,color:#000
+    style EXPORT fill:#fdcb6e,color:#000
+    style FINETUNE fill:#e17055
+    style SMALLER fill:#e17055
+    style DEPLOY fill:#e17055
 ```
 
 ### What Gets Logged
