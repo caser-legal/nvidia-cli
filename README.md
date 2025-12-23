@@ -13,7 +13,7 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#nvidia-model-stack">Models</a> •
   <a href="#rag-system-v2">RAG</a> •
-  <a href="#tools-37">Tools</a> •
+  <a href="#tools-40">Tools</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#data-flywheel">Flywheel</a> •
   <a href="#environment">Environment</a>
@@ -155,7 +155,7 @@ For iOS/Swift code search:
 
 ---
 
-## Tools (37)
+## Tools (40)
 
 ### File & System (5)
 
@@ -175,7 +175,7 @@ For iOS/Swift code search:
 | `ios_ui_review` | Check alignment, spacing, accessibility |
 | `compare_mockup` | Compare Figma mockup to implementation |
 
-### RAG (6)
+### RAG (8)
 
 | Tool | Description |
 |------|-------------|
@@ -185,6 +185,8 @@ For iOS/Swift code search:
 | `rag_research` | Deep research with decomposition |
 | `rag_stats` | Show database statistics |
 | `rag_clear` | Clear all documents |
+| `rag_validate` | Validate documents (remove stale) |
+| `rag_update` | Update documents from source |
 
 ### Search (5)
 
@@ -232,13 +234,18 @@ For iOS/Swift code search:
 | `report_compiler` | Final assembly |
 | `deduplicate_sources` | Clean citations |
 
-### Other (2)
+### Reflection (2)
+
+| Tool | Description |
+|------|-------------|
+| `reflect_on_report` | Self-critique and improve |
+| `extend_report` | Add new sections to report |
+
+### Other (1)
 
 | Tool | Description |
 |------|-------------|
 | `think` | Internal reasoning |
-| `rag_validate` | Validate RAG documents |
-| `rag_update` | Update RAG from source |
 
 ---
 
@@ -370,7 +377,7 @@ nvidia-cli/
 │   ├── page.tsx                    # Main interface
 │   ├── settings/page.tsx           # Settings
 │   └── api/
-│       ├── agent-chat/route.ts     # Main endpoint (37 tools)
+│       ├── agent-chat/route.ts     # Main endpoint (40 tools)
 │       └── chat/route.ts           # Alternative endpoint
 │
 ├── lib/
@@ -379,9 +386,10 @@ nvidia-cli/
 │   │   ├── unified-context.ts      # Context aggregation
 │   │   ├── retrieval-router.ts     # Query routing
 │   │   │
-│   │   ├── tools/                  # 37 tools
-│   │   │   ├── vision-analysis.ts  # NEW: VLM tools
-│   │   │   ├── rag-tools.ts        # RAG tools
+│   │   ├── tools/                  # 40 tools
+│   │   │   ├── vision-analysis.ts  # VLM tools
+│   │   │   ├── rag-tools.ts        # RAG tools (8)
+│   │   │   ├── specialist-agents.ts # Multi-agent (8)
 │   │   │   └── ...
 │   │   │
 │   │   ├── rag/                    # RAG V2 system
