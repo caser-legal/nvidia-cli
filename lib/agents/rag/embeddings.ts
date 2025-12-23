@@ -532,7 +532,8 @@ export class SimpleVectorStore {
 
   // Persistence methods
   private getStorePath(): string {
-    return '/Users/home/Documents/nvidia-cli/.rag-store.json';
+    const homeDir = process.env.HOME || process.env.USERPROFILE || "/tmp";
+    return `${homeDir}/.nvidia-cli/.rag-store.json`;
   }
 
   async saveToDisk(): Promise<void> {

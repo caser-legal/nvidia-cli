@@ -27,8 +27,9 @@ export interface ConversationSummary {
 const shortTermMemory: Map<string, MemoryEntry[]> = new Map();
 const conversationSummaries: Map<string, ConversationSummary> = new Map();
 
-// Long-term memory file path
-const MEMORY_DIR = "/Users/home/.nvidia-cli/memory";
+// Long-term memory file path - use home directory
+const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const MEMORY_DIR = path.join(HOME_DIR, ".nvidia-cli", "memory");
 const LONG_TERM_FILE = path.join(MEMORY_DIR, "long-term.json");
 
 // Generate unique ID

@@ -14,7 +14,8 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { NVIDIAEmbeddings } from "../rag/embeddings";
 
-const MEMORY_DIR = "/Users/home/.nvidia-cli/memory";
+const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const MEMORY_DIR = path.join(HOME_DIR, ".nvidia-cli", "memory");
 const MEMORY_STORE_FILE = path.join(MEMORY_DIR, "vector-memory.json");
 
 export interface MemoryEntry {
