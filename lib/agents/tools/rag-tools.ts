@@ -1,33 +1,18 @@
 /**
  * RAG Tools for Agent System
  * Integrates NVIDIA RAG capabilities with the agent tool system
+ * Updated to use RAGPipelineV2 with NVIDIA Blueprint best practices
  */
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Tool, ToolDefinition } from '../types';
-import { RAGPipeline } from '../rag';
+import { RAGPipelineV2, getRAGPipeline as getV2Pipeline, IOS_DEVELOPMENT_PROFILE } from '../rag';
 import { getCurrentProjectDir } from './project';
 
-// Singleton RAG pipeline instance
-let ragPipeline: RAGPipeline | null = null;
-
-function getRAGPipeline(): RAGPipeline {
-  if (!ragPipeline) {
-    // Use Nano-30B for RAG - 1M context handles entire codebases
-    ragPipeline = new RAGPipeline({
-      embeddingModel: 'nvidia/llama-3.2-nv-embedqa-1b-v2',
-      rerankModel: 'nvidia/llama-3.2-nv-rerankqa-1b-v2',
-      rerankTopN: 15,
-      topK: 30,
-      scoreThreshold: 0.0,  // No threshold - let reranker handle relevance
-      enableReflection: true,
-      maxReflectionLoops: 3,
-      enableDecomposition: true,
-      llmModel: 'nvidia/nemotron-3-nano-30b-a3b',  // 1M context for large docs
-    });
-  }
-  return ragPipeline;
+// Use V2 pipeline singleton with iOS development profile
+function getRAGPipeline(): RAGPipelineV2 {
+  return getV2Pipeline(IOS_DEVELOPMENT_PROFILE);
 }
 
 function createToolDefinition(name: string, description: string, parameters: Record<string, unknown>): ToolDefinition {
