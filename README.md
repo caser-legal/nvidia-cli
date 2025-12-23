@@ -5,24 +5,18 @@
 <h1 align="center">Dory</h1>
 
 <p align="center">
-  <strong>Your co-worker with full system access, powered by NVIDIA NIM</strong>
+  <strong>Private iOS/SwiftUI Coding Agent powered by NVIDIA NIM</strong>
 </p>
 
 <p align="center">
   <a href="#overview">Overview</a> •
   <a href="#quick-start">Quick Start</a> •
-  <a href="#interface">Interface</a> •
-  <a href="#capabilities">Capabilities</a> •
-  <a href="#tools-32">Tools</a> •
-  <a href="#settings">Settings</a> •
+  <a href="#nvidia-model-stack">Models</a> •
+  <a href="#rag-system-v2">RAG</a> •
+  <a href="#tools-37">Tools</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#rag-system">RAG</a> •
   <a href="#data-flywheel">Flywheel</a> •
-  <a href="#memory-system">Memory</a> •
-  <a href="#security">Security</a> •
-  <a href="#models">Models</a> •
-  <a href="#context-limits">Context Limits</a> •
-  <a href="#project-structure">Structure</a>
+  <a href="#environment">Environment</a>
 </p>
 
 ---
@@ -31,9 +25,9 @@
 
 > **Dory is a private enterprise iOS/SwiftUI coding agent designed for large codebase handling.**
 >
-> This application is exclusively for private use by a single developer. The primary objective is to eliminate traditional constraints that have historically limited AI assistants on exceptionally large iOS SwiftUI projects - specifically time limits, context size restrictions, and file count limitations.
+> This application is exclusively for private use by a single developer. The primary objective is to eliminate traditional constraints that have historically limited AI assistants on exceptionally large iOS SwiftUI projects.
 >
-> **Target use case:** 100k+ line iOS projects with 500+ Swift files, XIBs, storyboards, and assets.
+> **Target use case:** 100k+ line iOS projects with 500+ Swift files.
 
 ### Why This Architecture
 
@@ -42,38 +36,7 @@
 | Context limits | 8-32k tokens | 1M tokens via Nemotron 3 Nano |
 | File awareness | Single file at a time | RAG indexes entire Xcode project |
 | Session memory | Forgets between chats | Persistent memory across sessions |
-| Reasoning depth | Quick responses | Extended reasoning with tool-integrated thinking |
-
-### NVIDIA Stack (Optimized for iOS Development)
-
-| Component | Purpose |
-|-----------|---------|
-| **Nemotron 3 Nano 1M context** | Hold ~750k lines of Swift in context at once |
-| **nvidia/llama-3.2-nv-embedqa-1b-v2** | Embed and index entire Xcode projects |
-| **nvidia/llama-3.2-nv-rerankqa-1b-v2** | Retrieve most relevant files for any task |
-
-**Not using:** Nemotron Safety (private use), Personas datasets (not consumer chatbot), RL fine-tuning datasets.
-
----
-
-## Overview
-
-Dory is a local-first AI co-worker that can read/write files, execute commands, search the web, and remember context across sessions. Built on NVIDIA NIM with a terminal-style interface.
-
-**Not a chatbot.** Dory takes action - creates files, runs builds, searches documentation, analyzes repos.
-
-### What Makes Dory Different
-
-| Traditional Chatbot | Dory |
-|---------------------|------|
-| Only gives answers | Takes action on your system |
-| Forgets everything | Remembers across sessions |
-| No file access | Full filesystem access |
-| No command execution | Runs any shell command |
-| Generic responses | Learns from your codebase via RAG |
-| Single-pass answers | Multi-agent quality review for complex tasks |
-
-**Default Model:** Nemotron 3 Nano 30B (MoE) - 1M native context, 262K hosted API limit
+| Code search | Semantic only | Hybrid BM25 + Vector (exact + semantic) |
 
 ---
 
@@ -85,201 +48,169 @@ git clone https://github.com/caser-legal/nvidia-cli.git
 cd nvidia-cli
 npm install
 
-# Add your API key
+# Add your NVIDIA API key (single key for everything)
 echo "NVIDIA_API_KEY=nvapi-xxx" > .env.local
 
 # Run
 npm run dev
 ```
 
-### Shell Aliases (Recommended)
-
-Add to `~/.zshrc`:
-```bash
-alias nv="cd /path/to/nvidia-cli && ./start.sh"
-alias nvquit="pkill -f 'next dev'"
-```
-
-Then just type `nv` to start.
-
 Open [http://localhost:3000](http://localhost:3000)
 
----
+### Single API Key
 
-## Interface
+**One key powers everything:**
+- LLM inference (Nemotron 3 Nano 30B)
+- Embeddings (NV-EmbedQA 1B v2)
+- Reranking (NV-RerankQA 1B v2)
+- Vision analysis (Nemotron Nano VL 12B v2)
 
-### Terminal-Style Design
-
-The interface mimics a macOS terminal window with functional controls:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ 🔴 🟡 🟢  12/23/2024 10:05:23 AM       15 tok/s  238 tokens│
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  [Dory] Here's what's in your directory:                    │
-│  - README.md                                                │
-│  - package.json                                             │
-│  - src/                                                     │
-│                                           Total 238 tokens  │
-├─────────────────────────────────────────────────────────────┤
-│ ❯ Type your message here...                          [Send] │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Traffic Light Buttons
-
-| Button | Action |
-|--------|--------|
-| 🔴 Red | Delete current chat and start fresh |
-| 🟡 Yellow | Minimize chat to sidebar, start new chat |
-| 🟢 Green | Minimize chat to sidebar, start new chat |
-
-### Header Metrics
-
-| Metric | Description |
-|--------|-------------|
-| **Live Clock** | Current date and time, updates every second |
-| **tok/s** | Tokens generated per second (speed indicator) |
-| **tokens** | Total tokens used in current response |
-| **elapsed** | Time since response started (shows Xm Ys when > 60s) |
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Enter` | Send message |
-| `Shift + Enter` | New line in input |
-| `Ctrl + U` | Clear input |
-| `⌘ ,` | Open Settings |
+Get your key from [build.nvidia.com](https://build.nvidia.com)
 
 ---
 
-## Capabilities
+## NVIDIA Model Stack
 
-Dory has **all capabilities always enabled**. No mode switching - quality over speed.
+All models accessed via single `NVIDIA_API_KEY`:
 
-### Core Capabilities
+| Component | Model | Purpose |
+|-----------|-------|---------|
+| **Main LLM** | `nvidia/nemotron-3-nano-30b-a3b` | 1M context, MoE (3B active) |
+| **Embeddings** | `nvidia/llama-3.2-nv-embedqa-1b-v2` | 2048-dim vectors for RAG |
+| **Reranker** | `nvidia/llama-3.2-nv-rerankqa-1b-v2` | Re-scores retrieval results |
+| **Vision** | `nvidia/nemotron-nano-12b-v2-vl` | UI analysis, mockup comparison |
 
-| Capability | Description |
-|------------|-------------|
-| **iOS Development** | SwiftUI, Xcode builds, code signing, entitlements |
-| **File Operations** | Read, write, edit files and directories |
-| **System Commands** | Run any shell command via bash |
-| **Web Search** | Google and Tavily with parallel queries |
-| **RAG & Memory** | Persistent context across sessions |
-| **GitHub Analysis** | Clone and analyze repositories |
-| **Diagrams** | Generate Mermaid architecture diagrams |
+### Why Nemotron 3 Nano?
 
-### Specialist Agents (Always Available)
+- **MoE Architecture**: 30B total, only 3B active per token
+- **1M native context**: Hold ~750k lines of Swift at once
+- **3.3x faster** than dense models of similar quality
+- **Hybrid Mamba-Transformer**: Efficient long-context processing
 
-For complex research and documentation tasks, Dory automatically delegates to specialist sub-agents:
+### Context Limits
 
-| Specialist | Purpose |
-|------------|---------|
-| `search_specialist` | Deep multi-source research with quality scoring |
-| `report_planner` | Creates structured outlines for complex deliverables |
-| `section_author` | Writes individual sections with citations |
-| `report_writer` | Fast full draft generation |
-| `quality_reviewer` | Evaluates output with 0-10 scores, flags gaps |
-| `report_extender` | Merges new findings into existing reports |
-| `report_compiler` | Final assembly and formatting |
-| `deduplicate_sources` | Cleans and deduplicates citations |
-| `documentation_specialist` | Generates codebase documentation |
+| Backend | Limit | Notes |
+|---------|-------|-------|
+| Hosted API | 262K tokens | Free tier limit |
+| Self-hosted NIM | 1M tokens | Full capability |
+| Local Ollama | 1M tokens | Set `USE_LOCAL_LLM=true` |
 
-### Multi-Agent Workflow
+---
 
-For complex tasks, Dory uses this workflow:
+## RAG System V2
+
+Full implementation based on **NVIDIA RAG Blueprint (Dec 2025)**.
+
+### Architecture
 
 ```
-User Query
-    ↓
-🔍 search_specialist (gather comprehensive information)
-    ↓
-📋 report_planner (if deliverable is structured)
-    ↓
-✍️ section_author (write each section)
-    ↓
-📄 report_compiler (assemble final output)
-    ↓
-✅ quality_reviewer → loop until score ≥ 8/10 or max 3 iterations
-    ↓
-Final Output
+Documents → Chunking → Embeddings → Vector Store
+                                        ↓
+Query → BM25 + Vector → Rerank → Top K → Generate
+         (Hybrid)       (100→10)
 ```
+
+### Key Features
+
+| Feature | Implementation |
+|---------|----------------|
+| **Hybrid Retrieval** | BM25 (lexical) + Vector (semantic) with RRF fusion |
+| **ContextualCompressionRetriever** | Wide net (100) → Rerank → Narrow (10) |
+| **Swift-Aware Chunking** | Respects `class`, `struct`, `func`, `extension` boundaries |
+| **Query Decomposition** | Breaks complex queries into sub-queries |
+| **Self-Correction Loop** | Rewrites queries if results aren't relevant |
+
+### Chunking Config (iOS Profile)
+
+```typescript
+{
+  chunkSize: 800,        // chars per chunk
+  chunkOverlap: 120,     // overlap for context
+  separators: [
+    '\nclass ', '\nstruct ', '\nenum ', '\nprotocol ',
+    '\nextension ', '\nfunc ', '\n@Observable', ...
+  ]
+}
+```
+
+### RAG Files
+
+| File | Purpose |
+|------|---------|
+| `lib/agents/rag/pipeline-v2.ts` | Main RAG pipeline with NVIDIA best practices |
+| `lib/agents/rag/config.ts` | Profiles: iOS, Research, Chatbot |
+| `lib/agents/rag/hybrid-retriever.ts` | BM25 + Vector with RRF fusion |
+| `lib/agents/rag/contextual-retriever.ts` | Wide net → Rerank → Narrow |
+| `lib/agents/rag/text-splitter.ts` | RecursiveCharacterTextSplitter |
+| `lib/agents/rag/embeddings.ts` | NVIDIA NV-EmbedQA + NV-RerankQA |
+| `lib/agents/rag/reflection.ts` | Relevance/groundedness checking |
+| `lib/agents/rag/query-decomposition.ts` | Complex query breakdown |
+
+### Why Hybrid Retrieval?
+
+For iOS/Swift code search:
+- **BM25**: Exact matches for `viewDidLoad`, `@Observable`, `NavigationStack`
+- **Vector**: Semantic matches for "how to handle state management"
+- **RRF Fusion**: Combines both with weighted scores
 
 ---
 
 ## Tools (37)
 
-Dory has 37 tools organized into categories. All tools are always available.
-
-### Project Management (2)
+### File & System (5)
 
 | Tool | Description |
 |------|-------------|
-| `set_project` | Sets working directory for all operations |
-| `get_project` | Returns current working directory |
+| `set_project` | Set working directory |
+| `get_project` | Get current directory |
+| `file_read` | Read files/directories |
+| `file_write` | Create/edit files |
+| `bash` | Execute shell commands |
 
-### File System (2)
-
-| Tool | Description |
-|------|-------------|
-| `file_read` | Read file contents or list directories |
-| `file_write` | Create, overwrite, or edit files |
-
-### System (1)
+### Vision Analysis (3)
 
 | Tool | Description |
 |------|-------------|
-| `bash` | Execute any shell command |
+| `vision_analyze` | Analyze images/video with Nemotron VL |
+| `ios_ui_review` | Check alignment, spacing, accessibility |
+| `compare_mockup` | Compare Figma mockup to implementation |
 
-### Reasoning (1)
-
-| Tool | Description |
-|------|-------------|
-| `think` | Internal reasoning for complex problems |
-
-### Vision Analysis (3) — NEW
+### RAG (6)
 
 | Tool | Description |
 |------|-------------|
-| `vision_analyze` | Analyze any image/video using Nemotron Nano VL 12B v2 |
-| `ios_ui_review` | Review iOS screenshots for alignment, spacing, accessibility issues |
-| `compare_mockup` | Compare Figma/Sketch mockup to iOS implementation |
-
-**Model:** `nvidia/nemotron-nano-12b-v2-vl` (128K context, up to 5 images or 1 video)
-
-**Use cases:**
-- "Check if buttons are aligned in this screenshot"
-- "Compare this mockup to the implementation"
-- "Find all UI issues in these 3 screens"
-- "Is the spacing consistent across these views?"
-
-### Memory (2)
-
-| Tool | Description |
-|------|-------------|
-| `memory` | Store/retrieve info across sessions |
-| `entity_memory` | Track people, projects, companies |
+| `rag_ingest` | Add documents to knowledge base |
+| `rag_search` | Hybrid BM25+Vector search |
+| `rag_query` | Ask questions with RAG context |
+| `rag_research` | Deep research with decomposition |
+| `rag_stats` | Show database statistics |
+| `rag_clear` | Clear all documents |
 
 ### Search (5)
 
 | Tool | Description |
 |------|-------------|
 | `google_search` | Google Custom Search |
-| `tavily_search` | AI-optimized search with content extraction |
-| `parallel_search` | Multiple Google searches in parallel |
-| `parallel_tavily_search` | Multiple Tavily searches in parallel |
-| `local_docs_search` | Search local documentation files |
+| `tavily_search` | AI-optimized search |
+| `parallel_search` | Multiple Google searches |
+| `parallel_tavily_search` | Multiple Tavily searches |
+| `local_docs_search` | Search local docs |
 
-### Code (4)
+### Memory (2)
 
 | Tool | Description |
 |------|-------------|
-| `github_analyzer` | Clone and analyze GitHub repos |
-| `github_file_reader` | Read files from cloned repos |
-| `code_documentation` | Generate docs for codebases |
-| `documentation_specialist` | Advanced codebase documentation |
+| `memory` | Store/retrieve across sessions |
+| `entity_memory` | Track people, projects, companies |
+
+### Code & Docs (4)
+
+| Tool | Description |
+|------|-------------|
+| `github_analyzer` | Clone and analyze repos |
+| `github_file_reader` | Read files from repos |
+| `code_documentation` | Generate codebase docs |
+| `documentation_specialist` | Advanced documentation |
 
 ### Diagrams (2)
 
@@ -287,17 +218,6 @@ Dory has 37 tools organized into categories. All tools are always available.
 |------|-------------|
 | `mermaid_generator` | Create Mermaid diagrams |
 | `quick_diagram` | Fast diagrams from templates |
-
-### RAG (6)
-
-| Tool | Description |
-|------|-------------|
-| `rag_ingest` | Add documents to knowledge base |
-| `rag_search` | Semantic search over documents |
-| `rag_query` | Ask questions about documents |
-| `rag_research` | Deep research with query decomposition |
-| `rag_stats` | Show RAG database statistics |
-| `rag_clear` | Clear all documents from RAG |
 
 ### Specialist Agents (8)
 
@@ -307,144 +227,93 @@ Dory has 37 tools organized into categories. All tools are always available.
 | `report_planner` | Structured outline creation |
 | `section_author` | Individual section writing |
 | `report_writer` | Fast full draft generation |
-| `quality_reviewer` | Output evaluation (0-10 scores) |
+| `quality_reviewer` | Output evaluation (0-10) |
 | `report_extender` | Merge new findings |
 | `report_compiler` | Final assembly |
 | `deduplicate_sources` | Clean citations |
 
----
+### Other (2)
 
-## Settings
-
-Full settings page at `/settings` (or press `⌘ ,`).
-
-### Appearance
-
-| Setting | Options |
-|---------|---------|
-| **Theme** | Light, Dark, System |
-| **Font Size** | Small (12px), Medium (14px), Large (16px) |
-| **Code Theme** | One Dark, GitHub, Dracula |
-
-### API Configuration
-
-| Setting | Description |
-|---------|-------------|
-| **NVIDIA API Key** | Your key from [build.nvidia.com](https://build.nvidia.com) |
-| **Model Selection** | Choose from available NVIDIA models |
-
-### Usage Statistics
-
-- Total tokens used
-- Number of conversations
-- Activity log (last 60 sessions)
+| Tool | Description |
+|------|-------------|
+| `think` | Internal reasoning |
+| `rag_validate` | Validate RAG documents |
+| `rag_update` | Update RAG from source |
 
 ---
 
 ## Architecture
 
-### System Overview
+### System Flow
 
-```mermaid
-flowchart TD
-    User[User Input] --> PIIGuard[🛡️ PII Guard]
-    PIIGuard --> Router{🧠 Retrieval Router}
-    
-    Router -->|Local Docs| RAG[📚 RAG Pipeline]
-    Router -->|Past Context| Memory[🧠 Memory System]
-    Router -->|Current Info| Search[🌐 Web Search]
-    
-    RAG & Memory & Search --> UnifiedContext[🔗 Unified Context]
-    
-    UnifiedContext --> Agent[🤖 Agent Core]
-    
-    Agent --> Tools[🛠️ 32 Tools + Specialists]
-    Tools --> Tracer[📊 Tracer]
-    
-    Agent --> Output[Response]
-    
-    Output --> Flywheel[🎡 Data Flywheel]
-    Flywheel --> FeedbackOptimizer[🔄 Feedback Optimizer]
-    Flywheel --> AutoRAG[📝 Auto RAG Updater]
+```
+User Query
+    ↓
+🛡️ PII Guard (redacts sensitive data)
+    ↓
+🧠 Retrieval Router (decides: RAG / Memory / Search)
+    ↓
+📚 Unified Context (aggregates all sources)
+    ↓
+🤖 Agent Core (37 tools + 8 specialists)
+    ↓
+📊 Data Flywheel (logs for improvement)
+    ↓
+Response
 ```
 
-### Key Components
+### Key Files
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| **Agent Core** | `lib/agents/agent.ts` | Main agent loop with tool execution |
-| **Context Manager** | `lib/context-manager.ts` | Token tracking and truncation |
-| **Retrieval Router** | `lib/agents/retrieval-router.ts` | Routes queries to RAG/Search/Memory |
-| **Unified Context** | `lib/agents/unified-context.ts` | Aggregates all context sources |
-| **Feedback Optimizer** | `lib/agents/feedback-optimizer.ts` | Learns from failures |
-
----
-
-## RAG System
-
-Full RAG pipeline based on NVIDIA RAG Blueprint.
-
-### Architecture
-
-```mermaid
-flowchart LR
-    Docs[Your Documents] --> Chunker[Text Chunker]
-    Chunker --> Embedder[NVIDIA Embeddings]
-    Embedder --> VectorDB[(Vector Store)]
-    
-    Query[User Query] --> QueryEmbed[Query Embedding]
-    QueryEmbed --> Search[Similarity Search]
-    VectorDB --> Search
-    Search --> Reranker[NVIDIA Reranker]
-    Reranker --> TopK[Top K Results]
-    TopK --> LLM[Generate Answer]
-```
-
-### Components
-
-| Component | Model | Description |
-|-----------|-------|-------------|
-| **Embeddings** | `nvidia/llama-3.2-nv-embedqa-1b-v2` | 2048-dimension vectors |
-| **Reranker** | `nvidia/llama-3.2-nv-rerankqa-1b-v2` | Re-scores for relevance |
-| **Vector Store** | In-memory | Cosine similarity search |
+| File | Purpose |
+|------|---------|
+| `app/api/agent-chat/route.ts` | Main agent endpoint |
+| `lib/agents/agent.ts` | Core agent loop |
+| `lib/agents/unified-context.ts` | Context aggregation |
+| `lib/agents/retrieval-router.ts` | Query routing |
+| `lib/context-manager.ts` | Token tracking |
+| `lib/nvidia.ts` | Model configs |
 
 ---
 
 ## Data Flywheel
 
-Production data logging system based on NVIDIA Data Flywheel Blueprint.
+Based on **NVIDIA Data Flywheel Blueprint**.
 
 ### What Gets Logged
 
-- Timestamp
-- User query
-- Agent response
+- Timestamp, session ID
+- User query, agent response
 - Tools called and results
-- Token counts
-- Latency
+- Token counts, latency
 - Quality score (if evaluated)
 
 ### Components
 
-| Component | Purpose |
-|-----------|---------|
-| **FlywheelLogger** | Captures all interactions |
-| **DatasetCreator** | Creates train/eval/test splits |
-| **FlywheelEvaluator** | LLM-as-Judge quality scoring |
-| **FeedbackOptimizer** | Generates Golden Examples from failures |
+| Component | File | Purpose |
+|-----------|------|---------|
+| FlywheelLogger | `lib/agents/flywheel/logger.ts` | Captures interactions |
+| DatasetCreator | `lib/agents/flywheel/dataset-creator.ts` | Train/eval/test splits |
+| FlywheelEvaluator | `lib/agents/flywheel/evaluator.ts` | LLM-as-Judge scoring |
+| FeedbackOptimizer | `lib/agents/feedback-optimizer.ts` | Golden Examples from failures |
+| AutoRAGUpdater | `lib/agents/rag/auto-updater.ts` | High-quality → RAG sync |
+
+### Future Use
+
+Logged data can be used for:
+- Fine-tuning smaller models (LoRA)
+- Identifying common failure patterns
+- Measuring quality over time
 
 ---
 
 ## Memory System
 
-### Types of Memory
-
-| Type | Persistence | Use Case |
+| Type | Persistence | Location |
 |------|-------------|----------|
-| **Context** | Current session | Current conversation |
-| **Short-term** | Session only | Working memory during tasks |
-| **Long-term** | Permanent (`~/.nvidia-cli/memory.json`) | Facts to remember forever |
-| **Entity** | Permanent | People, projects, companies |
+| **Short-term** | Session only | In-memory |
+| **Long-term** | Permanent | `~/.nvidia-cli/memory.json` |
+| **Entity** | Permanent | `~/.nvidia-cli/memory.json` |
+| **RAG** | Permanent | `.rag-store.json` |
 
 ---
 
@@ -452,79 +321,43 @@ Production data logging system based on NVIDIA Data Flywheel Blueprint.
 
 ### PII Guard
 
-Automatically redacts sensitive information:
+Automatically redacts before processing:
 
 | Pattern | Replacement |
 |---------|-------------|
-| Email addresses | `[EMAIL_REDACTED]` |
-| Phone numbers | `[PHONE_REDACTED]` |
+| Email | `[EMAIL_REDACTED]` |
+| Phone | `[PHONE_REDACTED]` |
 | API keys | `[API_KEY_REDACTED]` |
 | IP addresses | `[IP_REDACTED]` |
-| Credit cards | `[CARD_REDACTED]` |
 
-### Tool Guard
+### Not Using (Private Use)
 
-Permission system for tool execution (auto-granted in prototype mode).
-
----
-
-## Models
-
-| Model | Context | Parameters | Best For |
-|-------|---------|------------|----------|
-| **Nemotron 3 Nano 30B** (default) | 1M native / 262K hosted | 30B (3.5B active) | Fast reasoning, general tasks |
-| Nemotron Super 49B | 128K | 49B | Agentic coding |
-| Nemotron Ultra 253B | 128K | 253B | Maximum capability |
-| Llama 3.3 70B | 128K | 70B | General purpose |
-
-### Why Nemotron 3 Nano?
-
-- **MoE Architecture**: Only 3.5B parameters activate per token
-- **3.3x faster** than dense models of similar quality
-- **1M native context**: Can "see" ~750,000 words at once
-- **Cost effective**: Lower compute = lower API costs
+- Nemotron Safety Guard (no external users)
+- Content moderation (single user)
+- Jailbreak detection (trusted environment)
 
 ---
 
-## Context Limits
+## Environment
 
-### NVIDIA Hosted API vs Self-Hosted
-
-| Backend | Context Limit | How to Use |
-|---------|---------------|------------|
-| **Hosted API** (integrate.api.nvidia.com) | 262,144 tokens | Default - just add API key |
-| **Self-hosted NIM** | 1,000,000 tokens | Deploy NIM container |
-| **Local Ollama** | 1,000,000 tokens | Set `USE_LOCAL_LLM=true` |
-
-The 262K limit is a free tier restriction on NVIDIA's hosted API, not a model limitation. To get full 1M context:
-- Self-host via NIM
-- Get enterprise license
-- Use local Ollama with `USE_LOCAL_LLM=true`
-
-### Context Management
-
-Dory automatically manages context to prevent overflow:
-- Warns at 85% utilization (hosted) / 90% (local)
-- Truncates tool results first
-- Uses sliding window for older messages
-- Preserves system prompt and recent context
-
----
-
-## Environment Variables
+### Required
 
 ```env
-# Required
-NVIDIA_API_KEY=nvapi-xxx          # Get from build.nvidia.com
+NVIDIA_API_KEY=nvapi-xxx    # Single key for all NVIDIA services
+```
 
-# Optional - for web search
-TAVILY_API_KEY=tvly-xxx           # Tavily search (recommended)
-GOOGLE_API_KEY=xxx                # Google Custom Search
-GOOGLE_CSE_ID=xxx                 # Google Custom Search Engine ID
+### Optional
 
-# Optional - for local LLM
-USE_LOCAL_LLM=true                # Use Ollama instead of hosted API
-OLLAMA_BASE_URL=http://localhost:11434  # Ollama server URL
+```env
+# Web search (if using)
+TAVILY_API_KEY=tvly-xxx
+GOOGLE_API_KEY=xxx
+GOOGLE_CSE_ID=xxx
+
+# Local LLM (instead of hosted API)
+USE_LOCAL_LLM=true
+OLLAMA_BASE_URL=http://localhost:11434
+LOCAL_EMBED_URL=http://192.168.50.50:8000
 ```
 
 ---
@@ -533,76 +366,68 @@ OLLAMA_BASE_URL=http://localhost:11434  # Ollama server URL
 
 ```
 nvidia-cli/
-├── app/                          # Next.js App Router
-│   ├── page.tsx                  # Main chat interface
-│   ├── settings/page.tsx         # Settings page
+├── app/
+│   ├── page.tsx                    # Main interface
+│   ├── settings/page.tsx           # Settings
 │   └── api/
-│       ├── agent-chat/route.ts   # Main agent endpoint (32 tools)
-│       └── chat/route.ts         # Alternative chat endpoint
-│
-├── components/
-│   ├── agents/
-│   │   └── agent-chat.tsx        # Terminal-style chat UI
-│   ├── sidebar/sidebar.tsx       # Session list, navigation
-│   ├── layout/header.tsx         # Top bar with model selector
-│   └── chat/
-│       ├── chat-input.tsx        # Input with attachments
-│       └── welcome-screen.tsx    # Capabilities overview
+│       ├── agent-chat/route.ts     # Main endpoint (37 tools)
+│       └── chat/route.ts           # Alternative endpoint
 │
 ├── lib/
 │   ├── agents/
-│   │   ├── agent.ts              # Core agent loop
-│   │   ├── types.ts              # TypeScript interfaces
-│   │   ├── unified-context.ts    # Context aggregation
+│   │   ├── agent.ts                # Core agent loop
+│   │   ├── unified-context.ts      # Context aggregation
+│   │   ├── retrieval-router.ts     # Query routing
 │   │   │
-│   │   ├── tools/                # 32 tool implementations
-│   │   │   ├── project.ts        # set_project, get_project
-│   │   │   ├── file-read.ts      # file_read
-│   │   │   ├── file-write.ts     # file_write
-│   │   │   ├── bash.ts           # bash (with auto-exclusions)
-│   │   │   ├── think.ts          # think
-│   │   │   ├── memory.ts         # memory, entity_memory
-│   │   │   ├── google-search.ts  # google_search
-│   │   │   ├── tavily-search.ts  # tavily_search, parallel_tavily
-│   │   │   ├── parallel-search.ts# parallel_search
-│   │   │   ├── local-docs-search.ts
-│   │   │   ├── github-analyzer.ts# github_analyzer, github_file_reader
-│   │   │   ├── code-documentation.ts
-│   │   │   ├── mermaid-generator.ts
-│   │   │   ├── rag-tools.ts      # All RAG tools
-│   │   │   └── specialist-agents.ts # 8 specialist agents
+│   │   ├── tools/                  # 37 tools
+│   │   │   ├── vision-analysis.ts  # NEW: VLM tools
+│   │   │   ├── rag-tools.ts        # RAG tools
+│   │   │   └── ...
 │   │   │
-│   │   ├── rag/                  # RAG system
-│   │   │   ├── pipeline.ts       # Main RAGPipeline class
-│   │   │   ├── embeddings.ts     # NVIDIA embeddings & reranker
-│   │   │   └── auto-updater.ts   # Flywheel → RAG sync
+│   │   ├── rag/                    # RAG V2 system
+│   │   │   ├── pipeline-v2.ts      # Main pipeline
+│   │   │   ├── config.ts           # Profiles
+│   │   │   ├── hybrid-retriever.ts # BM25 + Vector
+│   │   │   ├── contextual-retriever.ts
+│   │   │   ├── text-splitter.ts    # Swift-aware
+│   │   │   ├── embeddings.ts       # NVIDIA models
+│   │   │   ├── reflection.ts       # Self-correction
+│   │   │   └── query-decomposition.ts
 │   │   │
-│   │   └── flywheel/             # Data logging
-│   │       ├── logger.ts         # FlywheelLogger
-│   │       └── evaluator.ts      # LLM-as-Judge
+│   │   └── flywheel/               # Data logging
+│   │       ├── logger.ts
+│   │       ├── evaluator.ts
+│   │       └── dataset-creator.ts
 │   │
-│   ├── context-manager.ts        # Token tracking & truncation
-│   ├── nvidia.ts                 # Model configs & API limits
-│   │
-│   ├── store/                    # Zustand state management
-│   │   ├── index.ts              # UI store, settings
-│   │   └── agent-sessions.ts     # Session management
-│   │
+│   ├── nvidia.ts                   # Model configs
+│   ├── context-manager.ts          # Token management
 │   └── security/
-│       ├── pii-guard.ts          # PII redaction
-│       └── tool-guard.ts         # Permission system
+│       └── pii-guard.ts            # PII redaction
 │
-└── start.sh                      # Startup script
+├── components/                     # React components
+├── public/                         # Static assets
+└── .env.local                      # NVIDIA_API_KEY here
 ```
+
+---
+
+## Alignment with NVIDIA Blueprints
+
+| NVIDIA Pattern | Dory Implementation | Status |
+|----------------|---------------------|--------|
+| RecursiveCharacterTextSplitter | SwiftTextSplitter | ✅ |
+| ContextualCompressionRetriever | Wide net → Rerank → Narrow | ✅ |
+| Hybrid Retrieval (BM25 + FAISS) | BM25 + Vector with RRF | ✅ |
+| NV-EmbedQA 1B v2 | Embeddings | ✅ |
+| NV-RerankQA 1B v2 | Reranking | ✅ |
+| Query Decomposition | Complex query breakdown | ✅ |
+| Self-Correction Loop | Relevance checking | ✅ |
+| Data Flywheel Logging | FlywheelLogger | ✅ |
+| LLM-as-Judge | FlywheelEvaluator | ✅ |
+| Vision Analysis | Nemotron Nano VL 12B v2 | ✅ |
 
 ---
 
 ## License
 
-MIT
-
----
-
-<p align="center">
-  Built with <a href="https://nextjs.org">Next.js</a> and <a href="https://build.nvidia.com">NVIDIA NIM</a>
-</p>
+Private use only.
