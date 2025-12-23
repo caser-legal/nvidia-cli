@@ -45,6 +45,9 @@ export {
 } from './contextual-retriever';
 export type { RetrievalResult } from './contextual-retriever';
 
+// Hybrid retrieval (BM25 + Vector)
+export { BM25Retriever, HybridRetriever } from './hybrid-retriever';
+
 // Embeddings and reranking
 export { NVIDIAEmbeddings, NVIDIAReranker, SimpleVectorStore } from './embeddings';
 

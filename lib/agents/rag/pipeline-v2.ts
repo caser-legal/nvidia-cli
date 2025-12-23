@@ -135,6 +135,7 @@ export class RAGPipelineV2 {
   /**
    * Ingest documents with proper chunking
    * Uses RecursiveCharacterTextSplitter for code-aware splitting
+   * Populates both vector store and BM25 index for hybrid retrieval
    */
   async ingest(
     documents: { id: string; content: string; metadata?: Record<string, unknown> }[]
@@ -150,6 +151,10 @@ export class RAGPipelineV2 {
 
     // Add to vector store
     await this.vectorStore.addDocuments(chunkedDocs);
+
+    // Add to BM25 index for hybrid retrieval
+    this.retriever.addToBM25(chunkedDocs);
+    console.log(`[RAGv2] Added ${chunkedDocs.length} chunks to BM25 index`);
 
     return {
       chunksCreated: chunkedDocs.length,

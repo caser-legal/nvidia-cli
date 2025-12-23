@@ -7,10 +7,14 @@
  * This chains the vector retriever with the reranker for optimal results:
  * 1. Embedding model casts wide net (fast, cheap)
  * 2. Reranker narrows to most relevant (slow, accurate)
+ * 
+ * Updated Dec 2025: Added hybrid retrieval (BM25 + Vector) based on
+ * NVIDIA Log Analysis Agent pattern for better code search.
  */
 
 import { Document } from './types';
 import { NVIDIAReranker, SimpleVectorStore } from './embeddings';
+import { HybridRetriever, BM25Retriever } from './hybrid-retriever';
 import { RetrievalConfig, DEFAULT_RETRIEVAL_CONFIG } from './config';
 
 export interface RetrievalResult {
@@ -21,56 +25,99 @@ export interface RetrievalResult {
   reranked: boolean;
   searchTimeMs: number;
   rerankTimeMs: number;
+  hybridSources?: { bm25: number; vector: number; both: number };
 }
 
 /**
  * ContextualCompressionRetriever
- * Combines vector retrieval with reranking for optimal accuracy
- * Based on NVIDIA RAG Blueprint pattern
+ * Combines hybrid retrieval (BM25 + Vector) with reranking for optimal accuracy
+ * Based on NVIDIA RAG Blueprint + Log Analysis Agent patterns
  */
 export class ContextualCompressionRetriever {
   private vectorStore: SimpleVectorStore;
   private reranker: NVIDIAReranker;
   private config: RetrievalConfig;
+  private hybridRetriever: HybridRetriever | null = null;
+  private bm25: BM25Retriever;
+  private useHybrid: boolean;
 
   constructor(
     vectorStore: SimpleVectorStore,
     reranker: NVIDIAReranker,
-    config: Partial<RetrievalConfig> = {}
+    config: Partial<RetrievalConfig> = {},
+    useHybrid: boolean = true
   ) {
     this.vectorStore = vectorStore;
     this.reranker = reranker;
     this.config = { ...DEFAULT_RETRIEVAL_CONFIG, ...config };
+    this.useHybrid = useHybrid;
+    this.bm25 = new BM25Retriever();
+
+    if (useHybrid) {
+      // Create hybrid retriever with vector search function
+      this.hybridRetriever = new HybridRetriever(
+        (query, topK) => this.vectorStore.search(query, topK),
+        0.5 // Equal weight BM25 + Vector
+      );
+    }
+  }
+
+  /**
+   * Add documents to BM25 index for hybrid retrieval
+   */
+  addToBM25(docs: { id: string; content: string; metadata?: Record<string, unknown> }[]): void {
+    if (this.hybridRetriever) {
+      this.hybridRetriever.addDocuments(docs);
+    }
+    this.bm25.addDocuments(docs);
   }
 
   /**
    * Retrieve and rerank documents
-   * Implements the NVIDIA ContextualCompressionRetriever pattern
+   * Uses hybrid retrieval (BM25 + Vector) when enabled
    */
   async retrieve(query: string): Promise<RetrievalResult> {
     const startTime = Date.now();
+    let hybridSources: { bm25: number; vector: number; both: number } | undefined;
 
-    // Step 1: Wide retrieval from vector store
+    // Step 1: Wide retrieval - use hybrid if enabled
     console.log(`[Retriever] Searching for top ${this.config.initialTopK} candidates...`);
     const searchStart = Date.now();
     
-    const initialResults = await this.vectorStore.search(query, this.config.initialTopK);
-    const searchTimeMs = Date.now() - searchStart;
+    let filteredResults: { id: string; content: string; score: number; metadata: Record<string, unknown> }[];
+
+    if (this.useHybrid && this.hybridRetriever && this.hybridRetriever.getDocumentCount() > 0) {
+      // Hybrid retrieval: BM25 + Vector with RRF fusion
+      console.log('[Retriever] Using hybrid retrieval (BM25 + Vector)...');
+      const hybridResults = await this.hybridRetriever.search(query, this.config.initialTopK);
+      
+      // Track sources for debugging
+      hybridSources = { bm25: 0, vector: 0, both: 0 };
+      for (const r of hybridResults) {
+        hybridSources[r.source]++;
+      }
+      console.log(`[Retriever] Hybrid sources: BM25=${hybridSources.bm25}, Vector=${hybridSources.vector}, Both=${hybridSources.both}`);
+      
+      filteredResults = hybridResults;
+    } else {
+      // Vector-only retrieval (fallback)
+      const initialResults = await this.vectorStore.search(query, this.config.initialTopK);
+      filteredResults = initialResults;
+    }
     
-    console.log(`[Retriever] Found ${initialResults.length} candidates in ${searchTimeMs}ms`);
+    const searchTimeMs = Date.now() - searchStart;
+    console.log(`[Retriever] Found ${filteredResults.length} candidates in ${searchTimeMs}ms`);
 
     // Filter by score threshold if set
-    let filteredResults = initialResults;
     if (this.config.scoreThreshold > 0) {
-      filteredResults = initialResults.filter(r => r.score >= this.config.scoreThreshold);
+      filteredResults = filteredResults.filter(r => r.score >= this.config.scoreThreshold);
       console.log(`[Retriever] ${filteredResults.length} passed score threshold (${this.config.scoreThreshold})`);
     }
 
-    // If no results, try text search fallback
-    if (filteredResults.length === 0) {
-      console.log('[Retriever] No vector results, trying text search fallback...');
-      const textResults = this.vectorStore.textSearch(query, this.config.initialTopK);
-      filteredResults = textResults;
+    // If no results, try BM25-only fallback for exact matches
+    if (filteredResults.length === 0 && this.bm25.getDocumentCount() > 0) {
+      console.log('[Retriever] No results, trying BM25-only fallback...');
+      filteredResults = this.bm25.search(query, this.config.initialTopK);
     }
 
     // Convert to Document format
@@ -131,6 +178,7 @@ export class ContextualCompressionRetriever {
       reranked,
       searchTimeMs,
       rerankTimeMs,
+      hybridSources,
     };
   }
 
