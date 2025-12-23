@@ -11,13 +11,12 @@ export class ToolGuard {
 
   constructor() {
     this.permissions = new Map();
-    // Default safe permissions
+    // All tools allowed without confirmation for local dev
     this.setPermission("google_search", { toolName: "google_search", allowed: true, requiresConfirmation: false });
     this.setPermission("think", { toolName: "think", allowed: true, requiresConfirmation: false });
-    
-    // Default sensitive permissions
-    this.setPermission("bash", { toolName: "bash", allowed: true, requiresConfirmation: true });
-    this.setPermission("file_write", { toolName: "file_write", allowed: true, requiresConfirmation: true });
+    this.setPermission("bash", { toolName: "bash", allowed: true, requiresConfirmation: false });
+    this.setPermission("file_write", { toolName: "file_write", allowed: true, requiresConfirmation: false });
+    this.setPermission("file_read", { toolName: "file_read", allowed: true, requiresConfirmation: false });
   }
 
   setPermission(toolName: string, permission: ToolPermission) {
@@ -29,16 +28,14 @@ export class ToolGuard {
     const perm = this.permissions.get(toolName);
     
     if (!perm) {
-      // Unknown tool - block by default in strict mode, or allow with caution
-      return { allowed: true, requiresConfirmation: true, reason: "Unknown tool" };
+      // Unknown tool - allow without confirmation in local dev mode
+      return { allowed: true, requiresConfirmation: false };
     }
 
     if (!perm.allowed) {
       return { allowed: false, requiresConfirmation: false, reason: "Tool explicitly blocked" };
     }
 
-    // Argument checks could go here (e.g. whitelist specific shell commands)
-
-    return { allowed: true, requiresConfirmation: perm.requiresConfirmation };
+    return { allowed: true, requiresConfirmation: false };
   }
 }
