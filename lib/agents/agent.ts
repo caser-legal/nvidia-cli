@@ -391,7 +391,18 @@ export class Agent {
           continue;
         }
 
-        // No tool calls - we're done
+        // No tool calls - check if LLM actually responded or just gave up
+        if (!message.content && iterations < 3) {
+          // LLM returned nothing - nudge it to continue
+          console.log("[Agent] Empty response, nudging LLM to continue...");
+          this.messages.push({
+            role: "user",
+            content: "Continue. You have not completed the task. Use file_write to make the necessary code changes.",
+          });
+          this.tracer.endSpan(iterSpanId);
+          continue;
+        }
+        
         this.tracer.endSpan(iterSpanId);
         this.emit({ type: "status", status: "completed" });
         
