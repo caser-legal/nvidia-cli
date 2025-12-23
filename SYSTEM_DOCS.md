@@ -19,7 +19,7 @@ YOU  →  Web UI (localhost:3000)  →  Agent (TypeScript)  →  NVIDIA NIM API
                                           ├──→ RAG (8 tools - hybrid BM25+Vector)
                                           ├──→ Vision (3 tools - Nemotron VL)
                                           ├──→ Search (5 tools - Google, Google)
-                                          ├──→ Memory (2 tools - short/long term)
+                                          ├──→ Memory (2 tools - vector-based)
                                           ├──→ Code (4 tools - GitHub, docs)
                                           ├──→ Diagrams (2 tools - Mermaid)
                                           ├──→ Specialists (8 sub-agents)
@@ -70,8 +70,7 @@ All models via single `NVIDIA_API_KEY`:
 │  3. CONTEXT LAYER                                                           │
 │     ├── Retrieval Router: Decides RAG vs Web vs Memory                      │
 │     ├── RAG Pipeline V2 (Hybrid BM25 + Vector + Rerank)                     │
-│     ├── Short-term Memory (session)                                         │
-│     ├── Long-term Memory (~/.nvidia-cli/memory.json)                        │
+│     ├── Vector Memory (semantic retrieval, NVIDIA pattern)                  │
 │     └── Entity Memory (people, projects, companies)                         │
 │                                                                             │
 │  4. LLM CALL                                                                │
@@ -131,7 +130,7 @@ All models via single `NVIDIA_API_KEY`:
 ### Memory (2)
 | Tool | File | Purpose |
 |------|------|---------|
-| `memory` | memory.ts | Short/long-term storage |
+| `memory` | unified-memory.ts | Vector-based semantic memory |
 | `entity_memory` | memory.ts | Track entities |
 
 ### Search (3)
@@ -274,7 +273,7 @@ Based on **NVIDIA Data Flywheel Blueprint**.
 
 | Path | Purpose |
 |------|---------|
-| `~/.nvidia-cli/memory.json` | Long-term memory |
+| `~/.nvidia-cli/memory/vector-memory.json` | Vector memory store |
 | `.rag-store.json` | RAG vector store (persisted) |
 | `prisma/dev.db` | Conversations, sessions |
 | `.env.local` | API keys |

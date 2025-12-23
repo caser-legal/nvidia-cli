@@ -35,7 +35,7 @@
 |------------|----------------|-----------------|
 | Context limits | 8-32k tokens | 1M tokens via Nemotron 3 Nano |
 | File awareness | Single file at a time | RAG indexes entire Xcode project |
-| Session memory | Forgets between chats | Persistent memory across sessions |
+| Session memory | Forgets between chats | Vector memory with semantic retrieval |
 | Code search | Semantic only | Hybrid BM25 + Vector (exact + semantic) |
 
 ---
@@ -356,7 +356,7 @@ For iOS/Swift code search:
 
 | Tool | Description |
 |------|-------------|
-| `memory` | Store/retrieve across sessions |
+| `memory` | Vector-based semantic memory (NVIDIA pattern) |
 | `entity_memory` | Track people, projects, companies |
 
 ### Code & Docs (4)
@@ -454,11 +454,9 @@ flowchart TB
     RAG_RERANK --> CONTEXT
     
     %% Memory Branch
-    MEM_PATH --> STM["Short-term Memory<br/>Current session"]
-    MEM_PATH --> LTM["Long-term Memory<br/>~/.nvidia-cli/memory.json"]
-    MEM_PATH --> ENT["Entity Memory<br/>People, projects you mentioned"]
-    STM --> CONTEXT
-    LTM --> CONTEXT
+    MEM_PATH --> VMEM["Vector Memory Store<br/>Semantic search"]
+    MEM_PATH --> ENT["Entity Memory<br/>People, projects"]
+    VMEM --> CONTEXT
     ENT --> CONTEXT
     
     %% Search Branch
@@ -744,12 +742,59 @@ Logged data can be used for:
 
 ## Memory System
 
-| Type | Persistence | Location |
-|------|-------------|----------|
-| **Short-term** | Session only | In-memory |
-| **Long-term** | Permanent | `~/.nvidia-cli/memory.json` |
-| **Entity** | Permanent | `~/.nvidia-cli/memory.json` |
-| **RAG** | Permanent | `.rag-store.json` |
+Based on **NVIDIA RAG Blueprint multi-turn conversation pattern**.
+
+### Vector-Based Unified Memory
+
+All memories stored in a vector database with semantic retrieval - not keyword matching.
+
+```mermaid
+flowchart TB
+    subgraph Input["📥 Memory Input"]
+        USER[User tells agent something]
+        AGENT[Agent learns a fact]
+    end
+
+    subgraph Storage["💾 Vector Memory Store"]
+        USER --> EMBED["NVIDIA NV-EmbedQA 1B v2<br/>Embed content"]
+        AGENT --> EMBED
+        EMBED --> STORE[("~/.nvidia-cli/memory/<br/>vector-memory.json<br/>Content + Embeddings")]
+    end
+
+    subgraph Retrieval["🔍 Semantic Retrieval"]
+        QUERY[New query] --> QEMBED["Embed query"]
+        QEMBED --> COSINE["Cosine similarity<br/>vs all memories"]
+        STORE --> COSINE
+        COSINE --> TOP["Top K relevant memories"]
+    end
+
+    style Input fill:#76b900
+    style Storage fill:#1a1a2e
+    style Retrieval fill:#0984e3
+```
+
+| Feature | Implementation |
+|---------|----------------|
+| **Storage** | Single vector store (no short/long-term distinction) |
+| **Persistence** | `~/.nvidia-cli/memory/vector-memory.json` |
+| **Retrieval** | Semantic search via cosine similarity |
+| **Embeddings** | `nvidia/llama-3.2-nv-embedqa-1b-v2` (2048-dim) |
+
+### Why Vector Memory?
+
+From NVIDIA docs: *"The chain server stores the conversation history and knowledge base in a vector database and retrieves them at runtime to understand contextual queries."*
+
+- **Semantic search**: Find "SwiftUI state management" even if you said "@Observable"
+- **No data loss**: Everything persists across sessions
+- **Unified**: Same retrieval pattern as RAG documents
+
+### Memory Files
+
+| File | Purpose |
+|------|---------|
+| `lib/agents/memory/vector-memory.ts` | Vector store with embeddings |
+| `lib/agents/tools/unified-memory.ts` | Memory tool using vector store |
+| `~/.nvidia-cli/memory/vector-memory.json` | Persisted memories |
 
 ---
 
