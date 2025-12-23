@@ -17,14 +17,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Tool definitions with full documentation
+// Tool definitions with full documentation - All 40 tools
 const TOOLS = [
+  // ============ PROJECT (2) ============
   {
     name: "set_project",
     path: "lib/agents/tools/project.ts",
     category: "Project",
     description: "Sets the current working directory for all file and bash operations.",
-    howItWorks: "Updates a global variable that file_read, file_write, and bash tools use as their base path. Validates the directory exists before setting.",
+    howItWorks: "Updates a global variable that file_read, file_write, and bash tools use as their base path. Validates the directory exists before setting. All relative paths in other tools will be relative to this directory.",
     example: 'set_project({ path: "/Users/home/Documents/MyApp" })',
   },
   {
@@ -32,9 +33,10 @@ const TOOLS = [
     path: "lib/agents/tools/project.ts",
     category: "Project",
     description: "Returns the current working directory path.",
-    howItWorks: "Simply returns the global project directory variable. Useful for confirming which project you're working in.",
+    howItWorks: "Simply returns the global project directory variable. Useful for confirming which project you're working in before making changes.",
     example: "get_project()",
   },
+  // ============ FILE SYSTEM (2) ============
   {
     name: "file_read",
     path: "lib/agents/tools/file-read.ts", 
@@ -48,55 +50,59 @@ const TOOLS = [
     path: "lib/agents/tools/file-write.ts",
     category: "File System", 
     description: "Creates, overwrites, or edits files.",
-    howItWorks: "Uses Node.js fs module. 'write' operation creates/overwrites entire file. 'edit' operation does find-and-replace within existing file.",
+    howItWorks: "Uses Node.js fs module. 'write' operation creates/overwrites entire file. 'edit' operation does find-and-replace within existing file. Creates parent directories if they don't exist.",
     example: 'file_write({ operation: "write", path: "hello.txt", content: "Hello World" })',
   },
+  // ============ SYSTEM (1) ============
   {
     name: "bash",
     path: "lib/agents/tools/bash.ts",
     category: "System",
     description: "Executes shell commands on your system.",
-    howItWorks: "Uses Node.js child_process.exec() to run commands. Executes in the current project directory. Returns stdout/stderr output.",
+    howItWorks: "Uses Node.js child_process.exec() to run commands. Executes in the current project directory. Returns stdout/stderr output. Has a timeout to prevent hanging commands.",
     example: 'bash({ command: "ls -la" })',
   },
+  // ============ REASONING (1) ============
   {
     name: "think",
     path: "lib/agents/tools/think.ts",
     category: "Reasoning",
     description: "Internal reasoning tool for complex problem solving.",
-    howItWorks: "Allows the agent to 'think out loud' and break down complex problems into steps before taking action.",
-    example: 'think({ thought: "I need to first check if the file exists..." })',
+    howItWorks: "Allows the agent to 'think out loud' and break down complex problems into steps before taking action. The thought is logged but doesn't produce output to you - it helps the agent organize its approach.",
+    example: 'think({ thought: "I need to first check if the file exists, then read it, then modify line 42..." })',
   },
+  // ============ MEMORY (2) ============
   {
     name: "memory",
     path: "lib/agents/tools/memory.ts",
     category: "Memory",
     description: "Stores and retrieves information across conversations.",
-    howItWorks: "Short-term memory is session-based (RAM). Long-term memory persists to ~/.nvidia-cli/memory.json file.",
-    example: 'memory({ operation: "store", key: "user_preference", value: "dark mode" })',
+    howItWorks: "Short-term memory is session-based (RAM) - gone when you close the browser. Long-term memory persists to ~/.nvidia-cli/memory.json file - survives restarts. Use 'store' to save, 'retrieve' to get, 'search' to find.",
+    example: 'memory({ operation: "store", key: "user_preference", value: "dark mode", type: "long" })',
   },
   {
     name: "entity_memory",
     path: "lib/agents/tools/memory.ts",
     category: "Memory",
     description: "Tracks entities like people, projects, companies, and technologies.",
-    howItWorks: "Specialized memory that categorizes and links related entities. Helps maintain context about things you frequently discuss.",
-    example: 'entity_memory({ operation: "add", type: "project", name: "MyApp", details: "iOS app" })',
+    howItWorks: "Specialized memory that categorizes and links related entities. Helps maintain context about things you frequently discuss. Entities have types (person, project, company, tech) and can have relationships.",
+    example: 'entity_memory({ operation: "add", type: "project", name: "MyApp", details: "iOS SwiftUI app for task management" })',
   },
+  // ============ SEARCH (5) ============
   {
     name: "google_search",
     path: "lib/agents/tools/google-search.ts",
     category: "Search",
     description: "Searches Google for information.",
-    howItWorks: "Uses Google Custom Search API. Requires GOOGLE_API_KEY and GOOGLE_CSE_ID in environment. Returns top search results with titles, snippets, and URLs.",
+    howItWorks: "Uses Google Custom Search API. Requires GOOGLE_API_KEY and GOOGLE_CSE_ID in environment. Returns top 10 search results with titles, snippets, and URLs. Good for quick lookups.",
     example: 'google_search({ query: "Swift async await tutorial" })',
   },
   {
     name: "tavily_search",
     path: "lib/agents/tools/tavily-search.ts",
     category: "Search",
-    description: "Optimized web search with full content extraction.",
-    howItWorks: "Uses Tavily API designed for intelligent assistants. Returns more detailed content than Google, including full page text extraction. Better for research tasks.",
+    description: "AI-optimized web search with full content extraction.",
+    howItWorks: "Uses Tavily API designed specifically for AI agents. Returns more detailed content than Google, including full page text extraction. Better for research tasks where you need actual content, not just links.",
     example: 'tavily_search({ query: "iOS 18 new features", topic: "general" })',
   },
   {
@@ -104,112 +110,246 @@ const TOOLS = [
     path: "lib/agents/tools/parallel-search.ts",
     category: "Search",
     description: "Runs multiple Google searches simultaneously.",
-    howItWorks: "Takes an array of queries and executes them in parallel using Promise.all(). Faster than sequential searches for multi-topic research.",
-    example: 'parallel_search({ queries: ["SwiftUI", "UIKit", "Combine framework"] })',
+    howItWorks: "Takes an array of queries and executes them in parallel using Promise.all(). Much faster than sequential searches for multi-topic research. Deduplicates results automatically.",
+    example: 'parallel_search({ queries: ["SwiftUI navigation", "UIKit navigation", "Combine framework"] })',
   },
   {
     name: "parallel_tavily_search",
     path: "lib/agents/tools/tavily-search.ts",
     category: "Search",
     description: "Runs multiple Tavily searches simultaneously.",
-    howItWorks: "Same as parallel_search but uses Tavily API for deeper content extraction.",
-    example: 'parallel_tavily_search({ queries: ["React hooks", "Vue composition API"] })',
+    howItWorks: "Same as parallel_search but uses Tavily API for deeper content extraction. Best for comprehensive research on multiple related topics.",
+    example: 'parallel_tavily_search({ queries: ["React hooks best practices", "Vue composition API patterns"] })',
   },
   {
     name: "local_docs_search",
     path: "lib/agents/tools/local-docs-search.ts",
     category: "Search",
-    description: "Searches local documentation files.",
-    howItWorks: "Scans markdown and text files in your project for keyword matches. Useful for finding information in your own docs without web search.",
-    example: 'local_docs_search({ query: "authentication" })',
+    description: "Searches local documentation files in your project.",
+    howItWorks: "Scans markdown (.md) and text (.txt) files in your project for keyword matches. Useful for finding information in your own docs without web search. Searches file contents, not just names.",
+    example: 'local_docs_search({ query: "authentication flow" })',
+  },
+  // ============ VISION (3) ============
+  {
+    name: "vision_analyze",
+    path: "lib/agents/tools/vision-analysis.ts",
+    category: "Vision",
+    description: "Analyzes images or video using NVIDIA's vision model.",
+    howItWorks: "Uses Nemotron Nano VL 12B v2 - a vision-language model that can 'see' images. Send it screenshots, photos, diagrams, or video frames and ask questions about what's in them. Supports up to 5 images or 1 video.",
+    example: 'vision_analyze({ image_path: "./screenshot.png", question: "What UI elements are visible?" })',
   },
   {
-    name: "github_analyzer",
-    path: "lib/agents/tools/github-analyzer.ts",
-    category: "Code",
-    description: "Clones and analyzes GitHub repositories.",
-    howItWorks: "Clones repo to temp directory, analyzes file structure, identifies languages, counts lines of code, and extracts key information.",
-    example: 'github_analyzer({ operation: "analyze", repo_url: "https://github.com/user/repo" })',
+    name: "ios_ui_review",
+    path: "lib/agents/tools/vision-analysis.ts",
+    category: "Vision",
+    description: "Reviews iOS screenshots for UI/UX issues.",
+    howItWorks: "Specialized vision analysis for iOS development. Checks for alignment issues, spacing problems, accessibility concerns (touch targets, contrast), and SwiftUI best practices. Returns actionable feedback.",
+    example: 'ios_ui_review({ screenshot: "./HomeScreen.png" })',
   },
   {
-    name: "github_file_reader",
-    path: "lib/agents/tools/github-analyzer.ts",
-    category: "Code",
-    description: "Reads specific files from cloned GitHub repos.",
-    howItWorks: "After github_analyzer clones a repo, this tool reads individual files from the cloned copy.",
-    example: 'github_file_reader({ repo: "user/repo", path: "README.md" })',
+    name: "compare_mockup",
+    path: "lib/agents/tools/vision-analysis.ts",
+    category: "Vision",
+    description: "Compares a design mockup to the actual implementation.",
+    howItWorks: "Takes two images - your Figma/Sketch mockup and a screenshot of your implementation - and identifies differences. Helps catch visual regressions and ensure pixel-perfect implementation.",
+    example: 'compare_mockup({ mockup: "./design.png", implementation: "./screenshot.png" })',
   },
-  {
-    name: "code_documentation",
-    path: "lib/agents/tools/code-documentation.ts",
-    category: "Code",
-    description: "Generates documentation for codebases.",
-    howItWorks: "Analyzes code structure and generates README, API docs, or architecture documentation using the LLM (Large Language Model).",
-    example: 'code_documentation({ type: "readme", path: "." })',
-  },
-  {
-    name: "mermaid_generator",
-    path: "lib/agents/tools/mermaid-generator.ts",
-    category: "Diagrams",
-    description: "Creates Mermaid diagrams for architecture visualization.",
-    howItWorks: "Mermaid is a text-based diagramming language. This tool generates flowcharts, sequence diagrams, and architecture diagrams from descriptions.",
-    example: 'mermaid_generator({ type: "flowchart", description: "User login flow" })',
-  },
-  {
-    name: "quick_diagram",
-    path: "lib/agents/tools/mermaid-generator.ts",
-    category: "Diagrams",
-    description: "Fast diagram generation using templates.",
-    howItWorks: "Pre-built templates for common diagram types. Faster than mermaid_generator for standard patterns.",
-    example: 'quick_diagram({ template: "api_flow" })',
-  },
+  // ============ RAG (8) ============
   {
     name: "rag_ingest",
     path: "lib/agents/tools/rag-tools.ts",
     category: "RAG",
-    description: "Ingests documents into the RAG (Retrieval-Augmented Generation) system.",
-    howItWorks: "RAG lets Dory search your documents. This tool converts documents into embeddings (numerical representations) and stores them in a vector database for semantic search.",
+    description: "Adds documents to the knowledge base for later searching.",
+    howItWorks: "RAG (Retrieval-Augmented Generation) lets Dory search your documents. This tool: 1) Splits documents into chunks, 2) Converts chunks to embeddings (numerical vectors), 3) Stores in vector database. Now rag_search can find them.",
     example: 'rag_ingest({ path: "./docs" })',
   },
   {
     name: "rag_search",
     path: "lib/agents/tools/rag-tools.ts",
     category: "RAG",
-    description: "Searches ingested documents using semantic similarity.",
-    howItWorks: "Converts your query to an embedding and finds documents with similar meaning, not just keyword matches. Uses NVIDIA embeddings model.",
+    description: "Searches your documents using hybrid BM25 + semantic search.",
+    howItWorks: "Uses two search methods combined: BM25 (exact keyword matching - good for function names) + Vector search (semantic similarity - good for concepts). Results are reranked by NVIDIA's reranker model for best relevance.",
     example: 'rag_search({ query: "how to authenticate users" })',
   },
   {
     name: "rag_query",
     path: "lib/agents/tools/rag-tools.ts",
     category: "RAG",
-    description: "Asks questions about ingested documents.",
-    howItWorks: "Combines rag_search with LLM to answer questions. Retrieves relevant docs, then generates an answer based on them.",
-    example: 'rag_query({ question: "What authentication methods are supported?" })',
+    description: "Asks questions and gets answers based on your documents.",
+    howItWorks: "Combines rag_search with the LLM: 1) Searches for relevant document chunks, 2) Sends those chunks + your question to the LLM, 3) LLM generates an answer citing the sources. Like having a research assistant.",
+    example: 'rag_query({ question: "What authentication methods does our app support?" })',
   },
   {
     name: "rag_research",
     path: "lib/agents/tools/rag-tools.ts",
     category: "RAG",
-    description: "Deep research using RAG with query decomposition.",
-    howItWorks: "Breaks complex questions into sub-questions, searches for each, then synthesizes a comprehensive answer. Based on NVIDIA AIQ Research Assistant pattern.",
-    example: 'rag_research({ topic: "Compare REST vs GraphQL for mobile apps" })',
+    description: "Deep research with automatic query decomposition.",
+    howItWorks: "For complex questions: 1) Breaks your question into sub-questions, 2) Searches for each sub-question, 3) Synthesizes all findings into a comprehensive answer. Based on NVIDIA's research agent pattern.",
+    example: 'rag_research({ topic: "Compare our REST API vs GraphQL implementation" })',
   },
   {
     name: "rag_stats",
     path: "lib/agents/tools/rag-tools.ts",
     category: "RAG",
-    description: "Shows statistics about the RAG database.",
-    howItWorks: "Returns count of ingested documents, total chunks, and storage size.",
+    description: "Shows statistics about the RAG knowledge base.",
+    howItWorks: "Returns: number of documents ingested, total chunks created, which files are indexed, and storage size. Useful for understanding what Dory 'knows' about your project.",
     example: "rag_stats()",
   },
   {
     name: "rag_clear",
     path: "lib/agents/tools/rag-tools.ts",
     category: "RAG",
-    description: "Clears all documents from the RAG database.",
-    howItWorks: "Removes all embeddings and document chunks. Use when you want to start fresh.",
+    description: "Clears all documents from the RAG knowledge base.",
+    howItWorks: "Removes all embeddings and document chunks from the vector store. Use when you want to start fresh or re-ingest with different settings. Cannot be undone.",
     example: "rag_clear()",
+  },
+  {
+    name: "rag_validate",
+    path: "lib/agents/tools/rag-tools.ts",
+    category: "RAG",
+    description: "Validates RAG documents and removes stale entries.",
+    howItWorks: "Checks if source files still exist on disk. If a file was deleted but its chunks are still in RAG, this removes them. Keeps your knowledge base in sync with your actual files.",
+    example: "rag_validate()",
+  },
+  {
+    name: "rag_update",
+    path: "lib/agents/tools/rag-tools.ts",
+    category: "RAG",
+    description: "Updates RAG documents from a source path.",
+    howItWorks: "Re-ingests documents from a path. Removes old chunks from that path first, then re-processes. Use after you've edited files and want RAG to reflect the changes.",
+    example: 'rag_update({ path: "./src" })',
+  },
+  // ============ CODE (4) ============
+  {
+    name: "github_analyzer",
+    path: "lib/agents/tools/github-analyzer.ts",
+    category: "Code",
+    description: "Clones and analyzes GitHub repositories.",
+    howItWorks: "Clones repo to a temp directory, then analyzes: file structure, languages used, lines of code, dependencies, README content. Great for understanding unfamiliar codebases quickly.",
+    example: 'github_analyzer({ repo_url: "https://github.com/apple/swift" })',
+  },
+  {
+    name: "github_file_reader",
+    path: "lib/agents/tools/github-analyzer.ts",
+    category: "Code",
+    description: "Reads specific files from cloned GitHub repos.",
+    howItWorks: "After github_analyzer clones a repo, this tool reads individual files from the cloned copy. Useful for diving into specific files after getting the overview.",
+    example: 'github_file_reader({ repo: "apple/swift", path: "README.md" })',
+  },
+  {
+    name: "code_documentation",
+    path: "lib/agents/tools/code-documentation.ts",
+    category: "Code",
+    description: "Generates documentation for codebases.",
+    howItWorks: "Analyzes code structure and generates documentation using the LLM. Can create: README files, API documentation, architecture overviews, or inline code comments.",
+    example: 'code_documentation({ type: "readme", path: "." })',
+  },
+  {
+    name: "documentation_specialist",
+    path: "lib/agents/tools/code-documentation.ts",
+    category: "Code",
+    description: "Advanced documentation generation with multiple passes.",
+    howItWorks: "More thorough than code_documentation. Does multiple analysis passes, generates diagrams, creates cross-references, and produces comprehensive documentation packages.",
+    example: 'documentation_specialist({ path: "./src", output: "./docs" })',
+  },
+  // ============ DIAGRAMS (2) ============
+  {
+    name: "mermaid_generator",
+    path: "lib/agents/tools/mermaid-generator.ts",
+    category: "Diagrams",
+    description: "Creates Mermaid diagrams for architecture visualization.",
+    howItWorks: "Mermaid is a text-based diagramming language that renders as images. This tool generates: flowcharts, sequence diagrams, class diagrams, ER diagrams, and architecture diagrams from natural language descriptions.",
+    example: 'mermaid_generator({ type: "flowchart", description: "User login flow with OAuth" })',
+  },
+  {
+    name: "quick_diagram",
+    path: "lib/agents/tools/mermaid-generator.ts",
+    category: "Diagrams",
+    description: "Fast diagram generation using pre-built templates.",
+    howItWorks: "Pre-built templates for common diagram types: API flows, database schemas, component hierarchies, state machines. Faster than mermaid_generator for standard patterns.",
+    example: 'quick_diagram({ template: "api_flow", title: "User Authentication" })',
+  },
+  // ============ SPECIALIST AGENTS (8) ============
+  {
+    name: "search_specialist",
+    path: "lib/agents/tools/specialist-agents.ts",
+    category: "Specialists",
+    description: "Deep multi-source research agent.",
+    howItWorks: "A sub-agent specialized in research. Uses parallel searches across multiple sources (Tavily, Google, local docs), deduplicates findings, and synthesizes comprehensive research summaries with citations.",
+    example: 'search_specialist({ topic: "iOS 18 SwiftUI changes", depth: "deep" })',
+  },
+  {
+    name: "report_planner",
+    path: "lib/agents/tools/specialist-agents.ts",
+    category: "Specialists",
+    description: "Creates structured outlines for reports and documents.",
+    howItWorks: "Before writing a long document, this agent creates a structured outline: sections, subsections, key points for each. Identifies which sections need more research. Ensures logical flow.",
+    example: 'report_planner({ topic: "Migration guide from UIKit to SwiftUI", style: "comprehensive" })',
+  },
+  {
+    name: "section_author",
+    path: "lib/agents/tools/specialist-agents.ts",
+    category: "Specialists",
+    description: "Writes individual sections of a document.",
+    howItWorks: "Given an outline section, writes that section with proper citations, code examples, and formatting. Works with report_planner output. Maintains consistent style across sections.",
+    example: 'section_author({ section: "Authentication Implementation", outline: "..." })',
+  },
+  {
+    name: "report_writer",
+    path: "lib/agents/tools/specialist-agents.ts",
+    category: "Specialists",
+    description: "Fast full draft generation for reports.",
+    howItWorks: "Writes a complete first draft quickly. Less thorough than section_author but faster. Good for getting ideas down, then refining with other tools.",
+    example: 'report_writer({ topic: "Weekly progress update", length: "medium" })',
+  },
+  {
+    name: "quality_reviewer",
+    path: "lib/agents/tools/specialist-agents.ts",
+    category: "Specialists",
+    description: "Evaluates output quality with scores and feedback.",
+    howItWorks: "Reviews any output and scores it 0-10 on: accuracy, completeness, clarity, usefulness. Identifies gaps, errors, and areas for improvement. Used in quality loops.",
+    example: 'quality_reviewer({ content: "...", criteria: ["accuracy", "completeness"] })',
+  },
+  {
+    name: "report_extender",
+    path: "lib/agents/tools/specialist-agents.ts",
+    category: "Specialists",
+    description: "Merges new findings into existing reports.",
+    howItWorks: "When you have new information to add to an existing document, this agent integrates it smoothly: finds the right location, maintains style consistency, updates cross-references.",
+    example: 'report_extender({ existing: "...", new_findings: "..." })',
+  },
+  {
+    name: "report_compiler",
+    path: "lib/agents/tools/specialist-agents.ts",
+    category: "Specialists",
+    description: "Final assembly and formatting of reports.",
+    howItWorks: "Takes all sections and compiles into final document: adds table of contents, ensures consistent formatting, adds headers/footers, generates bibliography from citations.",
+    example: 'report_compiler({ sections: [...], format: "markdown" })',
+  },
+  {
+    name: "deduplicate_sources",
+    path: "lib/agents/tools/specialist-agents.ts",
+    category: "Specialists",
+    description: "Cleans and deduplicates citation lists.",
+    howItWorks: "When research pulls from many sources, citations can get messy. This tool: removes duplicates, standardizes formats, merges similar sources, and creates clean bibliography.",
+    example: 'deduplicate_sources({ citations: [...] })',
+  },
+  // ============ REFLECTION (2) ============
+  {
+    name: "reflect_on_report",
+    path: "lib/agents/tools/reflection.ts",
+    category: "Reflection",
+    description: "Self-critique and improvement suggestions for documents.",
+    howItWorks: "Reads a document and provides critical feedback: what's missing, what's unclear, what could be improved. Like having an editor review your work before publishing.",
+    example: 'reflect_on_report({ content: "..." })',
+  },
+  {
+    name: "extend_report",
+    path: "lib/agents/tools/reflection.ts",
+    category: "Reflection",
+    description: "Adds new sections to an existing report.",
+    howItWorks: "Given feedback from reflect_on_report or your own ideas, adds new sections to a document while maintaining style and flow consistency.",
+    example: 'extend_report({ report: "...", add_sections: ["Conclusion", "Future Work"] })',
   },
 ];
 
@@ -791,7 +931,7 @@ export default function SettingsPage() {
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
                   <h3 className="font-medium">What is Dory?</h3>
                   <p className="text-sm text-muted-foreground">
-                    Dory is your co-worker that lives in your computer. You type what you need, and Dory does it — 
+                    Dory is your AI co-worker that lives in your computer. You type what you need, and Dory does it — 
                     whether that's writing code, searching the internet, reading your files, or running commands. 
                     Think of it like texting a really smart colleague who can actually touch your computer.
                   </p>
@@ -802,9 +942,10 @@ export default function SettingsPage() {
                   <h3 className="font-medium">How does it work?</h3>
                   <p className="text-sm text-muted-foreground">
                     When you send a message, it goes to NVIDIA's servers where a powerful language model 
-                    (think: a very sophisticated autocomplete that understands context) figures out what you need. 
-                    Then Dory uses its tools — like reading files, running terminal commands, or searching Google — 
-                    to actually do the work. It's not just giving you answers; it's taking action.
+                    (Nemotron 3 Nano - think of it as a very sophisticated autocomplete that understands context) 
+                    figures out what you need. Then Dory uses its 40 tools — like reading files, running terminal 
+                    commands, or searching Google — to actually do the work. It's not just giving you answers; 
+                    it's taking action.
                   </p>
                 </div>
 
@@ -814,8 +955,8 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground">
                     Tools are Dory's hands. Without tools, Dory could only talk. With tools, Dory can actually 
                     do things on your computer: create files, run programs, search the web, remember things you told it, 
-                    and more. Each tool listed above is a specific capability — like giving someone access to your 
-                    keyboard, your browser, or your file system.
+                    analyze images, and more. Each of the 40 tools listed above is a specific capability — like giving 
+                    someone access to your keyboard, your browser, or your file system.
                   </p>
                 </div>
 
@@ -824,9 +965,9 @@ export default function SettingsPage() {
                   <h3 className="font-medium">What are "Tokens"?</h3>
                   <p className="text-sm text-muted-foreground">
                     Tokens are how the system measures text. Roughly, 1 token ≈ 4 characters or about ¾ of a word. 
-                    When you see "238 tokens", that's roughly 180 words. The model can handle about 128,000 tokens 
-                    at once — that's roughly a 200-page book. The "context" percentage shows how much of that 
-                    capacity you've used in the current conversation.
+                    When you see "238 tokens", that's roughly 180 words. Nemotron 3 Nano can handle up to 1 million 
+                    tokens at once — that's roughly 750,000 words or about 1,500 pages. The "context" percentage 
+                    shows how much of that capacity you've used in the current conversation.
                   </p>
                 </div>
 
@@ -836,8 +977,21 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground">
                     RAG stands for "Retrieval-Augmented Generation" — but forget the jargon. It just means Dory 
                     can search through your own documents before answering. Instead of only knowing what it was 
-                    trained on, Dory can look up information in files you've added. It's like giving Dory a 
-                    filing cabinet of your stuff to reference.
+                    trained on, Dory can look up information in files you've added. It uses "hybrid search" — 
+                    combining exact keyword matching (BM25) with semantic understanding (vector search) — so it 
+                    finds both exact function names AND conceptually related code.
+                  </p>
+                </div>
+
+                {/* What is Hybrid Search */}
+                <div className="p-4 rounded-lg bg-muted/30 space-y-2">
+                  <h3 className="font-medium">What is "Hybrid Search"?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Dory uses two search methods combined: <strong>BM25</strong> finds exact matches (great for 
+                    searching "viewDidLoad" or "@Observable"), while <strong>Vector search</strong> finds 
+                    semantically similar content (great for "how do I handle state"). Results from both are 
+                    merged using "Reciprocal Rank Fusion" and then re-ranked by NVIDIA's reranker model. 
+                    This gives you the best of both worlds.
                   </p>
                 </div>
 
@@ -857,8 +1011,32 @@ export default function SettingsPage() {
                   <h3 className="font-medium">What is "Memory"?</h3>
                   <p className="text-sm text-muted-foreground">
                     Memory is different from context. Memory persists across conversations — it's saved to a file 
-                    on your computer. When you tell Dory to "remember" something, it stores it in memory. 
-                    Next time you chat (even days later), Dory can recall it. Context is temporary; memory is permanent.
+                    on your computer (~/.nvidia-cli/memory.json). When you tell Dory to "remember" something, it 
+                    stores it in memory. Next time you chat (even days later), Dory can recall it. Context is 
+                    temporary; memory is permanent.
+                  </p>
+                </div>
+
+                {/* What are Specialist Agents */}
+                <div className="p-4 rounded-lg bg-muted/30 space-y-2">
+                  <h3 className="font-medium">What are "Specialist Agents"?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    For complex tasks, Dory can delegate to specialized sub-agents. Think of them as expert 
+                    colleagues: search_specialist does deep research, report_planner creates outlines, 
+                    quality_reviewer checks work, etc. When you ask for something complex like "write a 
+                    comprehensive guide", Dory automatically coordinates these specialists to produce 
+                    higher-quality output than a single pass would.
+                  </p>
+                </div>
+
+                {/* What is Vision Analysis */}
+                <div className="p-4 rounded-lg bg-muted/30 space-y-2">
+                  <h3 className="font-medium">What is "Vision Analysis"?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Dory can "see" images using NVIDIA's Nemotron Nano VL 12B vision model. Send screenshots 
+                    of your iOS app and Dory can identify UI issues, check alignment, compare to mockups, 
+                    and suggest improvements. It's like having a design reviewer who can actually look at 
+                    your screens.
                   </p>
                 </div>
 
@@ -867,9 +1045,21 @@ export default function SettingsPage() {
                   <h3 className="font-medium">Is my data private?</h3>
                   <p className="text-sm text-muted-foreground">
                     Your conversations are sent to NVIDIA's servers for processing — that's how the language model works. 
-                    However, your files, memory, and conversation history are stored locally on your computer, 
-                    not uploaded anywhere. The tools run on your machine. NVIDIA processes the text but doesn't 
-                    store your conversations permanently.
+                    However, your files, memory, RAG database, and conversation history are stored locally on your 
+                    computer, not uploaded anywhere. The tools run on your machine. NVIDIA processes the text but 
+                    doesn't store your conversations permanently. PII (emails, phone numbers, API keys) is 
+                    automatically redacted before sending.
+                  </p>
+                </div>
+
+                {/* What is the Data Flywheel */}
+                <div className="p-4 rounded-lg bg-muted/30 space-y-2">
+                  <h3 className="font-medium">What is the "Data Flywheel"?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Dory logs all interactions locally (not uploaded). This data could be used to: fine-tune 
+                    smaller models for faster/cheaper inference, identify common failure patterns, or measure 
+                    quality over time. It's based on NVIDIA's Data Flywheel Blueprint — the idea that production 
+                    data can continuously improve AI systems.
                   </p>
                 </div>
 
@@ -877,10 +1067,10 @@ export default function SettingsPage() {
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
                   <h3 className="font-medium">What can Dory do?</h3>
                   <p className="text-sm text-muted-foreground">
-                    <strong>Dory</strong> has full access to everything — file operations, shell commands, web search, 
-                    RAG, memory, and specialist agents for complex research. All capabilities are always available.
-                    Dory automatically uses specialist sub-agents (search_specialist, report_planner, quality_reviewer, etc.) 
-                    for complex tasks that require multi-source research or quality review loops.
+                    <strong>Everything is always enabled.</strong> Dory has full access to: file operations (read/write), 
+                    shell commands (bash), web search (Google/Tavily), RAG (document search with hybrid BM25+vector), 
+                    memory (short-term and long-term), vision analysis (screenshots/mockups), GitHub analysis, 
+                    diagram generation, and 8 specialist agents for complex research and documentation tasks.
                   </p>
                 </div>
               </div>
