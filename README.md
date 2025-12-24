@@ -2,42 +2,469 @@
   <img src="public/nvidia-logo.webp" alt="Dory" width="120" />
 </p>
 
-<h1 align="center">Dory</h1>
+<h1 align="center">🐠 Dory</h1>
 
 <p align="center">
-  <strong>Private iOS/SwiftUI Coding Agent powered by NVIDIA NIM</strong>
+  <strong>A Private AI Coding Agent for iOS/SwiftUI Development</strong><br/>
+  <em>Powered by NVIDIA NIM • 36 Custom Tools • 1M Token Context • RAG + Memory</em>
 </p>
 
 <p align="center">
-  <a href="#overview">Overview</a> •
+  <a href="#-what-is-dory">What is Dory?</a> •
+  <a href="#-the-complete-system">Complete System</a> •
+  <a href="#-how-it-all-works">How It Works</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#nvidia-model-stack">Models</a> •
   <a href="#rag-system-v2">RAG</a> •
   <a href="#tools-36">Tools</a> •
   <a href="#mcp-integration-model-context-protocol">MCP</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#data-flywheel">Flywheel</a> •
-  <a href="#environment">Environment</a>
+  <a href="#data-flywheel">Flywheel</a>
 </p>
 
 ---
 
-## Project Purpose
+# 🎯 What is Dory?
 
-> **Dory is a private enterprise iOS/SwiftUI coding agent designed for large codebase handling.**
->
-> This application is exclusively for private use by a single developer. The primary objective is to eliminate traditional constraints that have historically limited AI assistants on exceptionally large iOS SwiftUI projects.
->
-> **Target use case:** 100k+ line iOS projects with 500+ Swift files.
+**Dory is a complete AI-powered coding assistant built from scratch for iOS/SwiftUI development.**
 
-### Why This Architecture
+It's not a wrapper around ChatGPT. It's not a simple API call. It's a fully custom system with:
 
-| Constraint | Traditional AI | Dory's Solution |
-|------------|----------------|-----------------|
-| Context limits | 8-32k tokens | 1M tokens via Nemotron 3 Nano |
-| File awareness | Single file at a time | RAG indexes entire Xcode project |
-| Session memory | Forgets between chats | Vector memory with semantic retrieval |
-| Code search | Semantic only | Hybrid BM25 + Vector (exact + semantic) |
+- **36 hand-built tools** for file operations, code search, web research, memory, and more
+- **A RAG (Retrieval-Augmented Generation) system** that indexes your entire Xcode project
+- **Persistent vector memory** that remembers everything across sessions
+- **MCP (Model Context Protocol) integration** so the same tools work in multiple AI clients
+- **A data flywheel** that logs every interaction for future model fine-tuning
+
+All powered by **NVIDIA's newest models** with up to **1 million token context windows**.
+
+---
+
+# 🏗️ The Complete System
+
+## What We Built
+
+This project started as a simple chat interface and evolved into a full AI agent platform. Here's everything that exists:
+
+### 1. The Web Application (Dory)
+
+A Next.js web app running at `localhost:3000` that provides:
+
+- **Chat interface** - Talk to the AI, see tool calls in real-time
+- **Agent system** - The AI can use 36 tools to accomplish tasks
+- **RAG integration** - Index and search your entire codebase
+- **Memory system** - The AI remembers past conversations
+- **Settings page** - Configure API keys, view stats
+
+### 2. The MCP Server
+
+A standalone server (`mcp-server.ts`) that exposes all 36 tools via the **Model Context Protocol**. This means:
+
+- **Codex CLI** (OpenAI's terminal AI) can use our tools
+- **Dory web app** can use our tools
+- **Any future MCP-compatible client** can use our tools
+
+One tool implementation, unlimited clients.
+
+### 3. The Tool Library
+
+36 custom tools organized into categories:
+
+| Category | Tools | What They Do |
+|----------|-------|--------------|
+| **File System** | `file_read`, `file_write`, `bash` | Read/write files, run shell commands |
+| **Project** | `set_project`, `get_project` | Set working directory context |
+| **RAG** | `rag_ingest`, `rag_search`, `rag_query`, `rag_research`, `rag_stats`, `rag_clear`, `rag_validate`, `rag_update` | Index documents, search with hybrid retrieval, ask questions |
+| **Search** | `google_search`, `parallel_search`, `local_docs_search` | Web search, multi-query search, local documentation |
+| **Memory** | `memory`, `entity_memory`, `unified_memory` | Store/retrieve information semantically |
+| **Code** | `code_documentation`, `documentation_specialist` | Generate documentation for codebases |
+| **GitHub** | `github_analyzer`, `github_file_reader` | Analyze repos, read files from GitHub |
+| **Diagrams** | `mermaid_generator`, `quick_diagram` | Create architecture diagrams |
+| **Reports** | `reflection`, `extend_report`, `report_planner`, `section_author`, `report_compiler` | Multi-step report generation |
+| **Flywheel** | `flywheel_log`, `flywheel_stats`, `flywheel_export`, `flywheel_create_dataset` | Log interactions, export training data |
+| **Reasoning** | `think` | Internal reasoning step |
+
+### 4. The RAG System
+
+A complete implementation of NVIDIA's RAG Blueprint:
+
+- **Document ingestion** - Chunks Swift files respecting class/struct/func boundaries
+- **Hybrid retrieval** - Combines BM25 (exact keyword) + Vector (semantic) search
+- **Reranking** - Uses NVIDIA's reranker model to score results
+- **Query decomposition** - Breaks complex questions into sub-queries
+- **Self-correction** - Rewrites queries if results aren't relevant
+
+### 5. The Memory System
+
+Vector-based memory that persists across sessions:
+
+- **Semantic storage** - Memories are embedded as vectors
+- **Semantic retrieval** - Find relevant memories by meaning, not keywords
+- **Entity tracking** - Remember people, projects, preferences
+- **Persistence** - Saved to `~/.nvidia-cli/memory/`
+
+### 6. The Data Flywheel
+
+Logs every interaction for future model improvement:
+
+- **Interaction logging** - Query, response, tools used, latency
+- **Quality evaluation** - LLM-as-Judge scoring
+- **Dataset creation** - Export to JSONL for fine-tuning
+- **Train/eval/test splits** - Ready for model training
+
+---
+
+# ⚙️ How It All Works
+
+## The Flow: From Your Question to the Answer
+
+Here's exactly what happens when you ask Dory a question:
+
+### Step 1: You Send a Message
+
+```
+"Read my AppDelegate.swift and explain what it does"
+```
+
+### Step 2: Security Check (PII Guard)
+
+Before anything else, your message is scanned for sensitive data:
+
+- Email addresses → `[EMAIL_REDACTED]`
+- Phone numbers → `[PHONE_REDACTED]`
+- API keys → `[API_KEY_REDACTED]`
+
+This protects you from accidentally sending secrets to the AI.
+
+### Step 3: Context Gathering
+
+The system decides what context the AI needs:
+
+- **Need codebase knowledge?** → Query the RAG system
+- **Need past information?** → Query the memory system
+- **Need current information?** → Run a web search
+
+All relevant context is gathered and formatted.
+
+### Step 4: Agent Loop
+
+The AI receives your message + context + list of available tools.
+
+It then enters a loop:
+
+1. **Think** - Decide what to do
+2. **Call tools** - If needed, execute tools (file_read, bash, etc.)
+3. **Get results** - Tool outputs are added to the conversation
+4. **Repeat** - Until the task is complete
+5. **Respond** - Final answer is generated
+
+### Step 5: Tool Execution
+
+When the AI calls a tool, here's what happens:
+
+```typescript
+// AI says: "I need to read AppDelegate.swift"
+{
+  "tool": "file_read",
+  "arguments": {
+    "operation": "read",
+    "path": "/Users/home/Documents/iOS/MyApp/AppDelegate.swift"
+  }
+}
+
+// Tool executes and returns the file contents
+// AI now has the file in its context
+```
+
+### Step 6: Response Generation
+
+With all the information gathered, the AI generates a response:
+
+```
+"Your AppDelegate.swift sets up the application lifecycle. Here's what each method does:
+
+1. `application(_:didFinishLaunchingWithOptions:)` - Called when the app starts...
+2. `applicationWillResignActive(_:)` - Called when the app is about to become inactive...
+..."
+```
+
+### Step 7: Flywheel Logging
+
+The entire interaction is logged:
+
+- Your question
+- The AI's response
+- Which tools were called
+- How long it took
+- Token counts
+
+This data can later be used to fine-tune a smaller, faster model.
+
+---
+
+## The MCP Connection: One Server, Multiple Clients
+
+### The Problem We Solved
+
+We built 36 amazing tools. But they only worked in the web app.
+
+Then we wanted to use them in **Codex CLI** (OpenAI's terminal AI). We'd have to rewrite everything!
+
+### The Solution: MCP
+
+**Model Context Protocol (MCP)** is a standard for AI tool communication. Think of it like USB - one standard that works everywhere.
+
+We created `mcp-server.ts` which:
+
+1. **Starts as a subprocess** - Spawned by any MCP client
+2. **Exposes all 36 tools** - Via JSON-RPC over stdio
+3. **Handles tool calls** - Executes tools and returns results
+
+Now both **Codex CLI** and **Dory web app** use the exact same tools:
+
+```
+┌─────────────┐     ┌─────────────────┐     ┌──────────────┐
+│  Codex CLI  │────▶│   MCP Server    │────▶│  36 Tools    │
+└─────────────┘     │ (mcp-server.ts) │     │              │
+                    │                 │     │ • file_read  │
+┌─────────────┐     │   JSON-RPC      │     │ • bash       │
+│  Dory Web   │────▶│   over stdio    │     │ • rag_search │
+└─────────────┘     └─────────────────┘     │ • memory     │
+                                            │ • ...        │
+                                            └──────────────┘
+```
+
+### Codex CLI Configuration
+
+To use our tools in Codex CLI, add to `~/.codex/config.toml`:
+
+```toml
+model = "nvidia/nemotron-3-nano-30b-a3b"
+model_provider = "nvidia-nim"
+
+[model_providers.nvidia-nim]
+name = "NVIDIA NIM"
+base_url = "https://integrate.api.nvidia.com/v1"
+env_key = "NGC_API_KEY"
+wire_api = "chat"
+
+[mcp_servers.nvidia-cli]
+command = "npx"
+args = ["tsx", "/Users/home/Documents/nvidia-cli/mcp-server.ts"]
+cwd = "/Users/home/Documents/nvidia-cli"
+startup_timeout_sec = 120
+tool_timeout_sec = 120
+env = { NGC_API_KEY = "${NGC_API_KEY}", NVIDIA_API_KEY = "${NGC_API_KEY}" }
+```
+
+Now when you run `codex`, it has access to all 36 tools!
+
+---
+
+## The NVIDIA Stack: Four Models, One API Key
+
+Everything runs on NVIDIA's NIM (NVIDIA Inference Microservices) platform.
+
+### The Models
+
+| Model | Purpose | Why It's Special |
+|-------|---------|------------------|
+| **Nemotron 3 Nano 30B** | Main LLM | 1M token context, MoE architecture (only 3.5B params active per token) |
+| **NV-EmbedQA 1B v2** | Embeddings | 2048-dimensional vectors for RAG and memory |
+| **NV-RerankQA 1B v2** | Reranking | Re-scores search results for better relevance |
+| **Nemotron Nano VL 12B v2** | Vision | Analyzes iOS screenshots, compares mockups |
+
+### One API Key
+
+All four models are accessed with a single `NVIDIA_API_KEY` from [build.nvidia.com](https://build.nvidia.com).
+
+```env
+NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+That's it. One key, four models, unlimited possibilities.
+
+---
+
+## The RAG System: Your Entire Codebase, Searchable
+
+### What is RAG?
+
+**Retrieval-Augmented Generation** means the AI can search through documents before answering.
+
+Instead of relying only on what it was trained on, it retrieves relevant information from YOUR codebase.
+
+### How It Works
+
+#### 1. Ingestion
+
+When you run `rag_ingest`, your Swift files are:
+
+1. **Split into chunks** - 800 characters each, respecting code boundaries
+2. **Embedded** - Converted to 2048-dimensional vectors
+3. **Indexed** - Stored in both vector store AND BM25 index
+
+#### 2. Retrieval (Hybrid Search)
+
+When you search, two things happen in parallel:
+
+- **BM25 Search** - Exact keyword matching ("viewDidLoad", "@Observable")
+- **Vector Search** - Semantic similarity ("state management" finds "@State")
+
+Results are combined using **Reciprocal Rank Fusion (RRF)**.
+
+#### 3. Reranking
+
+The top 100 results are sent to NVIDIA's reranker model, which scores them by relevance.
+
+Only the top 10 make it to the AI.
+
+#### 4. Generation
+
+The AI receives your question + the 10 most relevant code chunks, and generates an answer with citations.
+
+### Swift-Aware Chunking
+
+The text splitter knows Swift syntax:
+
+```typescript
+separators: [
+  '\nclass ', '\nstruct ', '\nenum ', '\nprotocol ',
+  '\nextension ', '\nfunc ', '\n@Observable', ...
+]
+```
+
+This means a function won't be split in the middle - it stays together as one chunk.
+
+---
+
+## The Memory System: It Remembers Everything
+
+### The Problem
+
+Traditional AI forgets everything between sessions. You tell it your preferences, your project structure, your coding style - and next time, it's gone.
+
+### The Solution: Vector Memory
+
+Every piece of information is:
+
+1. **Embedded** - Converted to a vector using NV-EmbedQA
+2. **Stored** - Saved to `~/.nvidia-cli/memory/vector-memory.json`
+3. **Retrieved semantically** - When relevant, it's pulled back into context
+
+### Example
+
+You tell Dory: "I prefer using @Observable over ObservableObject"
+
+Later, you ask: "How should I handle state in this view?"
+
+Dory retrieves the memory and responds with `@Observable` patterns, not the old `ObservableObject` way.
+
+---
+
+## The Data Flywheel: Learning From Every Interaction
+
+### What Gets Logged
+
+Every conversation is recorded:
+
+```json
+{
+  "timestamp": "2024-12-24T00:30:00Z",
+  "userMessage": "How do I fix this SwiftUI bug?",
+  "assistantResponse": "The issue is...",
+  "toolCalls": [
+    { "name": "file_read", "args": {...}, "result": "..." }
+  ],
+  "tokenUsage": { "prompt": 1500, "completion": 800 },
+  "latencyMs": 3200
+}
+```
+
+### Why It Matters
+
+This data can be used to:
+
+1. **Fine-tune smaller models** - Train a 1B model on your specific use cases
+2. **Identify failure patterns** - See where the AI struggles
+3. **Measure quality over time** - Track improvements
+
+### LLM-as-Judge
+
+Optionally, each response can be scored by the AI itself:
+
+- Helpfulness (0-10)
+- Accuracy (0-10)
+- Completeness (0-10)
+- Clarity (0-10)
+
+High-scoring interactions become training data. Low-scoring ones get reviewed.
+
+---
+
+# 🚀 The Result
+
+## What You Can Do Now
+
+### With Dory (Web App)
+
+- Chat with an AI that has access to 36 tools
+- Index your entire iOS project with RAG
+- Search code semantically AND by keyword
+- Generate documentation automatically
+- Create architecture diagrams
+- Research topics with parallel web searches
+- Have the AI remember your preferences
+
+### With Codex CLI
+
+- Use the same 36 tools in your terminal
+- Powered by NVIDIA's Nemotron 3 Nano
+- Full MCP integration
+- Works alongside your existing workflow
+
+### For the Future
+
+- Export training data for fine-tuning
+- Add new tools easily (just add to mcp-server.ts)
+- Connect any MCP-compatible client
+
+---
+
+# 📊 By The Numbers
+
+| Metric | Value |
+|--------|-------|
+| **Tools** | 36 custom implementations |
+| **Context Window** | 1,000,000 tokens (Nemotron 3 Nano) |
+| **Embedding Dimensions** | 2,048 (NV-EmbedQA) |
+| **RAG Chunk Size** | 800 characters |
+| **RAG Chunk Overlap** | 120 characters |
+| **Retrieval Candidates** | 100 → Rerank → 10 |
+| **API Keys Required** | 1 (NVIDIA) + 2 optional (Google) |
+| **Lines of Code** | ~15,000+ TypeScript |
+
+---
+
+# 🎓 What We Learned
+
+Building this system taught us:
+
+1. **Tools are the value** - The orchestration layer (MCP) is standard; the tools are what matter
+2. **Hybrid search wins** - BM25 + Vector beats either alone for code search
+3. **Memory needs vectors** - Keyword-based memory doesn't work; semantic retrieval does
+4. **One server, many clients** - MCP lets you write tools once, use everywhere
+5. **Log everything** - The flywheel data will be invaluable for fine-tuning
+
+---
+
+# 🔮 What's Next
+
+- **Fine-tune a smaller model** on flywheel data
+- **Add more specialist agents** for specific tasks
+- **Improve RAG** with better chunking strategies
+- **Build iOS app** for mobile access
+- **Add voice input** for hands-free coding
 
 ---
 
