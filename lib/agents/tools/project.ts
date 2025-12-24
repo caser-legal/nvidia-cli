@@ -29,7 +29,7 @@ Example: set_project("/Users/home/Documents/iOS/MyApp")`;
   };
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    const targetPath = args.path as string;
+    let targetPath = args.path as string;
     const expandedPath = targetPath.replace(/^~/, process.env.HOME || "");
     
     // Validate the path exists
@@ -43,13 +43,31 @@ Example: set_project("/Users/home/Documents/iOS/MyApp")`;
       return `Error: Path is not a directory: ${expandedPath}`;
     }
     
+    // Auto-detect: if no .xcodeproj here but there's a subfolder with same name containing one, use that
+    const contents = fs.readdirSync(expandedPath);
+    const hasXcodeproj = contents.some(f => f.endsWith('.xcodeproj'));
+    
+    if (!hasXcodeproj) {
+      const baseName = expandedPath.split('/').pop() || '';
+      const nestedPath = `${expandedPath}/${baseName}`;
+      if (fs.existsSync(nestedPath) && fs.statSync(nestedPath).isDirectory()) {
+        const nestedContents = fs.readdirSync(nestedPath);
+        if (nestedContents.some(f => f.endsWith('.xcodeproj'))) {
+          // Found xcodeproj in nested folder with same name - use that instead
+          setCurrentProjectDir(nestedPath);
+          const finalContents = nestedContents.slice(0, 10);
+          return `✅ Project directory set to: ${nestedPath} (auto-detected from nested folder)\n\nContents:\n${finalContents.map(f => `  - ${f}`).join('\n')}${finalContents.length >= 10 ? '\n  ...' : ''}`;
+        }
+      }
+    }
+    
     // Set the global project directory
     setCurrentProjectDir(expandedPath);
     
     // List contents to confirm
-    const contents = fs.readdirSync(expandedPath).slice(0, 10);
+    const displayContents = contents.slice(0, 10);
     
-    return `✅ Project directory set to: ${expandedPath}\n\nContents:\n${contents.map(f => `  - ${f}`).join('\n')}${contents.length >= 10 ? '\n  ...' : ''}`;
+    return `✅ Project directory set to: ${expandedPath}\n\nContents:\n${displayContents.map(f => `  - ${f}`).join('\n')}${displayContents.length >= 10 ? '\n  ...' : ''}`;
   }
 }
 
