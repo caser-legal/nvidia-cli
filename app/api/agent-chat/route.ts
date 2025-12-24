@@ -1114,8 +1114,8 @@ export async function POST(request: NextRequest) {
           config: {
             model: "nvidia/nemotron-3-nano-30b-a3b",
             maxTokens: 32768,
-            temperature: 1.0,
-            topP: 1.0,
+            temperature: 0.6,  // NVIDIA recommended for tool calling
+            topP: 0.95,        // NVIDIA recommended for tool calling
             contextWindowTokens: contextLimit,
           },
           onEvent: (event) => {

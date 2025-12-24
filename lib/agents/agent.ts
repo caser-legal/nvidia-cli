@@ -30,12 +30,12 @@ import {
 const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
 const CONTEXT_LIMITS = getContextLimits(USE_LOCAL_LLM);
 
-// Default to Nano-30B with correct context limits
+// Default to Nano-30B with NVIDIA recommended settings for tool calling
 const DEFAULT_CONFIG: AgentConfig = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
   maxTokens: 16384,
-  temperature: 1.0,
-  topP: 1.0,
+  temperature: 0.6,  // NVIDIA recommends 0.6 for tool calling (not 1.0)
+  topP: 0.95,        // NVIDIA recommends 0.95 for tool calling (not 1.0)
   // Use actual API limit, not model native limit
   contextWindowTokens: CONTEXT_LIMITS.maxInputTokens,
 };
