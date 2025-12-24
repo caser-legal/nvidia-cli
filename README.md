@@ -13,7 +13,8 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#nvidia-model-stack">Models</a> •
   <a href="#rag-system-v2">RAG</a> •
-  <a href="#tools-38">Tools</a> •
+  <a href="#tools-36">Tools</a> •
+  <a href="#mcp-integration-model-context-protocol">MCP</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#data-flywheel">Flywheel</a> •
   <a href="#environment">Environment</a>
@@ -315,7 +316,7 @@ For iOS/Swift code search:
 
 ---
 
-## Tools (38)
+## Tools (36)
 
 ### File & System (5)
 
@@ -910,6 +911,278 @@ nvidia-cli/
 | Data Flywheel Logging | FlywheelLogger | ✅ |
 | LLM-as-Judge | FlywheelEvaluator | ✅ |
 | Vision Analysis | Nemotron Nano VL 12B v2 | ✅ |
+
+---
+
+---
+
+## MCP Integration (Model Context Protocol)
+
+### What is MCP?
+
+MCP (Model Context Protocol) is an open standard by Anthropic that lets AI tools communicate with any AI client. Think of it like USB for AI tools - one standard interface that works everywhere.
+
+**Before MCP:** Each AI client (Codex CLI, web app, etc.) needed custom tool implementations.
+
+**After MCP:** One MCP server exposes all tools, any client can use them.
+
+### Architecture
+
+```mermaid
+flowchart TB
+    subgraph Clients["🖥️ AI Clients"]
+        CODEX["Codex CLI<br/>(OpenAI)"]
+        DORY["Dory Web App<br/>(This project)"]
+        FUTURE["Future Clients<br/>(Claude, etc.)"]
+    end
+
+    subgraph MCP["🔌 MCP Protocol"]
+        SERVER["mcp-server.ts<br/>36 Tools Exposed"]
+    end
+
+    subgraph Tools["🛠️ Tool Implementations"]
+        BASH["bash"]
+        FILE["file_read/write"]
+        RAG["rag_* (8 tools)"]
+        SEARCH["google_search"]
+        MEMORY["memory"]
+        FLYWHEEL["flywheel_*"]
+        MORE["...30 more"]
+    end
+
+    CODEX -->|"stdio/JSON-RPC"| SERVER
+    DORY -->|"stdio/JSON-RPC"| SERVER
+    FUTURE -->|"stdio/JSON-RPC"| SERVER
+
+    SERVER --> BASH
+    SERVER --> FILE
+    SERVER --> RAG
+    SERVER --> SEARCH
+    SERVER --> MEMORY
+    SERVER --> FLYWHEEL
+    SERVER --> MORE
+
+    style Clients fill:#76b900
+    style MCP fill:#0984e3
+    style Tools fill:#fdcb6e,color:#000
+```
+
+### How It Works
+
+1. **MCP Server** (`mcp-server.ts`) exposes all 36 tools via JSON-RPC over stdio
+2. **Clients** connect to the server and discover available tools via `listTools()`
+3. **Tool calls** happen via `callTool(name, args)` - same interface for all clients
+4. **Results** return as structured JSON
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `mcp-server.ts` | MCP server exposing 36 tools (runs with `npx tsx`) |
+| `lib/mcp-client.ts` | MCP client for web app (spawns server, caches tools) |
+| `lib/agents/mcp-agent.ts` | Agent that uses MCP for tool discovery/execution |
+| `app/api/mcp-chat/route.ts` | API endpoint using MCP agent |
+
+### Codex CLI Configuration
+
+Add to `~/.codex/config.toml`:
+
+```toml
+# Use NVIDIA NIM as the model provider
+model = "nvidia/nemotron-3-nano-30b-a3b"
+model_provider = "nvidia-nim"
+
+[model_providers.nvidia-nim]
+name = "NVIDIA NIM"
+base_url = "https://integrate.api.nvidia.com/v1"
+env_key = "NGC_API_KEY"
+wire_api = "chat"
+
+# Connect to nvidia-cli MCP server
+[mcp_servers.nvidia-cli]
+command = "npx"
+args = ["tsx", "/Users/home/Documents/nvidia-cli/mcp-server.ts"]
+cwd = "/Users/home/Documents/nvidia-cli"
+startup_timeout_sec = 120
+tool_timeout_sec = 120
+env = { NGC_API_KEY = "${NGC_API_KEY}", NVIDIA_API_KEY = "${NGC_API_KEY}", GOOGLE_API_KEY = "${GOOGLE_API_KEY}", GOOGLE_CSE_ID = "${GOOGLE_CSE_ID}" }
+```
+
+### Environment Variables
+
+Make sure these are set in your shell (add to `~/.zshrc`):
+
+```bash
+# NVIDIA API Key (get from build.nvidia.com)
+export NGC_API_KEY="nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Google Custom Search (optional, for web search)
+export GOOGLE_API_KEY="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+export GOOGLE_CSE_ID="xxxxxxxxxxxxxxxxx"
+```
+
+### Testing MCP Server
+
+```bash
+# Start server manually (should print "[nvidia-cli MCP] Server started")
+cd /Users/home/Documents/nvidia-cli
+npx tsx mcp-server.ts
+
+# In Codex CLI, check tools are available
+/mcp
+# Should show nvidia-cli with 36 tools
+```
+
+### Why MCP Matters
+
+| Problem | MCP Solution |
+|---------|--------------|
+| Duplicate tool code in each client | One implementation, many clients |
+| Inconsistent behavior | Same tools = same behavior everywhere |
+| Hard to add new tools | Add once to server, all clients get it |
+| Complex orchestration | Client handles orchestration, server just executes |
+
+### MCP vs Direct Tool Calls
+
+**Direct (old way):**
+```typescript
+// Web app had to instantiate and manage each tool
+const bashTool = new BashTool();
+const result = await bashTool.execute({ command: "ls" });
+```
+
+**MCP (new way):**
+```typescript
+// Web app just calls MCP
+const result = await callMCPTool("bash", { command: "ls" });
+// MCP server handles instantiation, execution, everything
+```
+
+---
+
+## API Keys Reference
+
+### NVIDIA API Key
+
+**Where to get:** [build.nvidia.com](https://build.nvidia.com)
+
+**What it powers:**
+- Nemotron 3 Nano 30B (main LLM)
+- NV-EmbedQA 1B v2 (embeddings)
+- NV-RerankQA 1B v2 (reranking)
+- Nemotron Nano VL 12B v2 (vision)
+
+**Environment variable:** `NVIDIA_API_KEY` or `NGC_API_KEY` (both work)
+
+**Format:** `nvapi-` followed by ~50 characters
+
+### Google Custom Search
+
+**Where to get:**
+1. [Google Cloud Console](https://console.cloud.google.com) → Create project → Enable "Custom Search API"
+2. [Programmable Search Engine](https://programmablesearchengine.google.com) → Create search engine → Get CSE ID
+
+**What it powers:**
+- `google_search` tool
+- `parallel_search` tool
+
+**Environment variables:**
+- `GOOGLE_API_KEY` - API key from Cloud Console
+- `GOOGLE_CSE_ID` - Search engine ID from Programmable Search
+
+---
+
+## Troubleshooting
+
+### MCP Server Won't Start
+
+```bash
+# Check if tsx is installed
+npx tsx --version
+
+# Check for syntax errors
+cd /Users/home/Documents/nvidia-cli
+npx tsx mcp-server.ts
+# Should print "[nvidia-cli MCP] Server started"
+```
+
+### "Transport closed" Error in Codex
+
+This means the MCP server crashed. Common causes:
+
+1. **Missing API key** - Check `NGC_API_KEY` is set
+2. **Tool constructor error** - Some tools need `apiKey` parameter
+3. **Timeout** - Increase `tool_timeout_sec` in config
+
+### RAG Not Finding Documents
+
+```bash
+# Check RAG stats
+# In Dory chat: "use rag_stats"
+
+# Re-ingest documents
+# In Dory chat: "use rag_ingest for /path/to/project"
+```
+
+### Build Errors (Next.js)
+
+```bash
+# mcp-server.ts uses .ts imports which Next.js doesn't like
+# It's excluded in tsconfig.json - if you see errors, check:
+cat tsconfig.json | grep exclude
+# Should include "mcp-server.ts"
+```
+
+---
+
+## Development Notes
+
+### Adding a New Tool
+
+1. Create tool class in `lib/agents/tools/your-tool.ts`
+2. Export from `lib/agents/index.ts`
+3. Register in `mcp-server.ts`:
+
+```typescript
+// Import
+import { YourTool } from "./lib/agents/tools/your-tool.ts";
+
+// Instantiate
+const yourTool = new YourTool();
+
+// Register with MCP
+server.tool(
+  "your_tool",
+  "Description of what it does",
+  { param1: z.string().describe("What param1 is") },
+  async ({ param1 }) => {
+    const result = await yourTool.execute({ param1 });
+    return { content: [{ type: "text", text: result }] };
+  }
+);
+```
+
+4. Rebuild and test:
+```bash
+npm run build
+npx tsx mcp-server.ts  # Should start without errors
+```
+
+### Local LLM Setup (Ollama)
+
+For unlimited context and no API costs:
+
+```bash
+# Install Ollama
+brew install ollama
+
+# Pull a model
+ollama pull llama3.2
+
+# Set environment
+export USE_LOCAL_LLM=true
+export OLLAMA_BASE_URL=http://localhost:11434/v1
+```
 
 ---
 
