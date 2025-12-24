@@ -1,37 +1,92 @@
+/**
+ * Feedback Optimizer
+ * Analyzes low-scoring interactions and generates improvement suggestions
+ * Uses Nemotron to analyze failure patterns and suggest fixes
+ */
 
-import { FlywheelLogger } from "./flywheel/logger";
+import OpenAI from "openai";
+import { FlywheelLogger, QUALITY_THRESHOLD } from "./flywheel/logger";
 import { FlywheelRecord } from "./flywheel/types";
 
 export interface OptimizationResult {
   improvedSystemPrompt?: string;
   suggestedExamples: string[];
   insights: string[];
+  failurePatterns: FailurePattern[];
 }
 
-export class FeedbackOptimizer {
-  constructor(private flywheel: FlywheelLogger) {}
+export interface FailurePattern {
+  category: string;
+  description: string;
+  frequency: number;
+  suggestedFix: string;
+}
 
-  /**
-   * Analyze low-scoring interactions to find improvement areas
-   */
-  async analyzeFailures(minScore: number = 3): Promise<FlywheelRecord[]> {
-    const records = this.flywheel.getRecords();
-    return records.filter(r => 
-      r.qualitySignals?.userRating !== undefined && 
-      r.qualitySignals.userRating < minScore
-    );
+const ANALYSIS_PROMPT = `You are an AI system analyst. Analyze these failed agent interactions and identify patterns.
+
+For each failure, consider:
+1. What went wrong (tool errors, wrong approach, misunderstanding)
+2. Why it failed (missing context, bad instructions, capability gap)
+3. How to prevent it (better prompts, examples, guardrails)
+
+Respond in JSON format:
+{
+  "patterns": [
+    {
+      "category": "tool_error|misunderstanding|capability_gap|context_missing|other",
+      "description": "Brief description of the pattern",
+      "frequency": <number of occurrences>,
+      "suggestedFix": "Specific actionable fix"
+    }
+  ],
+  "insights": ["Key insight 1", "Key insight 2"],
+  "promptImprovements": ["Suggested system prompt change 1", "Change 2"]
+}`;
+
+export class FeedbackOptimizer {
+  private client: OpenAI;
+  private model: string;
+
+  constructor(
+    private flywheel: FlywheelLogger,
+    apiKey?: string,
+    model: string = "nvidia/nemotron-3-nano-30b-a3b"
+  ) {
+    const key = apiKey || process.env.NVIDIA_API_KEY;
+    if (!key) throw new Error("API key required for FeedbackOptimizer");
+
+    this.client = new OpenAI({
+      baseURL: "https://integrate.api.nvidia.com/v1",
+      apiKey: key,
+    });
+    this.model = model;
   }
 
   /**
-   * Get "Golden Examples" - high scoring interactions to use as few-shot examples
+   * Get low-scoring interactions (below quality threshold or low user rating)
+   */
+  async analyzeFailures(minScore: number = QUALITY_THRESHOLD): Promise<FlywheelRecord[]> {
+    const records = this.flywheel.getRecords();
+    return records.filter(r => {
+      // Check LLM-as-judge score
+      if (r.qualitySignals?.overallScore !== undefined) {
+        return r.qualitySignals.overallScore < minScore;
+      }
+      // Fall back to user rating (scale 1-5, threshold ~3)
+      if (r.qualitySignals?.userRating !== undefined) {
+        return r.qualitySignals.userRating < 3;
+      }
+      return false;
+    });
+  }
+
+  /**
+   * Get high-quality examples for few-shot learning
    */
   async getGoldenExamples(query: string, limit: number = 3): Promise<FlywheelRecord[]> {
-    const highQuality = this.flywheel.getHighQualityRecords(4); // 4+ stars
+    const highQuality = this.flywheel.getHighQualityRecords();
     
-    // Simple relevance scoring based on word overlap
-    // In production, use embeddings
     const queryWords = new Set(query.toLowerCase().split(/\s+/));
-    
     const scored = highQuality.map(record => {
       const recordWords = new Set(record.userMessage.toLowerCase().split(/\s+/));
       let intersection = 0;
@@ -48,19 +103,73 @@ export class FeedbackOptimizer {
   }
 
   /**
-   * Generate optimization suggestions (Mock implementation for now)
+   * Generate optimization suggestions using Nemotron
    */
   async generateOptimizations(): Promise<OptimizationResult> {
     const failures = await this.analyzeFailures();
-    
-    // In a real system, an LLM would analyze 'failures' to generate these insights
-    const insights = failures.length > 0 
-      ? [`Found ${failures.length} interactions with low scores.`, "Users often request more code examples."]
-      : ["No significant failures detected."];
 
-    return {
-      suggestedExamples: [],
-      insights
-    };
+    if (failures.length === 0) {
+      return {
+        suggestedExamples: [],
+        insights: ["No low-scoring interactions found."],
+        failurePatterns: [],
+      };
+    }
+
+    // Prepare failure summaries for analysis (limit to 10 to fit context)
+    const failureSummaries = failures.slice(0, 10).map(f => ({
+      userMessage: f.userMessage.slice(0, 200),
+      response: f.assistantResponse.slice(0, 300),
+      toolErrors: f.toolCalls.filter(t => !t.success).map(t => ({
+        tool: t.toolName,
+        error: t.error?.slice(0, 100),
+      })),
+      score: f.qualitySignals?.overallScore || f.qualitySignals?.userRating,
+      reasoning: f.qualitySignals?.reasoning?.slice(0, 200),
+    }));
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          { role: "system", content: ANALYSIS_PROMPT },
+          { role: "user", content: `Analyze these ${failures.length} failed interactions:\n\n${JSON.stringify(failureSummaries, null, 2)}` },
+        ],
+        temperature: 0.3,
+        max_tokens: 1024,
+      });
+
+      const content = response.choices[0].message.content || "{}";
+      
+      // Parse JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return {
+          suggestedExamples: [],
+          insights: [`Found ${failures.length} low-scoring interactions but could not parse analysis.`],
+          failurePatterns: [],
+        };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        patterns?: FailurePattern[];
+        insights?: string[];
+        promptImprovements?: string[];
+      };
+
+      return {
+        improvedSystemPrompt: parsed.promptImprovements?.join("\n"),
+        suggestedExamples: [],
+        insights: parsed.insights || [`Analyzed ${failures.length} failures.`],
+        failurePatterns: parsed.patterns || [],
+      };
+    } catch (error) {
+      console.error("[FeedbackOptimizer] Analysis failed:", error);
+      return {
+        suggestedExamples: [],
+        insights: [`Found ${failures.length} low-scoring interactions. Analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`],
+        failurePatterns: [],
+      };
+    }
   }
 }
