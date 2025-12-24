@@ -19,7 +19,7 @@ import { BashTool } from "./lib/agents/tools/bash.ts";
 import { FileReadTool } from "./lib/agents/tools/file-read.ts";
 import { FileWriteTool } from "./lib/agents/tools/file-write.ts";
 import { ThinkTool } from "./lib/agents/tools/think.ts";
-import { EntityMemoryTool } from "./lib/agents/tools/memory.ts";
+import { MemoryTool, EntityMemoryTool } from "./lib/agents/tools/memory.ts";
 import { UnifiedMemoryTool } from "./lib/agents/tools/unified-memory.ts";
 import { GoogleSearchTool } from "./lib/agents/tools/google-search.ts";
 import { ParallelSearchTool } from "./lib/agents/tools/parallel-search.ts";

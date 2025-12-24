@@ -1,59 +1,12 @@
 /**
  * Reflection System
  * Based on NVIDIA RAG Blueprint reflection.py
- * Checks context relevance and response groundedness
  */
 
 import { ReflectionResult, Document } from './types';
+import { createLogger } from '../../logger';
 
-const RELEVANCE_CHECK_PROMPT = `You are evaluating whether retrieved context is relevant to a query.
-
-Query: {query}
-
-Context:
-{context}
-
-Rate the relevance of this context to the query on a scale of 0-2:
-- 0: Not relevant - the context doesn't help answer the query
-- 1: Partially relevant - some useful information but incomplete
-- 2: Highly relevant - the context directly addresses the query
-
-Respond with JSON:
-{
-  "score": 0|1|2,
-  "reasoning": "brief explanation"
-}`;
-
-const GROUNDEDNESS_CHECK_PROMPT = `You are evaluating whether a response is grounded in the provided context.
-
-Context:
-{context}
-
-Response:
-{response}
-
-Rate how well the response is grounded in the context on a scale of 0-2:
-- 0: Not grounded - contains claims not supported by context
-- 1: Partially grounded - some claims supported, some not
-- 2: Fully grounded - all claims are supported by context
-
-Respond with JSON:
-{
-  "score": 0|1|2,
-  "reasoning": "brief explanation",
-  "unsupportedClaims": ["list of claims not in context"]
-}`;
-
-const QUERY_REWRITE_FOR_RELEVANCE_PROMPT = `The following query did not retrieve relevant context. Rewrite it to be more specific and likely to find relevant information.
-
-Original Query: {query}
-
-Retrieved Context (not relevant):
-{context}
-
-Rewrite the query to be more specific. Focus on key terms and concepts that might appear in relevant documents.
-
-Rewritten Query:`;
+const log = createLogger("Reflection");
 
 export class ReflectionSystem {
   private llmEndpoint: string;
@@ -61,13 +14,7 @@ export class ReflectionSystem {
   private relevanceThreshold: number;
   private groundednessThreshold: number;
 
-  // Use Nemotron 3 Nano for reflection - best reasoning for evaluation tasks
-  constructor(
-    llmEndpoint: string = 'https://integrate.api.nvidia.com/v1',
-    model: string = 'nvidia/nemotron-3-nano-30b-a3b',
-    relevanceThreshold: number = 1,
-    groundednessThreshold: number = 1
-  ) {
+  constructor(llmEndpoint: string = 'https://integrate.api.nvidia.com/v1', model: string = 'nvidia/nemotron-3-nano-30b-a3b', relevanceThreshold: number = 1, groundednessThreshold: number = 1) {
     this.llmEndpoint = llmEndpoint;
     this.model = model;
     this.relevanceThreshold = relevanceThreshold;
@@ -76,53 +23,29 @@ export class ReflectionSystem {
 
   async checkContextRelevance(query: string, documents: Document[]): Promise<ReflectionResult> {
     const apiKey = process.env.NVIDIA_API_KEY;
-    if (!apiKey) {
-      // Assume relevant if we can't check
-      return { isRelevant: true, isGrounded: true, score: 2 };
-    }
+    if (!apiKey) return { isRelevant: true, isGrounded: true, score: 2 };
 
     const contextText = documents.map(d => d.content).join('\n\n---\n\n');
-    const prompt = RELEVANCE_CHECK_PROMPT
-      .replace('{query}', query)
-      .replace('{context}', contextText.slice(0, 16000));  // Increased context window
+    const prompt = `You are evaluating whether retrieved context is relevant to a query.\n\nQuery: ${query}\n\nContext:\n${contextText.slice(0, 16000)}\n\nRate the relevance on a scale of 0-2:\n- 0: Not relevant\n- 1: Partially relevant\n- 2: Highly relevant\n\nRespond with JSON:\n{"score": 0|1|2, "reasoning": "brief explanation"}`;
 
     try {
       const response = await fetch(`${this.llmEndpoint}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: 'You are a relevance evaluator. Always respond with valid JSON.' },
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0,
-          max_tokens: 512,  // Increased for detailed reasoning
-        }),
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: this.model, messages: [{ role: 'system', content: 'You are a relevance evaluator. Always respond with valid JSON.' }, { role: 'user', content: prompt }], temperature: 0, max_tokens: 512 }),
       });
 
-      if (!response.ok) {
-        return { isRelevant: true, isGrounded: true, score: 2 };
-      }
+      if (!response.ok) return { isRelevant: true, isGrounded: true, score: 2 };
 
       const data = await response.json();
       const content = data.choices[0]?.message?.content || '';
-      
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          isRelevant: parsed.score >= this.relevanceThreshold,
-          isGrounded: true,
-          score: parsed.score,
-          feedback: parsed.reasoning,
-        };
+        return { isRelevant: parsed.score >= this.relevanceThreshold, isGrounded: true, score: parsed.score, feedback: parsed.reasoning };
       }
     } catch (error) {
-      console.error('Relevance check failed:', error);
+      log.error('Relevance check failed', { error: String(error) });
     }
 
     return { isRelevant: true, isGrounded: true, score: 2 };
@@ -130,52 +53,29 @@ export class ReflectionSystem {
 
   async checkResponseGroundedness(response: string, documents: Document[]): Promise<ReflectionResult> {
     const apiKey = process.env.NVIDIA_API_KEY;
-    if (!apiKey) {
-      return { isRelevant: true, isGrounded: true, score: 2 };
-    }
+    if (!apiKey) return { isRelevant: true, isGrounded: true, score: 2 };
 
     const contextText = documents.map(d => d.content).join('\n\n---\n\n');
-    const prompt = GROUNDEDNESS_CHECK_PROMPT
-      .replace('{context}', contextText.slice(0, 16000))  // Increased context window
-      .replace('{response}', response);
+    const prompt = `You are evaluating whether a response is grounded in the provided context.\n\nContext:\n${contextText.slice(0, 16000)}\n\nResponse:\n${response}\n\nRate groundedness on a scale of 0-2:\n- 0: Not grounded\n- 1: Partially grounded\n- 2: Fully grounded\n\nRespond with JSON:\n{"score": 0|1|2, "reasoning": "brief explanation", "unsupportedClaims": ["list"]}`;
 
     try {
       const fetchResponse = await fetch(`${this.llmEndpoint}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: 'You are a groundedness evaluator. Always respond with valid JSON.' },
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0,
-          max_tokens: 1024,  // Increased for detailed groundedness analysis
-        }),
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: this.model, messages: [{ role: 'system', content: 'You are a groundedness evaluator. Always respond with valid JSON.' }, { role: 'user', content: prompt }], temperature: 0, max_tokens: 1024 }),
       });
 
-      if (!fetchResponse.ok) {
-        return { isRelevant: true, isGrounded: true, score: 2 };
-      }
+      if (!fetchResponse.ok) return { isRelevant: true, isGrounded: true, score: 2 };
 
       const data = await fetchResponse.json();
       const content = data.choices[0]?.message?.content || '';
-      
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          isRelevant: true,
-          isGrounded: parsed.score >= this.groundednessThreshold,
-          score: parsed.score,
-          feedback: parsed.reasoning,
-        };
+        return { isRelevant: true, isGrounded: parsed.score >= this.groundednessThreshold, score: parsed.score, feedback: parsed.reasoning };
       }
     } catch (error) {
-      console.error('Groundedness check failed:', error);
+      log.error('Groundedness check failed', { error: String(error) });
     }
 
     return { isRelevant: true, isGrounded: true, score: 2 };
@@ -186,80 +86,38 @@ export class ReflectionSystem {
     if (!apiKey) return query;
 
     const contextText = documents.map(d => d.content).join('\n\n').slice(0, 2000);
-    const prompt = QUERY_REWRITE_FOR_RELEVANCE_PROMPT
-      .replace('{query}', query)
-      .replace('{context}', contextText);
+    const prompt = `The following query did not retrieve relevant context. Rewrite it to be more specific.\n\nOriginal Query: ${query}\n\nRetrieved Context (not relevant):\n${contextText}\n\nRewritten Query:`;
 
     try {
       const response = await fetch(`${this.llmEndpoint}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
-          max_tokens: 256,
-        }),
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: this.model, messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_tokens: 256 }),
       });
 
       if (!response.ok) return query;
-
       const data = await response.json();
-      const rewritten = data.choices[0]?.message?.content?.trim();
-      return rewritten || query;
+      return data.choices[0]?.message?.content?.trim() || query;
     } catch {
       return query;
     }
   }
 
-  async regenerateResponse(
-    query: string,
-    documents: Document[],
-    previousResponse: string
-  ): Promise<string | null> {
+  async regenerateResponse(query: string, documents: Document[], previousResponse: string): Promise<string | null> {
     const apiKey = process.env.NVIDIA_API_KEY;
     if (!apiKey) return null;
 
     const contextText = documents.map(d => d.content).join('\n\n---\n\n');
-    const prompt = `The following response was not well-grounded in the context. Generate a new response that is strictly based on the provided context.
-
-Query: ${query}
-
-Context:
-${contextText.slice(0, 16000)}
-
-Previous Response (not well-grounded):
-${previousResponse}
-
-Generate a new response that:
-1. Only makes claims supported by the context
-2. Cites specific information from the context
-3. Acknowledges when information is not available
-
-If the context doesn't contain enough information to answer the query, say "OUT OF CONTEXT" and explain what information is missing.
-
-New Response:`;
+    const prompt = `The following response was not well-grounded. Generate a new response strictly based on the context.\n\nQuery: ${query}\n\nContext:\n${contextText.slice(0, 16000)}\n\nPrevious Response (not well-grounded):\n${previousResponse}\n\nGenerate a new response that only makes claims supported by the context. If the context doesn't contain enough information, say "OUT OF CONTEXT".\n\nNew Response:`;
 
     try {
       const response = await fetch(`${this.llmEndpoint}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
-          max_tokens: 2048,  // Increased for comprehensive responses
-        }),
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: this.model, messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_tokens: 2048 }),
       });
 
       if (!response.ok) return null;
-
       const data = await response.json();
       return data.choices[0]?.message?.content?.trim() || null;
     } catch {
@@ -268,31 +126,18 @@ New Response:`;
   }
 }
 
-/**
- * Reflection Counter
- * Tracks reflection iterations to prevent infinite loops
- */
 export class ReflectionCounter {
   private maxLoops: number;
   private currentCount: number = 0;
 
-  constructor(maxLoops: number = 3) {
-    this.maxLoops = maxLoops;
-  }
+  constructor(maxLoops: number = 3) { this.maxLoops = maxLoops; }
 
   increment(): boolean {
-    if (this.currentCount >= this.maxLoops) {
-      return false;
-    }
+    if (this.currentCount >= this.maxLoops) return false;
     this.currentCount++;
     return true;
   }
 
-  get remaining(): number {
-    return Math.max(0, this.maxLoops - this.currentCount);
-  }
-
-  reset(): void {
-    this.currentCount = 0;
-  }
+  get remaining(): number { return Math.max(0, this.maxLoops - this.currentCount); }
+  reset(): void { this.currentCount = 0; }
 }

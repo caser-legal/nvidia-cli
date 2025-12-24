@@ -1,8 +1,11 @@
 /**
  * NeMo Agent Toolkit Client
  * Bridges the Next.js frontend to the NAT Python backend
- * Provides fallback to existing TypeScript agent if NAT is unavailable
  */
+
+import { createLogger } from "./logger";
+
+const log = createLogger("NAT");
 
 export interface NATMessage {
   role: 'user' | 'assistant' | 'system';
@@ -31,24 +34,15 @@ export interface NATStreamChunk {
 
 const NAT_BASE_URL = process.env.NAT_API_URL || 'http://localhost:8000';
 
-/**
- * Check if NAT server is available
- */
 export async function isNATAvailable(): Promise<boolean> {
   try {
-    const response = await fetch(`${NAT_BASE_URL}/health`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(2000),
-    });
+    const response = await fetch(`${NAT_BASE_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
     return response.ok;
   } catch {
     return false;
   }
 }
 
-/**
- * Send a message to NAT and get a response (non-streaming)
- */
 export async function sendToNAT(input: string): Promise<NATResponse> {
   const response = await fetch(`${NAT_BASE_URL}/generate`, {
     method: 'POST',
@@ -56,54 +50,26 @@ export async function sendToNAT(input: string): Promise<NATResponse> {
     body: JSON.stringify({ input_message: input }),
   });
 
-  if (!response.ok) {
-    throw new Error(`NAT request failed: ${response.statusText}`);
-  }
-
+  if (!response.ok) throw new Error(`NAT request failed: ${response.statusText}`);
   return response.json();
 }
 
-/**
- * Send a message using OpenAI-compatible chat completions endpoint
- */
-export async function chatWithNAT(
-  messages: NATMessage[],
-  stream = false
-): Promise<Response> {
+export async function chatWithNAT(messages: NATMessage[], stream = false): Promise<Response> {
   const response = await fetch(`${NAT_BASE_URL}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messages,
-      stream,
-      model: 'dory', // Ignored by NAT but required for OpenAI compat
-    }),
+    body: JSON.stringify({ messages, stream, model: 'dory' }),
   });
 
-  if (!response.ok) {
-    throw new Error(`NAT chat request failed: ${response.statusText}`);
-  }
-
+  if (!response.ok) throw new Error(`NAT chat request failed: ${response.statusText}`);
   return response;
 }
 
-/**
- * Stream responses from NAT via WebSocket
- */
-export function streamFromNAT(
-  input: string,
-  onChunk: (chunk: NATStreamChunk) => void,
-  onError?: (error: Error) => void,
-  onComplete?: () => void
-): () => void {
+export function streamFromNAT(input: string, onChunk: (chunk: NATStreamChunk) => void, onError?: (error: Error) => void, onComplete?: () => void): () => void {
   const ws = new WebSocket(`ws://localhost:8000/websocket`);
   
   ws.onopen = () => {
-    ws.send(JSON.stringify({
-      type: 'chat_completions',
-      messages: [{ role: 'user', content: input }],
-      stream: true,
-    }));
+    ws.send(JSON.stringify({ type: 'chat_completions', messages: [{ role: 'user', content: input }], stream: true }));
   };
 
   ws.onmessage = (event) => {
@@ -117,50 +83,30 @@ export function streamFromNAT(
         onComplete?.();
       } else if (data.intermediate_step) {
         const step = data.intermediate_step;
-        onChunk({
-          type: step.status === 'started' ? 'tool_start' : 'tool_end',
-          tool: step.tool,
-          input: step.input,
-          output: step.output,
-        });
+        onChunk({ type: step.status === 'started' ? 'tool_start' : 'tool_end', tool: step.tool, input: step.input, output: step.output });
       }
     } catch (e) {
-      console.error('Failed to parse NAT message:', e);
+      log.error('Failed to parse NAT message', { error: String(e) });
     }
   };
 
-  ws.onerror = () => {
-    onError?.(new Error('WebSocket error'));
-  };
+  ws.onerror = () => { onError?.(new Error('WebSocket error')); };
+  ws.onclose = () => { onComplete?.(); };
 
-  ws.onclose = () => {
-    onComplete?.();
-  };
-
-  // Return cleanup function
   return () => ws.close();
 }
 
-/**
- * Hybrid client that uses NAT when available, falls back to TS agent
- */
 export class HybridAgentClient {
   private natAvailable: boolean | null = null;
   private checkInterval: NodeJS.Timeout | null = null;
 
   async initialize(): Promise<void> {
     this.natAvailable = await isNATAvailable();
-    
-    // Periodically check NAT availability
-    this.checkInterval = setInterval(async () => {
-      this.natAvailable = await isNATAvailable();
-    }, 30000);
+    this.checkInterval = setInterval(async () => { this.natAvailable = await isNATAvailable(); }, 30000);
   }
 
   destroy(): void {
-    if (this.checkInterval) {
-      clearInterval(this.checkInterval);
-    }
+    if (this.checkInterval) clearInterval(this.checkInterval);
   }
 
   isNATMode(): boolean {
@@ -173,12 +119,11 @@ export class HybridAgentClient {
         const result = await sendToNAT(input);
         return { response: result.value, source: 'nat' };
       } catch (error) {
-        console.warn('NAT request failed, falling back to TS agent:', error);
+        log.warn('NAT request failed, falling back to TS agent', { error: String(error) });
         this.natAvailable = false;
       }
     }
 
-    // Fallback to existing TS agent via API route
     const response = await fetch('/api/agent-chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

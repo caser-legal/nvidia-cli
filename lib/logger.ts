@@ -35,15 +35,16 @@ export interface Logger {
 }
 
 export function createLogger(component: string): Logger {
+  // ALL logging goes to stderr to avoid polluting stdout (required for MCP stdio transport)
   return {
     debug: (message: string, data?: Record<string, unknown>) => {
-      if (shouldLog("debug")) console.debug(formatMessage("debug", component, message, data));
+      if (shouldLog("debug")) console.error(formatMessage("debug", component, message, data));
     },
     info: (message: string, data?: Record<string, unknown>) => {
-      if (shouldLog("info")) console.log(formatMessage("info", component, message, data));
+      if (shouldLog("info")) console.error(formatMessage("info", component, message, data));
     },
     warn: (message: string, data?: Record<string, unknown>) => {
-      if (shouldLog("warn")) console.warn(formatMessage("warn", component, message, data));
+      if (shouldLog("warn")) console.error(formatMessage("warn", component, message, data));
     },
     error: (message: string, data?: Record<string, unknown>) => {
       if (shouldLog("error")) console.error(formatMessage("error", component, message, data));

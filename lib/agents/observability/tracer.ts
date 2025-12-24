@@ -92,8 +92,8 @@ export class Tracer {
       ...span.attributes,
     };
     
-    // Export to console in structured format (can be piped to log aggregator)
-    console.log(`[TRACE] ${JSON.stringify(logEntry)}`);
+    // Export to stderr (stdout reserved for MCP stdio transport)
+    console.error(`[TRACE] ${JSON.stringify(logEntry)}`);
   }
 
   getTrace(): Span[] {

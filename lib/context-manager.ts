@@ -159,26 +159,15 @@ export function truncateMessages(
   
   switch (strategy) {
     case "tool_results_first":
-      // First pass: Truncate long tool results
-      truncatedMessages = truncatedMessages.map(msg => {
-        if (msg.role === "tool" && typeof msg.content === "string") {
-          const tokens = estimateTokens(msg.content);
-          if (tokens > 5000) {
-            // Truncate to ~2000 tokens with indicator
-            const truncatedContent = msg.content.slice(0, 8000) + 
-              "\n\n[... truncated " + (msg.content.length - 8000) + " chars to fit context window ...]";
-            return { ...msg, content: truncatedContent };
-          }
-        }
-        return msg;
-      });
+      // Enterprise mode: NO tool result truncation
+      // Models have 128K-1M context windows - truncating tool output breaks error detection
+      // Only remove old messages if context is truly exceeded
       
-      // Check if that was enough
       let currentTokens = estimateMessagesTokens(truncatedMessages);
       if (currentTokens <= availableTokens) {
         return {
           messages: truncatedMessages,
-          truncated: true,
+          truncated: false,
           originalTokens,
           finalTokens: currentTokens,
           removedCount: 0,
@@ -186,7 +175,7 @@ export function truncateMessages(
         };
       }
       
-      // Second pass: Remove oldest non-system messages
+      // Only if context exceeded: Remove oldest non-system messages
       // Keep system prompt (index 0), FIRST user message (original request), and most recent messages
       const systemMsg = truncatedMessages[0];
       const otherMsgs = truncatedMessages.slice(1);
