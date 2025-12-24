@@ -243,7 +243,7 @@ export class Agent {
     this.messages.push({ role: "user", content: sanitizedUserMessage });
 
     let iterations = 0;
-    const maxIterations = 100; // Safety limit
+    const maxIterations = 1000; // Extended for long-running tasks
     let finalResponse = "";
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
@@ -397,7 +397,7 @@ export class Agent {
         
         // Nudge if no content and we haven't made any file_write calls yet
         const madeEdits = this.toolCallRecords.some(r => r.toolName === 'file_write' && r.success);
-        if (!hasContent && !madeEdits && iterations < 50) {
+        if (!hasContent && !madeEdits && iterations < 1000) {
           // LLM returned nothing useful and hasn't edited anything - nudge it to continue
           console.log("[Agent] No edits made yet, nudging LLM to make changes...");
           this.messages.push({
@@ -495,7 +495,7 @@ export class Agent {
     this.messages.push({ role: "user", content: sanitizedUserMessage });
 
     let iterations = 0;
-    const maxIterations = 100;
+    const maxIterations = 1000; // Extended for long-running tasks
 
     while (iterations < maxIterations) {
       // Check for abort
