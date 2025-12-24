@@ -183,18 +183,31 @@ export function truncateMessages(
       }
       
       // Second pass: Remove oldest non-system messages
-      // Keep system prompt (index 0) and most recent messages
+      // Keep system prompt (index 0), FIRST user message (original request), and most recent messages
       const systemMsg = truncatedMessages[0];
       const otherMsgs = truncatedMessages.slice(1);
       
-      while (currentTokens > availableTokens && otherMsgs.length > 2) {
-        // Remove oldest message (after system)
-        otherMsgs.shift();
+      // Find and preserve the first user message (original request)
+      const firstUserMsgIndex = otherMsgs.findIndex(m => m.role === "user");
+      const firstUserMsg = firstUserMsgIndex >= 0 ? otherMsgs[firstUserMsgIndex] : null;
+      
+      // Remove the first user message from otherMsgs so we don't accidentally delete it
+      const middleMsgs = firstUserMsg 
+        ? [...otherMsgs.slice(0, firstUserMsgIndex), ...otherMsgs.slice(firstUserMsgIndex + 1)]
+        : otherMsgs;
+      
+      while (currentTokens > availableTokens && middleMsgs.length > 1) {
+        // Remove oldest message from middle (preserving first user msg)
+        middleMsgs.shift();
         removedCount++;
-        currentTokens = estimateMessagesTokens([systemMsg, ...otherMsgs]);
+        const preserved = firstUserMsg ? [systemMsg, firstUserMsg, ...middleMsgs] : [systemMsg, ...middleMsgs];
+        currentTokens = estimateMessagesTokens(preserved);
       }
       
-      truncatedMessages = [systemMsg, ...otherMsgs];
+      // Reconstruct with preserved first user message
+      truncatedMessages = firstUserMsg 
+        ? [systemMsg, firstUserMsg, ...middleMsgs]
+        : [systemMsg, ...middleMsgs];
       break;
       
     case "sliding_window":

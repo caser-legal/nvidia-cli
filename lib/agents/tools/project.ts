@@ -1,11 +1,47 @@
 // Project Directory Tool
 // Allows setting and getting the current working directory for the agent
+// Persists state to disk for cross-request consistency
 
 import { BaseTool } from "../base-tool";
 import * as fs from "fs";
+import * as path from "path";
+
+// State file for persistence across requests
+const STATE_FILE = "/tmp/nvidia-cli-project-state.json";
 
 // Global state for current project directory
 let currentProjectDir: string = process.cwd();
+
+// Load persisted state on module initialization
+function loadPersistedState(): void {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const data = fs.readFileSync(STATE_FILE, "utf-8");
+      const state = JSON.parse(data);
+      if (state.projectDir && fs.existsSync(state.projectDir)) {
+        currentProjectDir = state.projectDir;
+        console.log(`[Project] Restored project directory: ${currentProjectDir}`);
+      }
+    }
+  } catch (e) {
+    // Ignore errors - use default
+  }
+}
+
+// Persist state to disk
+function persistState(): void {
+  try {
+    fs.writeFileSync(STATE_FILE, JSON.stringify({ 
+      projectDir: currentProjectDir,
+      timestamp: new Date().toISOString()
+    }));
+  } catch (e) {
+    console.error("[Project] Failed to persist state:", e);
+  }
+}
+
+// Initialize on module load
+loadPersistedState();
 
 export function getCurrentProjectDir(): string {
   return currentProjectDir;
@@ -13,6 +49,7 @@ export function getCurrentProjectDir(): string {
 
 export function setCurrentProjectDir(dir: string): void {
   currentProjectDir = dir;
+  persistState();
 }
 
 export class SetProjectTool extends BaseTool {

@@ -265,4 +265,16 @@ if (typeof process !== "undefined") {
     await disconnectMCPClient();
     process.exit(0);
   });
+  
+  process.on("uncaughtException", async (err) => {
+    console.error("[MCP Client] Uncaught exception, cleaning up:", err);
+    await disconnectMCPClient();
+    process.exit(1);
+  });
+  
+  process.on("unhandledRejection", async (reason) => {
+    console.error("[MCP Client] Unhandled rejection, cleaning up:", reason);
+    await disconnectMCPClient();
+    process.exit(1);
+  });
 }

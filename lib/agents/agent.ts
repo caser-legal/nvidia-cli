@@ -247,6 +247,8 @@ export class Agent {
     let finalResponse = "";
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
+    let nudgeCount = 0;
+    const MAX_NUDGES = 3; // Prevent infinite nudge loops
 
     while (iterations < maxIterations) {
       // Check for abort
@@ -397,15 +399,22 @@ export class Agent {
         
         // Nudge if no content and we haven't made any file_write calls yet
         const madeEdits = this.toolCallRecords.some(r => r.toolName === 'file_write' && r.success);
-        if (!hasContent && !madeEdits && iterations < 1000) {
-          // LLM returned nothing useful and hasn't edited anything - nudge it to continue
-          console.log("[Agent] No edits made yet, nudging LLM to make changes...");
+        if (!hasContent && !madeEdits && nudgeCount < MAX_NUDGES) {
+          nudgeCount++;
+          console.log(`[Agent] No edits made yet, nudging LLM (${nudgeCount}/${MAX_NUDGES})...`);
           this.messages.push({
             role: "user",
             content: "You have not made any code changes yet. Use file_write(operation='edit', path='...', old_text='exact text to replace', new_text='replacement text') to implement improvements NOW. Do not just read files - EDIT them.",
           });
           this.tracer.endSpan(iterSpanId);
           continue;
+        }
+        
+        // If we've exhausted nudges without edits, return graceful failure
+        if (!hasContent && !madeEdits && nudgeCount >= MAX_NUDGES) {
+          console.log("[Agent] Max nudges reached without edits, returning failure");
+          this.emit({ type: "status", status: "completed" });
+          return "I was unable to complete the requested edits after multiple attempts. Please provide more specific instructions about what changes you'd like me to make, including the exact file paths and the specific code sections to modify.";
         }
         
         console.log("[Agent] Marking task as completed");
