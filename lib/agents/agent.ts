@@ -663,13 +663,21 @@ export class Agent {
     // Tool alias mapping - redirect common hallucinated tool names to actual tools
     const toolAliases: Record<string, { name: string; transform?: (args: Record<string, unknown>) => Record<string, unknown> }> = {
       "str_replace_editor": {
-        name: "file_write",
-        transform: (a) => ({
-          operation: "edit",
-          path: a.path || a.file_path,
-          old_text: a.old_str,
-          new_text: a.new_str,
-        }),
+        name: args.command === "view" || args.operation === "read" ? "file_read" : "file_write",
+        transform: (a) => {
+          // Handle view/read commands -> file_read
+          if (a.command === "view" || a.operation === "read") {
+            return { operation: "read", path: a.path || a.file_path };
+          }
+          // Handle str_replace/create commands -> file_write
+          return {
+            operation: a.command === "create" ? "write" : "edit",
+            path: a.path || a.file_path,
+            content: a.file_text || a.content,
+            old_text: a.old_str,
+            new_text: a.new_str,
+          };
+        },
       },
       "str_replace": {
         name: "file_write", 
@@ -680,11 +688,22 @@ export class Agent {
           new_text: a.new_str,
         }),
       },
+      "view": {
+        name: "file_read",
+        transform: (a) => ({ operation: "read", path: a.path || a.file_path }),
+      },
+      "create": {
+        name: "file_write",
+        transform: (a) => ({ operation: "write", path: a.path || a.file_path, content: a.file_text || a.content }),
+      },
     };
     
     if (toolAliases[name]) {
-      console.log(`[Agent] Redirecting hallucinated tool "${name}" to "${toolAliases[name].name}"`);
-      const alias = toolAliases[name];
+      // Re-evaluate which tool to use based on args (for str_replace_editor)
+      const alias = name === "str_replace_editor" 
+        ? { ...toolAliases[name], name: args.command === "view" || args.operation === "read" ? "file_read" : "file_write" }
+        : toolAliases[name];
+      console.log(`[Agent] Redirecting "${name}" to "${alias.name}"`);
       name = alias.name;
       if (alias.transform) {
         args = alias.transform(args);
