@@ -669,11 +669,18 @@ export class Agent {
           if (a.command === "view" || a.operation === "read") {
             return { operation: "read", path: a.path || a.file_path };
           }
-          // Handle str_replace/create commands -> file_write
+          // Handle write/create commands -> file_write with operation="write"
+          if (a.command === "create" || a.operation === "write") {
+            return {
+              operation: "write",
+              path: a.path || a.file_path,
+              content: a.content || a.file_text,
+            };
+          }
+          // Handle str_replace/edit commands -> file_write with operation="edit"
           return {
-            operation: a.command === "create" ? "write" : "edit",
+            operation: "edit",
             path: a.path || a.file_path,
-            content: a.file_text || a.content,
             old_text: a.old_str,
             new_text: a.new_str,
           };
