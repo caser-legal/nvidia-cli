@@ -3,10 +3,15 @@
 
 import { exec } from "child_process";
 import { promisify } from "util";
-import { BaseTool } from "../base-tool";
+import { BaseTool, z } from "../base-tool";
 import { getCurrentProjectDir } from "./project";
 
 const execAsync = promisify(exec);
+
+const schema = z.object({
+  command: z.string().min(1, "command is required"),
+  timeout: z.number().int().positive().optional(),
+});
 
 export class BashTool extends BaseTool {
   name = "bash";
@@ -25,25 +30,23 @@ Commands run in the current project directory (use set_project to change it).`;
       optional: true,
     },
   };
-
-  constructor() {
-    super();
-  }
+  
+  protected schema = schema;
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    let command = args.command as string;
-    const timeout = (args.timeout as number) || 120000; // 2 min default
+    const v = this.validate(args);
+    if (!v.success) return `Error: ${v.error}`;
     
-    // Get current project directory
+    let command = v.data.command as string;
+    const timeout = (v.data.timeout as number) || 120000;
     const cwd = getCurrentProjectDir();
     
-    // Auto-exclude build folders from grep to prevent huge outputs
+    // Auto-exclude build folders from grep
     if (command.includes("grep -r") && !command.includes("--exclude-dir")) {
       command = command.replace("grep -r", "grep -r --exclude-dir=build --exclude-dir=.build --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=DerivedData --exclude-dir='.git'");
     }
-    // Don't modify find commands - the injection was breaking syntax
 
-    // Fix common command issues on macOS
+    // Fix python -> python3 on macOS
     if (command.startsWith("python ") || command.startsWith("python\"") || command === "python") {
       command = command.replace(/^python(?=\s|"|$)/, "python3");
     }
@@ -52,7 +55,7 @@ Commands run in the current project directory (use set_project to change it).`;
       const { stdout, stderr } = await execAsync(command, {
         cwd,
         timeout,
-        maxBuffer: 1024 * 1024 * 50, // 50MB buffer
+        maxBuffer: 1024 * 1024 * 50,
         shell: "/bin/zsh",
         env: {
           ...process.env,
@@ -64,10 +67,9 @@ Commands run in the current project directory (use set_project to change it).`;
       if (stdout) result += stdout;
       if (stderr) result += (result ? "\n" : "") + `[stderr] ${stderr}`;
       
-      // Truncate output to prevent context overflow (max ~100K chars ≈ 25K tokens)
       const MAX_OUTPUT = 100000;
       if (result.length > MAX_OUTPUT) {
-        result = result.slice(0, MAX_OUTPUT) + `\n... [truncated ${result.length - MAX_OUTPUT} chars to prevent context overflow]`;
+        result = result.slice(0, MAX_OUTPUT) + `\n... [truncated ${result.length - MAX_OUTPUT} chars]`;
       }
       
       return result || "[Command completed with no output]";

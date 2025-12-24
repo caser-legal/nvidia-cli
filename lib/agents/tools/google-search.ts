@@ -1,11 +1,15 @@
 // Google Search Tool
 // Uses free Google Custom Search API
 
-import { BaseTool } from "../base-tool";
+import { BaseTool, z } from "../base-tool";
 
-// API keys must be set via environment variables - no fallbacks
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_CSE_ID;
+
+const schema = z.object({
+  query: z.string().min(1, "query is required"),
+  num: z.number().int().min(1).max(10).optional(),
+});
 
 export class GoogleSearchTool extends BaseTool {
   name = "google_search";
@@ -24,31 +28,26 @@ Use this for fact-checking, research, and finding information.`;
       optional: true,
     },
   };
+  
+  protected schema = schema;
 
   async execute(args: Record<string, unknown>): Promise<string> {
     if (!GOOGLE_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
       return "Error: GOOGLE_API_KEY and GOOGLE_CSE_ID environment variables must be set";
     }
     
-    const query = args.query as string;
-    if (!query || typeof query !== "string") {
-      return "Error: query parameter is required and must be a string";
-    }
+    const v = this.validate(args);
+    if (!v.success) return `Error: ${v.error}`;
     
-    const num = Math.min(10, Math.max(1, (args.num as number) || 5));
+    const { query, num = 5 } = v.data as { query: string; num?: number };
 
     try {
       const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=${num}`;
       const res = await fetch(url);
       const data = await res.json();
 
-      if (data.error) {
-        return `Google API Error: ${data.error.message}`;
-      }
-
-      if (!data.items || data.items.length === 0) {
-        return `No results found for: ${query}`;
-      }
+      if (data.error) return `Google API Error: ${data.error.message}`;
+      if (!data.items || data.items.length === 0) return `No results found for: ${query}`;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const results = data.items.map((item: any, i: number) => 

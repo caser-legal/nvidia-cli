@@ -3,8 +3,22 @@
 
 import * as fs from "fs/promises";
 import * as path from "path";
-import { BaseTool } from "../base-tool";
+import { BaseTool, z } from "../base-tool";
 import { getCurrentProjectDir } from "./project";
+
+const schema = z.object({
+  operation: z.enum(["write", "edit"]).default("write"),
+  path: z.string().min(1, "path is required"),
+  content: z.string().optional(),
+  old_text: z.string().optional(),
+  new_text: z.string().optional(),
+}).refine(
+  (data) => data.operation !== "write" || data.content,
+  { message: "content is required for write operation", path: ["content"] }
+).refine(
+  (data) => data.operation !== "edit" || (data.old_text && data.new_text !== undefined),
+  { message: "old_text and new_text are required for edit operation", path: ["old_text"] }
+);
 
 export class FileWriteTool extends BaseTool {
   name = "file_write";
@@ -40,41 +54,29 @@ Uses the current project directory (use set_project to change it).`;
       optional: true,
     },
   };
-
-  constructor() {
-    super();
-  }
+  
+  protected schema = schema;
 
   private resolvePath(inputPath: string): string {
-    // Handle absolute paths and ~ expansion
-    if (inputPath.startsWith("/")) {
-      return inputPath;
-    }
-    if (inputPath.startsWith("~")) {
-      return inputPath.replace(/^~/, process.env.HOME || "");
-    }
-    // Relative path - resolve from current project
+    if (inputPath.startsWith("/")) return inputPath;
+    if (inputPath.startsWith("~")) return inputPath.replace(/^~/, process.env.HOME || "");
     return path.resolve(getCurrentProjectDir(), inputPath);
   }
 
   async execute(args: Record<string, unknown>): Promise<string> {
-    const operation = (args.operation as string) || "write"; // Default to write
-    const filePath = args.path as string;
+    const v = this.validate(args);
+    if (!v.success) return `Error: ${v.error}`;
+    
+    const { operation, path: filePath, content, old_text, new_text } = v.data as {
+      operation: string; path: string; content?: string; old_text?: string; new_text?: string;
+    };
 
     try {
       if (operation === "write") {
-        const content = args.content as string;
-        if (!content) return "Error: content is required for write operation";
-        return await this.writeFile(filePath, content);
-      } else if (operation === "edit") {
-        const oldText = args.old_text as string;
-        const newText = args.new_text as string;
-        if (!oldText || newText === undefined) {
-          return "Error: old_text and new_text are required for edit operation";
-        }
-        return await this.editFile(filePath, oldText, newText);
+        return await this.writeFile(filePath, content!);
+      } else {
+        return await this.editFile(filePath, old_text!, new_text!);
       }
-      return `Error: Unknown operation '${operation}'`;
     } catch (error) {
       return `Error: ${error instanceof Error ? error.message : String(error)}`;
     }
@@ -82,11 +84,8 @@ Uses the current project directory (use set_project to change it).`;
 
   private async writeFile(filePath: string, content: string): Promise<string> {
     const resolved = this.resolvePath(filePath);
-    
-    // Create parent directories if needed
     await fs.mkdir(path.dirname(resolved), { recursive: true });
     await fs.writeFile(resolved, content, "utf-8");
-    
     return `Successfully wrote ${content.length} characters to ${filePath}`;
   }
 
@@ -94,26 +93,18 @@ Uses the current project directory (use set_project to change it).`;
     const resolved = this.resolvePath(filePath);
     
     const stat = await fs.stat(resolved);
-    if (!stat.isFile()) {
-      return `Error: ${filePath} is not a file`;
-    }
+    if (!stat.isFile()) return `Error: ${filePath} is not a file`;
 
     const content = await fs.readFile(resolved, "utf-8");
-    
-    if (!content.includes(oldText)) {
-      return `Error: The specified text was not found in ${filePath}`;
-    }
+    if (!content.includes(oldText)) return `Error: The specified text was not found in ${filePath}`;
 
     const count = content.split(oldText).length - 1;
-    
-    // Fail on ambiguous matches to prevent silent partial edits
     if (count > 1) {
       return `Error: Found ${count} occurrences of the specified text in ${filePath}. Please provide more context to make old_text unique (include surrounding lines).`;
     }
     
     const newContent = content.replace(oldText, newText);
     await fs.writeFile(resolved, newContent, "utf-8");
-
     return `Successfully edited ${filePath}`;
   }
 }

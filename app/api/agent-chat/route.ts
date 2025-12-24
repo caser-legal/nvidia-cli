@@ -24,11 +24,7 @@ import {
 } from "@/lib/agents/tools/specialist-agents";
 import { GitHubAnalyzerTool, GitHubFileReaderTool } from "@/lib/agents/tools/github-analyzer";
 import { MermaidGeneratorTool, QuickDiagramTool } from "@/lib/agents/tools/mermaid-generator";
-import {
-  EntityMemoryTool,
-  ShortTermMemory,
-  LongTermMemory,
-} from "@/lib/agents/tools/memory";
+import { EntityMemoryTool } from "@/lib/agents/tools/memory";
 import { UnifiedMemoryTool } from "@/lib/agents/tools/unified-memory";
 import {
   CodeDocumentationTool,
@@ -52,7 +48,7 @@ import {
 
 import { getRAGPipeline, IOS_DEVELOPMENT_PROFILE } from "@/lib/agents/rag";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
-import { UnifiedContext } from "@/lib/agents/unified-context";
+import { UnifiedContext, createUnifiedContext } from "@/lib/agents/unified-context";
 import { RetrievalRouter } from "@/lib/agents/retrieval-router";
 import { ToolOrchestrator } from "@/lib/agents/tool-orchestrator";
 import { FeedbackOptimizer } from "@/lib/agents/feedback-optimizer";
@@ -1069,10 +1065,7 @@ export async function POST(request: NextRequest) {
     });
 
     const ragPipeline = getRAGPipeline({ profile: IOS_DEVELOPMENT_PROFILE });
-    const shortTermMemory = new ShortTermMemory(sessionId);
-    const longTermMemory = new LongTermMemory();
     const retrievalRouter = new RetrievalRouter(apiKey);
-    const entityMemory = new EntityMemoryTool();
 
     const toolOrchestrator = new ToolOrchestrator(
       tools,
@@ -1090,13 +1083,10 @@ export async function POST(request: NextRequest) {
       baseUrl: "https://integrate.api.nvidia.com/v1",
     });
 
-    const unifiedContext = new UnifiedContext(
+    const unifiedContext = createUnifiedContext(
       ragPipeline,
-      shortTermMemory,
-      longTermMemory,
       flywheelLogger,
-      retrievalRouter,
-      entityMemory
+      retrievalRouter
     );
 
     const stream = new ReadableStream({
