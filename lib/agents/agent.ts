@@ -15,7 +15,6 @@ import type {
 import { FlywheelLogger, ToolCallRecord } from "./flywheel";
 import { UnifiedContext } from "./unified-context";
 import { PIIGuard } from "../security/pii-guard";
-import { ToolGuard } from "../security/tool-guard";
 import { Tracer, globalTracer } from "./observability/tracer";
 import { ToolOrchestrator } from "./tool-orchestrator";
 import { FeedbackOptimizer } from "./feedback-optimizer";
@@ -52,7 +51,6 @@ export class Agent {
   private mode: string = "chat";
   private unifiedContext?: UnifiedContext;
   private piiGuard: PIIGuard;
-  private toolGuard: ToolGuard;
   private tracer: Tracer;
   private toolOrchestrator?: ToolOrchestrator;
   private feedbackOptimizer?: FeedbackOptimizer;
@@ -114,7 +112,6 @@ export class Agent {
     
     // Initialize Security & Observability
     this.piiGuard = new PIIGuard();
-    this.toolGuard = new ToolGuard();
     this.tracer = globalTracer;
 
     for (const tool of options.tools || []) {
@@ -688,22 +685,6 @@ export class Agent {
         content: error,
         is_error: true,
       };
-    }
-
-    // Security Check
-    const securityCheck = this.toolGuard.check(name, args);
-    if (!securityCheck.allowed) {
-      const error = `Tool execution blocked by security policy: ${securityCheck.reason}`;
-      this.tracer.failSpan(spanId, new Error(error));
-      return {
-        tool_call_id: toolCall.id,
-        content: error,
-        is_error: true,
-      };
-    }
-
-    if (securityCheck.requiresConfirmation) {
-      console.log(`[Agent] Tool ${name} requires confirmation. Proceeding in prototype mode...`);
     }
 
     try {
