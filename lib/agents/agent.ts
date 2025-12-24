@@ -393,18 +393,22 @@ export class Agent {
 
         // No tool calls - check if LLM actually responded or just gave up
         const hasContent = message.content && message.content.trim().length > 50;
-        if (!hasContent && iterations < 10) {
-          // LLM returned nothing useful - nudge it to continue
-          console.log("[Agent] Empty/short response, nudging LLM to continue...");
+        console.log(`[Agent] No tool calls. hasContent=${hasContent}, iterations=${iterations}, content length=${message.content?.length || 0}`);
+        
+        // Nudge if no content and we haven't made any file_write calls yet
+        const madeEdits = this.toolCallRecords.some(r => r.toolName === 'file_write' && r.success);
+        if (!hasContent && !madeEdits && iterations < 50) {
+          // LLM returned nothing useful and hasn't edited anything - nudge it to continue
+          console.log("[Agent] No edits made yet, nudging LLM to make changes...");
           this.messages.push({
             role: "user",
-            content: "You stopped without completing the task. Use file_write(operation='edit', path='...', old_text='...', new_text='...') to make code changes NOW.",
+            content: "You have not made any code changes yet. Use file_write(operation='edit', path='...', old_text='exact text to replace', new_text='replacement text') to implement improvements NOW. Do not just read files - EDIT them.",
           });
           this.tracer.endSpan(iterSpanId);
           continue;
         }
         
-        this.tracer.endSpan(iterSpanId);
+        console.log("[Agent] Marking task as completed");
         this.emit({ type: "status", status: "completed" });
         
         // Log to flywheel
