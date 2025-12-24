@@ -6,7 +6,7 @@ import {
   FlywheelRecord, 
   FlywheelDataset
 } from "./types";
-import { FlywheelLogger } from "./logger";
+import { FlywheelLogger, QUALITY_THRESHOLD } from "./logger";
 
 export interface DataSplitConfig {
   trainRatio: number;  // e.g., 0.8
@@ -51,9 +51,14 @@ export class DatasetCreator {
       // Response should be meaningful (not just errors)
       if (r.assistantResponse.length < 50) return false;
       
-      // If has user rating, must be >= 3
-      if (r.qualitySignals?.userRating && r.qualitySignals.userRating < 3) {
-        return false;
+      // Must meet LLM-as-judge quality threshold (>= 7 on 0-10 scale)
+      if (r.qualitySignals?.overallScore !== undefined) {
+        if (r.qualitySignals.overallScore < QUALITY_THRESHOLD) return false;
+      }
+      
+      // If has user rating but no LLM score, must be >= 3
+      if (r.qualitySignals?.userRating && !r.qualitySignals?.overallScore) {
+        if (r.qualitySignals.userRating < 3) return false;
       }
       
       // Error rate should be low

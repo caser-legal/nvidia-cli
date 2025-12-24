@@ -13,6 +13,9 @@ import {
 const recordStore: Map<string, FlywheelRecord[]> = new Map();
 const MAX_RECORDS_PER_WORKLOAD = 500;
 
+// Quality threshold for dataset inclusion (0-10 scale from LLM-as-judge)
+export const QUALITY_THRESHOLD = 7;
+
 // Generate unique ID
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -155,17 +158,32 @@ export class FlywheelLogger {
     return recordStore.get(key) || [];
   }
   
-  // Get records filtered by quality
+  // Get records filtered by quality (user rating OR LLM-as-judge score)
   getHighQualityRecords(minRating: number = 4): FlywheelRecord[] {
+    return this.getRecords().filter(r => {
+      // Check LLM-as-judge overall score first (0-10 scale)
+      if (r.qualitySignals?.overallScore !== undefined) {
+        return r.qualitySignals.overallScore >= QUALITY_THRESHOLD;
+      }
+      // Fall back to user rating (1-5 scale, convert threshold)
+      if (r.qualitySignals?.userRating !== undefined) {
+        return r.qualitySignals.userRating >= minRating;
+      }
+      return false;
+    });
+  }
+  
+  // Get records that meet quality threshold for training dataset
+  getTrainingQualityRecords(): FlywheelRecord[] {
     return this.getRecords().filter(r => 
-      r.qualitySignals?.userRating && 
-      r.qualitySignals.userRating >= minRating
+      r.qualitySignals?.overallScore !== undefined && 
+      r.qualitySignals.overallScore >= QUALITY_THRESHOLD
     );
   }
   
-  // Export records in OpenAI fine-tuning format
+  // Export records in OpenAI fine-tuning format (only high-quality)
   exportForTraining(): string[] {
-    const records = this.getRecords();
+    const records = this.getTrainingQualityRecords();
     return records.map(r => {
       const messages = [
         { role: "system", content: r.systemPrompt },
@@ -177,10 +195,10 @@ export class FlywheelLogger {
     });
   }
   
-  // Export records in NVIDIA NeMo/NIM JSONL format
+  // Export records in NVIDIA NeMo/NIM JSONL format (only high-quality)
   // Compatible with NeMo Curator and NIM fine-tuning pipelines
   exportForNIM(): string[] {
-    const records = this.getRecords();
+    const records = this.getTrainingQualityRecords();
     return records.map(r => {
       // NeMo expects "conversations" array with "value" field
       const conversations = [
@@ -212,9 +230,9 @@ export class FlywheelLogger {
     });
   }
   
-  // Export records with tool calls (for tool-calling fine-tuning)
+  // Export records with tool calls (only high-quality, for tool-calling fine-tuning)
   exportWithToolCalls(): string[] {
-    const records = this.getRecords().filter(r => r.toolCalls.length > 0);
+    const records = this.getTrainingQualityRecords().filter(r => r.toolCalls.length > 0);
     return records.map(r => {
       const toolCallsFormatted = r.toolCalls.map(tc => ({
         name: tc.toolName,
