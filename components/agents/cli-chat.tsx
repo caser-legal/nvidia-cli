@@ -38,6 +38,7 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
   const [isRunning, setIsRunning] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const abortRef = React.useRef<AbortController | null>(null);
 
   // Auto-scroll to bottom
   React.useEffect(() => {
@@ -71,6 +72,8 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
 
     setEvents(prev => [...prev, { type: "message", role: "user", content: userMessage }]);
 
+    abortRef.current = new AbortController();
+
     try {
       const response = await fetch("/api/agent-chat", {
         method: "POST",
@@ -84,6 +87,7 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
           messages: [{ role: "user", content: userMessage }],
           projectDir: currentDir,
         }),
+        signal: abortRef.current.signal,
       });
 
       if (!response.ok) throw new Error(`API error: ${response.status}`);
@@ -226,7 +230,12 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
           </span>
         </button>
         {isRunning && (
-          <span className="ml-auto text-green-400 text-sm animate-pulse">● running</span>
+          <button
+            onClick={() => abortRef.current?.abort()}
+            className="ml-auto text-red-400 text-sm hover:text-red-300 transition-colors"
+          >
+            ■ stop
+          </button>
         )}
       </div>
 

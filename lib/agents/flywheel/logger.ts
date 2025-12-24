@@ -1,61 +1,29 @@
 // Data Flywheel Logger
 // Captures agent interactions for continuous model improvement
-// Based on NVIDIA Data Flywheel Blueprint
 
-import { 
-  FlywheelRecord, 
-  ToolCallRecord, 
-  QualitySignals,
-  WorkloadClassification 
-} from "./types";
+import { FlywheelRecord, ToolCallRecord, QualitySignals, WorkloadClassification } from "./types";
+import { createLogger } from "../../logger";
 
-// In-memory store with eviction to prevent OOM
+const log = createLogger("Flywheel");
+
 const recordStore: Map<string, FlywheelRecord[]> = new Map();
 const MAX_RECORDS_PER_WORKLOAD = 500;
 
-// Quality threshold for dataset inclusion (0-10 scale from LLM-as-judge)
 export const QUALITY_THRESHOLD = 7;
 
-// Generate unique ID
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Identify workload type from tool calls
 function identifyWorkloadType(toolCalls: ToolCallRecord[]): WorkloadClassification {
   const toolNames = toolCalls.map(t => t.toolName);
-  
-  // Check for research patterns
-  if (toolNames.some(n => 
-    n.includes("search") || 
-    n.includes("research") || 
-    n === "search_specialist"
-  )) {
-    return WorkloadClassification.RESEARCH;
-  }
-  
-  // Check for coding patterns
-  if (toolNames.some(n => 
-    n === "file_write" || 
-    n === "bash" ||
-    n.includes("code")
-  )) {
-    return WorkloadClassification.CODING;
-  }
-  
-  // Check for tool calling patterns
-  if (toolCalls.length > 0) {
-    return WorkloadClassification.TOOL_CALLING;
-  }
-  
+  if (toolNames.some(n => n.includes("search") || n.includes("research") || n === "search_specialist")) return WorkloadClassification.RESEARCH;
+  if (toolNames.some(n => n === "file_write" || n === "bash" || n.includes("code"))) return WorkloadClassification.CODING;
+  if (toolCalls.length > 0) return WorkloadClassification.TOOL_CALLING;
   return WorkloadClassification.GENERIC;
 }
 
-// Calculate quality signals from a record
-function calculateQualitySignals(
-  response: string,
-  toolCalls: ToolCallRecord[]
-): QualitySignals {
+function calculateQualitySignals(response: string, toolCalls: ToolCallRecord[]): QualitySignals {
   return {
     responseLength: response.length,
     toolCallCount: toolCalls.length,
@@ -68,17 +36,12 @@ export class FlywheelLogger {
   private workloadId: string;
   private enabled: boolean;
   
-  constructor(options: {
-    clientId?: string;
-    workloadId?: string;
-    enabled?: boolean;
-  } = {}) {
+  constructor(options: { clientId?: string; workloadId?: string; enabled?: boolean } = {}) {
     this.clientId = options.clientId || "default";
     this.workloadId = options.workloadId || `workload-${Date.now()}`;
     this.enabled = options.enabled ?? true;
   }
   
-  // Log a complete agent interaction
   logInteraction(params: {
     userMessage: string;
     assistantResponse: string;
@@ -87,11 +50,7 @@ export class FlywheelLogger {
     toolCalls: ToolCallRecord[];
     model: string;
     mode: string;
-    tokenUsage: {
-      promptTokens: number;
-      completionTokens: number;
-      totalTokens: number;
-    };
+    tokenUsage: { promptTokens: number; completionTokens: number; totalTokens: number };
     latencyMs: number;
   }): FlywheelRecord | null {
     if (!this.enabled) return null;
@@ -110,30 +69,20 @@ export class FlywheelLogger {
       mode: params.mode,
       tokenUsage: params.tokenUsage,
       latencyMs: params.latencyMs,
-      qualitySignals: calculateQualitySignals(
-        params.assistantResponse,
-        params.toolCalls
-      ),
+      qualitySignals: calculateQualitySignals(params.assistantResponse, params.toolCalls),
     };
     
-    // Store record with eviction
     const key = `${this.clientId}:${this.workloadId}`;
-    if (!recordStore.has(key)) {
-      recordStore.set(key, []);
-    }
+    if (!recordStore.has(key)) recordStore.set(key, []);
     const records = recordStore.get(key)!;
     
-    // Evict oldest records if at capacity
-    while (records.length >= MAX_RECORDS_PER_WORKLOAD) {
-      records.shift();
-    }
+    while (records.length >= MAX_RECORDS_PER_WORKLOAD) records.shift();
     records.push(record);
     
-    console.log(`[Flywheel] Logged interaction ${record.id} for ${key} (${records.length}/${MAX_RECORDS_PER_WORKLOAD})`);
+    log.info(`Logged interaction ${record.id}`, { key, count: records.length, max: MAX_RECORDS_PER_WORKLOAD });
     return record;
   }
   
-  // Add user feedback to a record
   addUserFeedback(recordId: string, rating: number, feedback?: string): boolean {
     const key = `${this.clientId}:${this.workloadId}`;
     const records = recordStore.get(key);
@@ -142,138 +91,56 @@ export class FlywheelLogger {
     const record = records.find(r => r.id === recordId);
     if (!record) return false;
     
-    record.qualitySignals = {
-      ...record.qualitySignals!,
-      userRating: rating,
-      userFeedback: feedback,
-    };
-    
-    console.log(`[Flywheel] Added feedback to ${recordId}: ${rating}/5`);
+    record.qualitySignals = { ...record.qualitySignals!, userRating: rating, userFeedback: feedback };
+    log.info(`Added feedback to ${recordId}: ${rating}/5`);
     return true;
   }
   
-  // Get records for a workload
   getRecords(): FlywheelRecord[] {
     const key = `${this.clientId}:${this.workloadId}`;
     return recordStore.get(key) || [];
   }
   
-  // Get records filtered by quality (user rating OR LLM-as-judge score)
   getHighQualityRecords(minRating: number = 4): FlywheelRecord[] {
     return this.getRecords().filter(r => {
-      // Check LLM-as-judge overall score first (0-10 scale)
-      if (r.qualitySignals?.overallScore !== undefined) {
-        return r.qualitySignals.overallScore >= QUALITY_THRESHOLD;
-      }
-      // Fall back to user rating (1-5 scale, convert threshold)
-      if (r.qualitySignals?.userRating !== undefined) {
-        return r.qualitySignals.userRating >= minRating;
-      }
+      if (r.qualitySignals?.overallScore !== undefined) return r.qualitySignals.overallScore >= QUALITY_THRESHOLD;
+      if (r.qualitySignals?.userRating !== undefined) return r.qualitySignals.userRating >= minRating;
       return false;
     });
   }
   
-  // Get records that meet quality threshold for training dataset
   getTrainingQualityRecords(): FlywheelRecord[] {
-    return this.getRecords().filter(r => 
-      r.qualitySignals?.overallScore !== undefined && 
-      r.qualitySignals.overallScore >= QUALITY_THRESHOLD
-    );
+    return this.getRecords().filter(r => r.qualitySignals?.overallScore !== undefined && r.qualitySignals.overallScore >= QUALITY_THRESHOLD);
   }
   
-  // Export records in OpenAI fine-tuning format (only high-quality)
   exportForTraining(): string[] {
-    const records = this.getTrainingQualityRecords();
-    return records.map(r => {
-      const messages = [
-        { role: "system", content: r.systemPrompt },
-        ...r.conversationHistory,
-        { role: "user", content: r.userMessage },
-        { role: "assistant", content: r.assistantResponse },
-      ];
+    return this.getTrainingQualityRecords().map(r => {
+      const messages = [{ role: "system", content: r.systemPrompt }, ...r.conversationHistory, { role: "user", content: r.userMessage }, { role: "assistant", content: r.assistantResponse }];
       return JSON.stringify({ messages });
     });
   }
   
-  // Export records in NVIDIA NeMo/NIM JSONL format (only high-quality)
-  // Compatible with NeMo Curator and NIM fine-tuning pipelines
   exportForNIM(): string[] {
-    const records = this.getTrainingQualityRecords();
-    return records.map(r => {
-      // NeMo expects "conversations" array with "value" field
-      const conversations = [
-        { from: "system", value: r.systemPrompt },
-        ...r.conversationHistory.map(m => ({ from: m.role, value: m.content })),
-        { from: "human", value: r.userMessage },
-        { from: "gpt", value: r.assistantResponse },
-      ];
-      
-      // Include tool calls if present (NeMo function calling format)
-      const toolCalls = r.toolCalls.length > 0 ? r.toolCalls.map(tc => ({
-        name: tc.toolName,
-        arguments: tc.arguments,
-        result: tc.result,
-        success: tc.success,
-      })) : undefined;
-      
-      return JSON.stringify({
-        conversations,
-        tool_calls: toolCalls,
-        metadata: {
-          model: r.model,
-          mode: r.mode,
-          workload_id: r.workloadId,
-          quality_score: r.qualitySignals?.overallScore,
-          latency_ms: r.latencyMs,
-        },
-      });
+    return this.getTrainingQualityRecords().map(r => {
+      const conversations = [{ from: "system", value: r.systemPrompt }, ...r.conversationHistory.map(m => ({ from: m.role, value: m.content })), { from: "human", value: r.userMessage }, { from: "gpt", value: r.assistantResponse }];
+      const toolCalls = r.toolCalls.length > 0 ? r.toolCalls.map(tc => ({ name: tc.toolName, arguments: tc.arguments, result: tc.result, success: tc.success })) : undefined;
+      return JSON.stringify({ conversations, tool_calls: toolCalls, metadata: { model: r.model, mode: r.mode, workload_id: r.workloadId, quality_score: r.qualitySignals?.overallScore, latency_ms: r.latencyMs } });
     });
   }
   
-  // Export records with tool calls (only high-quality, for tool-calling fine-tuning)
   exportWithToolCalls(): string[] {
-    const records = this.getTrainingQualityRecords().filter(r => r.toolCalls.length > 0);
-    return records.map(r => {
-      const toolCallsFormatted = r.toolCalls.map(tc => ({
-        name: tc.toolName,
-        arguments: tc.arguments,
-      }));
-      
-      return JSON.stringify({
-        messages: [
-          { role: "system", content: r.systemPrompt },
-          ...r.conversationHistory,
-          { role: "user", content: r.userMessage },
-        ],
-        tools: toolCallsFormatted,
-        assistant_response: r.assistantResponse,
-      });
+    return this.getTrainingQualityRecords().filter(r => r.toolCalls.length > 0).map(r => {
+      const toolCallsFormatted = r.toolCalls.map(tc => ({ name: tc.toolName, arguments: tc.arguments }));
+      return JSON.stringify({ messages: [{ role: "system", content: r.systemPrompt }, ...r.conversationHistory, { role: "user", content: r.userMessage }], tools: toolCallsFormatted, assistant_response: r.assistantResponse });
     });
   }
   
-  // Get statistics
-  getStats(): {
-    totalRecords: number;
-    byWorkloadType: Record<string, number>;
-    avgLatencyMs: number;
-    avgToolCalls: number;
-    errorRate: number;
-  } {
+  getStats(): { totalRecords: number; byWorkloadType: Record<string, number>; avgLatencyMs: number; avgToolCalls: number; errorRate: number } {
     const records = this.getRecords();
-    if (records.length === 0) {
-      return {
-        totalRecords: 0,
-        byWorkloadType: {},
-        avgLatencyMs: 0,
-        avgToolCalls: 0,
-        errorRate: 0,
-      };
-    }
+    if (records.length === 0) return { totalRecords: 0, byWorkloadType: {}, avgLatencyMs: 0, avgToolCalls: 0, errorRate: 0 };
     
     const byWorkloadType: Record<string, number> = {};
-    let totalLatency = 0;
-    let totalToolCalls = 0;
-    let totalErrors = 0;
+    let totalLatency = 0, totalToolCalls = 0, totalErrors = 0;
     
     for (const r of records) {
       const type = identifyWorkloadType(r.toolCalls);
@@ -283,33 +150,19 @@ export class FlywheelLogger {
       totalErrors += r.toolCalls.filter(t => !t.success).length;
     }
     
-    return {
-      totalRecords: records.length,
-      byWorkloadType,
-      avgLatencyMs: totalLatency / records.length,
-      avgToolCalls: totalToolCalls / records.length,
-      errorRate: totalToolCalls > 0 ? totalErrors / totalToolCalls : 0,
-    };
+    return { totalRecords: records.length, byWorkloadType, avgLatencyMs: totalLatency / records.length, avgToolCalls: totalToolCalls / records.length, errorRate: totalToolCalls > 0 ? totalErrors / totalToolCalls : 0 };
   }
   
-  // Clear records (for testing)
   clear(): void {
     const key = `${this.clientId}:${this.workloadId}`;
     recordStore.delete(key);
   }
 }
 
-// Singleton instance for global logging
 let globalLogger: FlywheelLogger | null = null;
 
-export function getFlywheelLogger(options?: {
-  clientId?: string;
-  workloadId?: string;
-  enabled?: boolean;
-}): FlywheelLogger {
-  if (!globalLogger) {
-    globalLogger = new FlywheelLogger(options);
-  }
+export function getFlywheelLogger(options?: { clientId?: string; workloadId?: string; enabled?: boolean }): FlywheelLogger {
+  if (!globalLogger) globalLogger = new FlywheelLogger(options);
   return globalLogger;
 }
 

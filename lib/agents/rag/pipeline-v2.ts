@@ -1,14 +1,6 @@
 /**
  * RAG Pipeline v2
  * Full implementation based on NVIDIA RAG Blueprint (Dec 2025)
- * 
- * Features:
- * - RecursiveCharacterTextSplitter with code-aware chunking
- * - ContextualCompressionRetriever (wide net → rerank → narrow)
- * - Agent-controlled retrieval (agent decides when to search)
- * - Query decomposition for complex queries
- * - Reflection/self-correction loop
- * - NVIDIA NeMo Retriever models (EmbedQA + RerankQA)
  */
 
 import { Document, SearchResult } from './types';
@@ -18,14 +10,10 @@ import { ReflectionSystem, ReflectionCounter } from './reflection';
 import { ResearchWorkflow, ResearchResult } from './research-workflow';
 import { RecursiveCharacterTextSplitter, SwiftTextSplitter } from './text-splitter';
 import { ContextualCompressionRetriever, AgentControlledRetriever } from './contextual-retriever';
-import {
-  RAGProfile,
-  IOS_DEVELOPMENT_PROFILE,
-  getRAGProfile,
-  ChunkingConfig,
-  RetrievalConfig,
-  ModelConfig,
-} from './config';
+import { RAGProfile, IOS_DEVELOPMENT_PROFILE, getRAGProfile, ChunkingConfig, RetrievalConfig, ModelConfig } from './config';
+import { createLogger } from '../../logger';
+
+const log = createLogger("RAGv2");
 
 export interface RAGPipelineV2Config {
   profile?: string | RAGProfile;
@@ -34,10 +22,6 @@ export interface RAGPipelineV2Config {
   models?: Partial<ModelConfig>;
 }
 
-/**
- * RAGPipelineV2
- * Production-ready RAG pipeline following NVIDIA best practices
- */
 export class RAGPipelineV2 {
   private profile: RAGProfile;
   private embeddings: NVIDIAEmbeddings;
@@ -52,7 +36,6 @@ export class RAGPipelineV2 {
   private initialized: boolean = false;
 
   constructor(config: RAGPipelineV2Config = {}) {
-    // Load profile
     if (typeof config.profile === 'string') {
       this.profile = getRAGProfile(config.profile);
     } else if (config.profile) {
@@ -61,65 +44,29 @@ export class RAGPipelineV2 {
       this.profile = IOS_DEVELOPMENT_PROFILE;
     }
 
-    // Apply overrides
-    if (config.chunking) {
-      this.profile.chunking = { ...this.profile.chunking, ...config.chunking };
-    }
-    if (config.retrieval) {
-      this.profile.retrieval = { ...this.profile.retrieval, ...config.retrieval };
-    }
-    if (config.models) {
-      this.profile.models = { ...this.profile.models, ...config.models };
-    }
+    if (config.chunking) this.profile.chunking = { ...this.profile.chunking, ...config.chunking };
+    if (config.retrieval) this.profile.retrieval = { ...this.profile.retrieval, ...config.retrieval };
+    if (config.models) this.profile.models = { ...this.profile.models, ...config.models };
 
     this.llmEndpoint = 'https://integrate.api.nvidia.com/v1';
 
-    // Initialize components
-    this.embeddings = new NVIDIAEmbeddings({
-      provider: 'nvidia',
-      model: this.profile.models.embeddingModel,
-    });
-
-    this.reranker = new NVIDIAReranker(
-      this.profile.models.rerankModel,
-      this.profile.retrieval.rerankTopK
-    );
-
+    this.embeddings = new NVIDIAEmbeddings({ provider: 'nvidia', model: this.profile.models.embeddingModel });
+    this.reranker = new NVIDIAReranker(this.profile.models.rerankModel, this.profile.retrieval.rerankTopK);
     this.vectorStore = new SimpleVectorStore(this.embeddings);
-
-    // ContextualCompressionRetriever: chains retriever + reranker
-    this.retriever = new ContextualCompressionRetriever(
-      this.vectorStore,
-      this.reranker,
-      this.profile.retrieval
-    );
-
-    // Agent-controlled retriever wrapper
+    this.retriever = new ContextualCompressionRetriever(this.vectorStore, this.reranker, this.profile.retrieval);
     this.agentRetriever = new AgentControlledRetriever(this.retriever);
-
-    // Text splitter based on profile
     this.textSplitter = new SwiftTextSplitter(this.profile.chunking);
+    this.decomposer = new QueryDecomposer(this.llmEndpoint, this.profile.models.llmModel);
+    this.reflection = new ReflectionSystem(this.llmEndpoint, this.profile.models.llmModel, 1, 1);
 
-    // Query decomposition
-    this.decomposer = new QueryDecomposer(
-      this.llmEndpoint,
-      this.profile.models.llmModel
-    );
-
-    // Reflection system
-    this.reflection = new ReflectionSystem(
-      this.llmEndpoint,
-      this.profile.models.llmModel,
-      1, // relevanceThreshold
-      1  // groundednessThreshold
-    );
-
-    // Auto-load persisted data
     this.init();
 
-    console.log(`[RAGv2] Initialized with profile: ${this.profile.name}`);
-    console.log(`[RAGv2] Chunking: ${this.profile.chunking.chunkSize} chars, ${this.profile.chunking.chunkOverlap} overlap`);
-    console.log(`[RAGv2] Retrieval: ${this.profile.retrieval.initialTopK} → rerank → ${this.profile.retrieval.rerankTopK}`);
+    log.info(`Initialized with profile: ${this.profile.name}`, {
+      chunkSize: this.profile.chunking.chunkSize,
+      chunkOverlap: this.profile.chunking.chunkOverlap,
+      initialTopK: this.profile.retrieval.initialTopK,
+      rerankTopK: this.profile.retrieval.rerankTopK,
+    });
   }
 
   private async init(): Promise<void> {
@@ -128,72 +75,32 @@ export class RAGPipelineV2 {
     this.initialized = true;
   }
 
-  // ===========================================================================
-  // INGESTION
-  // ===========================================================================
-
-  /**
-   * Ingest documents with proper chunking
-   * Uses RecursiveCharacterTextSplitter for code-aware splitting
-   * Populates both vector store and BM25 index for hybrid retrieval
-   */
-  async ingest(
-    documents: { id: string; content: string; metadata?: Record<string, unknown> }[]
-  ): Promise<{ chunksCreated: number; documentsProcessed: number }> {
+  async ingest(documents: { id: string; content: string; metadata?: Record<string, unknown> }[]): Promise<{ chunksCreated: number; documentsProcessed: number }> {
     await this.init();
+    log.info(`Ingesting ${documents.length} documents`);
 
-    console.log(`[RAGv2] Ingesting ${documents.length} documents...`);
-
-    // Chunk documents using RecursiveCharacterTextSplitter
     const chunkedDocs = this.textSplitter.splitDocuments(documents);
+    log.info(`Created ${chunkedDocs.length} chunks from ${documents.length} documents`);
 
-    console.log(`[RAGv2] Created ${chunkedDocs.length} chunks from ${documents.length} documents`);
-
-    // Add to vector store
     await this.vectorStore.addDocuments(chunkedDocs);
-
-    // Add to BM25 index for hybrid retrieval
     this.retriever.addToBM25(chunkedDocs);
-    console.log(`[RAGv2] Added ${chunkedDocs.length} chunks to BM25 index`);
+    log.debug(`Added ${chunkedDocs.length} chunks to BM25 index`);
 
-    return {
-      chunksCreated: chunkedDocs.length,
-      documentsProcessed: documents.length,
-    };
+    return { chunksCreated: chunkedDocs.length, documentsProcessed: documents.length };
   }
 
-  /**
-   * Ingest a directory of files
-   */
-  async ingestDirectory(
-    dirPath: string,
-    options: {
-      extensions?: string[];
-      recursive?: boolean;
-      excludePatterns?: string[];
-    } = {}
-  ): Promise<{ chunksCreated: number; filesProcessed: number }> {
+  async ingestDirectory(dirPath: string, options: { extensions?: string[]; recursive?: boolean; excludePatterns?: string[] } = {}): Promise<{ chunksCreated: number; filesProcessed: number }> {
     const fs = await import('fs/promises');
     const path = await import('path');
 
-    const {
-      extensions = ['.swift', '.ts', '.tsx', '.js', '.jsx', '.md', '.txt'],
-      recursive = true,
-      excludePatterns = ['node_modules', '.git', 'build', 'dist', '.next'],
-    } = options;
-
+    const { extensions = ['.swift', '.ts', '.tsx', '.js', '.jsx', '.md', '.txt'], recursive = true, excludePatterns = ['node_modules', '.git', 'build', 'dist', '.next'] } = options;
     const documents: { id: string; content: string; metadata?: Record<string, unknown> }[] = [];
 
     async function walkDir(dir: string): Promise<void> {
       const entries = await fs.readdir(dir, { withFileTypes: true });
-
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
-
-        // Skip excluded patterns
-        if (excludePatterns.some(p => fullPath.includes(p))) {
-          continue;
-        }
+        if (excludePatterns.some(p => fullPath.includes(p))) continue;
 
         if (entry.isDirectory() && recursive) {
           await walkDir(fullPath);
@@ -202,18 +109,9 @@ export class RAGPipelineV2 {
           if (extensions.includes(ext)) {
             try {
               const content = await fs.readFile(fullPath, 'utf-8');
-              documents.push({
-                id: fullPath,
-                content,
-                metadata: {
-                  source: fullPath,
-                  filename: entry.name,
-                  extension: ext,
-                  directory: dir,
-                },
-              });
+              documents.push({ id: fullPath, content, metadata: { source: fullPath, filename: entry.name, extension: ext, directory: dir } });
             } catch (error) {
-              console.warn(`[RAGv2] Failed to read ${fullPath}:`, error);
+              log.warn(`Failed to read ${fullPath}`, { error: String(error) });
             }
           }
         }
@@ -221,71 +119,45 @@ export class RAGPipelineV2 {
     }
 
     await walkDir(dirPath);
-
     const result = await this.ingest(documents);
-
-    return {
-      chunksCreated: result.chunksCreated,
-      filesProcessed: documents.length,
-    };
+    return { chunksCreated: result.chunksCreated, filesProcessed: documents.length };
   }
 
-  // ===========================================================================
-  // RETRIEVAL
-  // ===========================================================================
-
-  /**
-   * Search for relevant documents
-   * Uses ContextualCompressionRetriever (wide net → rerank → narrow)
-   */
   async search(query: string): Promise<SearchResult> {
     await this.init();
 
-    // Step 1: Query decomposition (optional)
     let queries = [query];
     if (this.profile.retrieval.enableDecomposition) {
       try {
         const decomposed = await this.decomposer.decompose(query);
         if (decomposed.needsDecomposition) {
           queries = decomposed.subQueries.map(sq => sq.query);
-          console.log(`[RAGv2] Decomposed into ${queries.length} sub-queries`);
+          log.debug(`Decomposed into ${queries.length} sub-queries`);
         }
       } catch (error) {
-        console.warn('[RAGv2] Query decomposition failed:', error);
+        log.warn('Query decomposition failed', { error: String(error) });
       }
     }
 
-    // Step 2: Retrieve with ContextualCompressionRetriever
-    let result;
-    if (queries.length > 1) {
-      result = await this.retriever.retrieveWithDecomposition(query, queries.slice(1));
-    } else {
-      result = await this.retriever.retrieve(query);
-    }
+    let result = queries.length > 1 
+      ? await this.retriever.retrieveWithDecomposition(query, queries.slice(1))
+      : await this.retriever.retrieve(query);
 
-    // Step 3: Reflection loop (optional)
     const finalDocs = result.documents;
     if (this.profile.retrieval.enableReflection && finalDocs.length > 0) {
       const reflectionCounter = new ReflectionCounter(this.profile.retrieval.maxReflectionLoops);
 
       while (reflectionCounter.remaining > 0) {
         const relevanceResult = await this.reflection.checkContextRelevance(query, finalDocs);
+        if (relevanceResult.isRelevant) break;
 
-        if (relevanceResult.isRelevant) {
-          break;
-        }
-
-        // Rewrite query and search again
         const rewrittenQuery = await this.reflection.rewriteQueryForRelevance(query, finalDocs);
-        if (rewrittenQuery === query) {
-          break;
-        }
+        if (rewrittenQuery === query) break;
 
-        console.log(`[RAGv2] Reflection: rewriting query to "${rewrittenQuery.slice(0, 50)}..."`);
+        log.debug(`Reflection: rewriting query to "${rewrittenQuery.slice(0, 50)}..."`);
         const newResult = await this.retriever.retrieve(rewrittenQuery);
 
         if (newResult.documents.length > 0) {
-          // Merge and deduplicate
           const seenIds = new Set(finalDocs.map(d => d.id));
           for (const doc of newResult.documents) {
             if (!seenIds.has(doc.id)) {
@@ -294,146 +166,64 @@ export class RAGPipelineV2 {
             }
           }
         }
-
         reflectionCounter.increment();
       }
     }
 
-    return {
-      documents: finalDocs,
-      query,
-      reranked: result.reranked,
-      totalFound: finalDocs.length,
-    };
+    return { documents: finalDocs, query, reranked: result.reranked, totalFound: finalDocs.length };
   }
 
-  /**
-   * Agent-controlled search
-   * Returns retriever that agent can choose to use
-   */
   getAgentRetriever(): AgentControlledRetriever {
     return this.agentRetriever;
   }
 
-  // ===========================================================================
-  // GENERATION
-  // ===========================================================================
-
-  /**
-   * Generate a response using RAG
-   */
-  async generate(
-    query: string,
-    systemPrompt?: string
-  ): Promise<{ answer: string; sources: Document[] }> {
+  async generate(query: string, systemPrompt?: string): Promise<{ answer: string; sources: Document[] }> {
     const searchResult = await this.search(query);
 
     if (searchResult.documents.length === 0) {
-      return {
-        answer: "I couldn't find relevant information to answer your question.",
-        sources: [],
-      };
+      return { answer: "I couldn't find relevant information to answer your question.", sources: [] };
     }
 
-    // Build context
-    const context = searchResult.documents
-      .map((d, i) => `[${i + 1}] ${d.content}`)
-      .join('\n\n');
-
+    const context = searchResult.documents.map((d, i) => `[${i + 1}] ${d.content}`).join('\n\n');
     const apiKey = process.env.NVIDIA_API_KEY;
-    if (!apiKey) {
-      return {
-        answer: "API key not configured for response generation.",
-        sources: searchResult.documents,
-      };
-    }
+    if (!apiKey) return { answer: "API key not configured for response generation.", sources: searchResult.documents };
 
-    const prompt = `Based on the following context, answer the question. Cite sources using [1], [2], etc.
-
-Context:
-${context}
-
-Question: ${query}
-
-Answer:`;
+    const prompt = `Based on the following context, answer the question. Cite sources using [1], [2], etc.\n\nContext:\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
 
     try {
       const response = await fetch(`${this.llmEndpoint}/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: this.profile.models.llmModel,
-          messages: [
-            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-            { role: 'user', content: prompt },
-          ],
+          messages: [...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []), { role: 'user', content: prompt }],
           temperature: 0.3,
           max_tokens: 4096,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`LLM API error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`LLM API error: ${response.status}`);
 
       const data = await response.json();
       let answer = data.choices[0]?.message?.content?.trim() || '';
 
-      // Check groundedness if reflection is enabled
       if (this.profile.retrieval.enableReflection) {
-        const groundednessResult = await this.reflection.checkResponseGroundedness(
-          answer,
-          searchResult.documents
-        );
-
+        const groundednessResult = await this.reflection.checkResponseGroundedness(answer, searchResult.documents);
         if (!groundednessResult.isGrounded) {
-          const regenerated = await this.reflection.regenerateResponse(
-            query,
-            searchResult.documents,
-            answer
-          );
-          if (regenerated && !regenerated.includes('OUT OF CONTEXT')) {
-            answer = regenerated;
-          }
+          const regenerated = await this.reflection.regenerateResponse(query, searchResult.documents, answer);
+          if (regenerated && !regenerated.includes('OUT OF CONTEXT')) answer = regenerated;
         }
       }
 
-      return {
-        answer,
-        sources: searchResult.documents,
-      };
+      return { answer, sources: searchResult.documents };
     } catch (error) {
-      console.error('[RAGv2] Response generation failed:', error);
-      return {
-        answer: "Failed to generate response.",
-        sources: searchResult.documents,
-      };
+      log.error('Response generation failed', { error: String(error) });
+      return { answer: "Failed to generate response.", sources: searchResult.documents };
     }
   }
 
-  // ===========================================================================
-  // RESEARCH WORKFLOW
-  // ===========================================================================
-
-  /**
-   * Run a full research workflow
-   */
-  async research(
-    topic: string,
-    externalSearchFn?: (query: string) => Promise<Document[]>
-  ): Promise<ResearchResult> {
-    const workflow = new ResearchWorkflow(
-      {
-        maxReflections: this.profile.retrieval.maxReflectionLoops,
-        searchWeb: !!externalSearchFn,
-        numQueries: 5,
-      },
-      this.llmEndpoint,
-      this.profile.models.llmModel
-    );
+  async research(topic: string, externalSearchFn?: (query: string) => Promise<Document[]>): Promise<ResearchResult> {
+    const workflow = new ResearchWorkflow({ maxReflections: this.profile.retrieval.maxReflectionLoops, searchWeb: !!externalSearchFn, numQueries: 5 }, this.llmEndpoint, this.profile.models.llmModel);
 
     const searchFn = async (query: string): Promise<Document[]> => {
       const localResults = await this.search(query);
@@ -441,59 +231,27 @@ Answer:`;
 
       if (externalSearchFn) {
         const externalDocs = await externalSearchFn(query);
-        // Deduplicate
         const seenIds = new Set(localDocs.map(d => d.id));
         const merged = [...localDocs];
         for (const doc of externalDocs) {
-          if (!seenIds.has(doc.id)) {
-            merged.push(doc);
-          }
+          if (!seenIds.has(doc.id)) merged.push(doc);
         }
         return merged;
       }
-
       return localDocs;
     };
 
     return workflow.run(topic, searchFn);
   }
 
-  // ===========================================================================
-  // MANAGEMENT
-  // ===========================================================================
+  getDocumentCount(): number { return this.vectorStore.getDocumentCount(); }
+  clear(): void { this.vectorStore.clear(); }
+  async validate(): Promise<{ removed: number; total: number }> { return this.vectorStore.validateDocuments(); }
+  async update(sourcePath: string): Promise<{ updated: number; removed: number }> { return this.vectorStore.updateDocuments(sourcePath); }
+  getSourceFiles(): string[] { return this.vectorStore.getSourceFiles(); }
+  getProfile(): RAGProfile { return { ...this.profile }; }
 
-  getDocumentCount(): number {
-    return this.vectorStore.getDocumentCount();
-  }
-
-  clear(): void {
-    this.vectorStore.clear();
-  }
-
-  async validate(): Promise<{ removed: number; total: number }> {
-    return this.vectorStore.validateDocuments();
-  }
-
-  async update(sourcePath: string): Promise<{ updated: number; removed: number }> {
-    return this.vectorStore.updateDocuments(sourcePath);
-  }
-
-  getSourceFiles(): string[] {
-    return this.vectorStore.getSourceFiles();
-  }
-
-  getProfile(): RAGProfile {
-    return { ...this.profile };
-  }
-
-  getStats(): {
-    profile: string;
-    documentCount: number;
-    chunkSize: number;
-    chunkOverlap: number;
-    initialTopK: number;
-    rerankTopK: number;
-  } {
+  getStats(): { profile: string; documentCount: number; chunkSize: number; chunkOverlap: number; initialTopK: number; rerankTopK: number } {
     return {
       profile: this.profile.name,
       documentCount: this.vectorStore.getDocumentCount(),
@@ -505,13 +263,10 @@ Answer:`;
   }
 }
 
-// Export singleton for easy access
 let defaultPipeline: RAGPipelineV2 | null = null;
 
 export function getRAGPipeline(config?: RAGPipelineV2Config): RAGPipelineV2 {
-  if (!defaultPipeline) {
-    defaultPipeline = new RAGPipelineV2(config);
-  }
+  if (!defaultPipeline) defaultPipeline = new RAGPipelineV2(config);
   return defaultPipeline;
 }
 

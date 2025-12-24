@@ -1,12 +1,14 @@
 /**
  * Feedback Optimizer
  * Analyzes low-scoring interactions and generates improvement suggestions
- * Uses Nemotron to analyze failure patterns and suggest fixes
  */
 
 import OpenAI from "openai";
 import { FlywheelLogger, QUALITY_THRESHOLD } from "./flywheel/logger";
 import { FlywheelRecord } from "./flywheel/types";
+import { createLogger } from "../logger";
+
+const log = createLogger("FeedbackOptimizer");
 
 export interface OptimizationResult {
   improvedSystemPrompt?: string;
@@ -62,27 +64,15 @@ export class FeedbackOptimizer {
     this.model = model;
   }
 
-  /**
-   * Get low-scoring interactions (below quality threshold or low user rating)
-   */
   async analyzeFailures(minScore: number = QUALITY_THRESHOLD): Promise<FlywheelRecord[]> {
     const records = this.flywheel.getRecords();
     return records.filter(r => {
-      // Check LLM-as-judge score
-      if (r.qualitySignals?.overallScore !== undefined) {
-        return r.qualitySignals.overallScore < minScore;
-      }
-      // Fall back to user rating (scale 1-5, threshold ~3)
-      if (r.qualitySignals?.userRating !== undefined) {
-        return r.qualitySignals.userRating < 3;
-      }
+      if (r.qualitySignals?.overallScore !== undefined) return r.qualitySignals.overallScore < minScore;
+      if (r.qualitySignals?.userRating !== undefined) return r.qualitySignals.userRating < 3;
       return false;
     });
   }
 
-  /**
-   * Get high-quality examples for few-shot learning
-   */
   async getGoldenExamples(query: string, limit: number = 3): Promise<FlywheelRecord[]> {
     const highQuality = this.flywheel.getHighQualityRecords();
     
@@ -96,34 +86,20 @@ export class FeedbackOptimizer {
       return { record, score: intersection };
     });
 
-    return scored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map(s => s.record);
+    return scored.sort((a, b) => b.score - a.score).slice(0, limit).map(s => s.record);
   }
 
-  /**
-   * Generate optimization suggestions using Nemotron
-   */
   async generateOptimizations(): Promise<OptimizationResult> {
     const failures = await this.analyzeFailures();
 
     if (failures.length === 0) {
-      return {
-        suggestedExamples: [],
-        insights: ["No low-scoring interactions found."],
-        failurePatterns: [],
-      };
+      return { suggestedExamples: [], insights: ["No low-scoring interactions found."], failurePatterns: [] };
     }
 
-    // Prepare failure summaries for analysis (limit to 10 to fit context)
     const failureSummaries = failures.slice(0, 10).map(f => ({
       userMessage: f.userMessage.slice(0, 200),
       response: f.assistantResponse.slice(0, 300),
-      toolErrors: f.toolCalls.filter(t => !t.success).map(t => ({
-        tool: t.toolName,
-        error: t.error?.slice(0, 100),
-      })),
+      toolErrors: f.toolCalls.filter(t => !t.success).map(t => ({ tool: t.toolName, error: t.error?.slice(0, 100) })),
       score: f.qualitySignals?.overallScore || f.qualitySignals?.userRating,
       reasoning: f.qualitySignals?.reasoning?.slice(0, 200),
     }));
@@ -140,22 +116,12 @@ export class FeedbackOptimizer {
       });
 
       const content = response.choices[0].message.content || "{}";
-      
-      // Parse JSON from response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        return {
-          suggestedExamples: [],
-          insights: [`Found ${failures.length} low-scoring interactions but could not parse analysis.`],
-          failurePatterns: [],
-        };
+        return { suggestedExamples: [], insights: [`Found ${failures.length} low-scoring interactions but could not parse analysis.`], failurePatterns: [] };
       }
 
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        patterns?: FailurePattern[];
-        insights?: string[];
-        promptImprovements?: string[];
-      };
+      const parsed = JSON.parse(jsonMatch[0]) as { patterns?: FailurePattern[]; insights?: string[]; promptImprovements?: string[] };
 
       return {
         improvedSystemPrompt: parsed.promptImprovements?.join("\n"),
@@ -164,7 +130,7 @@ export class FeedbackOptimizer {
         failurePatterns: parsed.patterns || [],
       };
     } catch (error) {
-      console.error("[FeedbackOptimizer] Analysis failed:", error);
+      log.error("Analysis failed", { error: String(error) });
       return {
         suggestedExamples: [],
         insights: [`Found ${failures.length} low-scoring interactions. Analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`],

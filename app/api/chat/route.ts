@@ -392,11 +392,8 @@ export async function POST(request: NextRequest) {
       return new Response(JSON.stringify({ error: "API key required" }), { status: 401, headers: { "Content-Type": "application/json" } });
     }
 
-    // Basic rate limiting (expand with Redis/middleware for production)
-    const rateLimitHeader = request.headers.get("X-Rate-Limit");
-    if (rateLimitHeader && parseInt(rateLimitHeader) > 10) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429 });
-    }
+    // Note: NVIDIA API has 40 RPM limit on free tier - no client-side rate limiting needed
+    // API will return 429 if exceeded
 
     const lastUserMessage = messages.filter((m) => m.role === "user").pop();
     if (!lastUserMessage) {

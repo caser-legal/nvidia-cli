@@ -1,10 +1,11 @@
 // Data Flywheel Evaluator
 // LLM-as-Judge evaluation for quality scoring
-// Based on NVIDIA Data Flywheel Blueprint
 
 import { FlywheelRecord, EvaluationResult, EvalType } from "./types";
+import { createLogger } from "../../logger";
 
-// LLM-as-Judge prompt for evaluating responses
+const log = createLogger("Flywheel");
+
 const JUDGE_SYSTEM_PROMPT = `You are an expert evaluator assessing AI assistant responses.
 
 Rate the response on these criteria (0-10 scale):
@@ -26,7 +27,6 @@ Respond in JSON format:
   "reasoning": "<brief explanation>"
 }`;
 
-// Tool-calling specific evaluation
 const TOOL_JUDGE_PROMPT = `You are an expert evaluator assessing AI tool-calling behavior.
 
 Rate the response on these criteria (0-10 scale):
@@ -61,7 +61,6 @@ export class FlywheelEvaluator {
     this.config = config;
   }
   
-  // Call LLM-as-Judge to evaluate a single record
   async evaluateRecord(record: FlywheelRecord): Promise<Record<string, number>> {
     const hasToolCalls = record.toolCalls.length > 0;
     const systemPrompt = hasToolCalls ? TOOL_JUDGE_PROMPT : JUDGE_SYSTEM_PROMPT;
@@ -82,70 +81,48 @@ Provide your evaluation in JSON format.`;
     try {
       const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${this.config.apiKey}`,
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${this.config.apiKey}` },
         body: JSON.stringify({
           model: this.config.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
+          messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
           temperature: 0.1,
           max_tokens: 500,
         }),
       });
       
       if (!response.ok) {
-        // Don't throw - evaluation is non-critical, return default scores
-        console.warn(`[Flywheel] Judge API returned ${response.status}, using default scores`);
+        log.warn(`Judge API returned ${response.status}, using default scores`);
         return { overall: 5, skipped: 1 };
       }
       
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content || "{}";
       
-      // Parse JSON from response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
       
       return { overall: 5, error: 1 };
     } catch (error) {
-      console.error("[Flywheel] Evaluation error:", error);
+      log.error("Evaluation error", { error: String(error) });
       return { overall: 5, error: 1 };
     }
   }
   
-  // Evaluate a batch of records
-  async evaluateBatch(
-    records: FlywheelRecord[],
-    onProgress?: (completed: number, total: number) => void
-  ): Promise<Map<string, Record<string, number>>> {
+  async evaluateBatch(records: FlywheelRecord[], onProgress?: (completed: number, total: number) => void): Promise<Map<string, Record<string, number>>> {
     const results = new Map<string, Record<string, number>>();
     
     for (let i = 0; i < records.length; i++) {
       const record = records[i];
       const scores = await this.evaluateRecord(record);
       results.set(record.id, scores);
-      
-      if (onProgress) {
-        onProgress(i + 1, records.length);
-      }
-      
-      // Rate limiting - wait between calls
+      if (onProgress) onProgress(i + 1, records.length);
       await new Promise(resolve => setTimeout(resolve, 500));
     }
     
     return results;
   }
   
-  // Calculate aggregate scores
-  calculateAggregateScores(
-    evaluations: Map<string, Record<string, number>>
-  ): Record<string, number> {
+  calculateAggregateScores(evaluations: Map<string, Record<string, number>>): Record<string, number> {
     const allScores: Record<string, number[]> = {};
     
     for (const scores of evaluations.values()) {
@@ -165,12 +142,7 @@ Provide your evaluation in JSON format.`;
     return aggregates;
   }
   
-  // Run full evaluation and return result
-  async runEvaluation(
-    records: FlywheelRecord[],
-    evalType: EvalType,
-    onProgress?: (completed: number, total: number) => void
-  ): Promise<EvaluationResult> {
+  async runEvaluation(records: FlywheelRecord[], evalType: EvalType, onProgress?: (completed: number, total: number) => void): Promise<EvaluationResult> {
     const startTime = Date.now();
     const jobId = `eval-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
@@ -179,50 +151,27 @@ Provide your evaluation in JSON format.`;
     
     const endTime = Date.now();
     
-    return {
-      jobId,
-      evalType,
-      scores,
-      startedAt: new Date(startTime).toISOString(),
-      finishedAt: new Date(endTime).toISOString(),
-      runtimeSeconds: (endTime - startTime) / 1000,
-      progress: 100,
-    };
+    return { jobId, evalType, scores, startedAt: new Date(startTime).toISOString(), finishedAt: new Date(endTime).toISOString(), runtimeSeconds: (endTime - startTime) / 1000, progress: 100 };
   }
   
-  // Compare two models' evaluations
-  compareModels(
-    baseScores: Record<string, number>,
-    customizedScores: Record<string, number>
-  ): {
-    improvements: Record<string, number>;
-    regressions: Record<string, number>;
-    recommendation: "use_customized" | "keep_base" | "needs_more_data";
-  } {
+  compareModels(baseScores: Record<string, number>, customizedScores: Record<string, number>): { improvements: Record<string, number>; regressions: Record<string, number>; recommendation: "use_customized" | "keep_base" | "needs_more_data" } {
     const improvements: Record<string, number> = {};
     const regressions: Record<string, number> = {};
     
     for (const key of Object.keys(baseScores)) {
       if (customizedScores[key] !== undefined) {
         const diff = customizedScores[key] - baseScores[key];
-        if (diff > 0.5) {
-          improvements[key] = diff;
-        } else if (diff < -0.5) {
-          regressions[key] = Math.abs(diff);
-        }
+        if (diff > 0.5) improvements[key] = diff;
+        else if (diff < -0.5) regressions[key] = Math.abs(diff);
       }
     }
     
     const overallImprovement = (customizedScores.overall || 5) - (baseScores.overall || 5);
     
     let recommendation: "use_customized" | "keep_base" | "needs_more_data";
-    if (overallImprovement > 1) {
-      recommendation = "use_customized";
-    } else if (overallImprovement < -0.5) {
-      recommendation = "keep_base";
-    } else {
-      recommendation = "needs_more_data";
-    }
+    if (overallImprovement > 1) recommendation = "use_customized";
+    else if (overallImprovement < -0.5) recommendation = "keep_base";
+    else recommendation = "needs_more_data";
     
     return { improvements, regressions, recommendation };
   }
