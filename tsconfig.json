@@ -37,6 +37,7 @@
   "exclude": [
     "node_modules",
     "nvidia-quickstarts-main",
-    "quickstart-examples"
+    "quickstart-examples",
+    "mcp-server.ts"
   ]
 }

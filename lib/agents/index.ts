@@ -17,6 +17,7 @@ export { UnifiedMemoryTool } from "./tools/unified-memory";
 export { getVectorMemory, VectorMemoryStore } from "./memory";
 export { CodeDocumentationTool, DocumentationSpecialistTool } from "./tools/code-documentation";
 export { RAGTools, RAGIngestTool, RAGSearchTool, RAGQueryTool, RAGResearchTool, RAGStatsTool, RAGClearTool } from "./tools/rag-tools";
+export { MCPAgent } from "./mcp-agent";
 
 export * from "./types";
 export * from "./flywheel";
