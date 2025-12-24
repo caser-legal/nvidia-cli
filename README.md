@@ -2,10 +2,10 @@
   <img src="public/nvidia-logo.webp" alt="Dory" width="120" />
 </p>
 
-<h1 align="center">🐠 Dory</h1>
+<h1 align="center">Dory</h1>
 
 <p align="center">
-  <strong>A Private AI Coding Agent for iOS/SwiftUI Development</strong><br/>
+  <strong>Your NVIDIA Powered Co-Worker</strong><br/>
   <em>Powered by NVIDIA NIM • 36 Custom Tools • 1M Token Context • RAG + Memory</em>
 </p>
 
