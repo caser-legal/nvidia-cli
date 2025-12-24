@@ -42,28 +42,22 @@ const MCP_SERVER_CWD = process.env.MCP_SERVER_CWD || "/Users/home/Documents/nvid
 
 /**
  * Get or create MCP client connection
- * Uses singleton pattern with connection pooling
+ * Uses singleton pattern - all callers await the same promise
  */
 export async function getMCPClient(): Promise<Client> {
-  // Return existing client if connected
-  if (mcpClient) {
-    return mcpClient;
-  }
-
-  // Return pending connection if in progress
-  if (connectionPromise) {
-    return connectionPromise;
-  }
-
-  // Create new connection
-  connectionPromise = connectMCPClient();
+  if (mcpClient) return mcpClient;
   
-  try {
-    mcpClient = await connectionPromise;
-    return mcpClient;
-  } finally {
-    connectionPromise = null;
+  if (!connectionPromise) {
+    connectionPromise = connectMCPClient().then(client => {
+      mcpClient = client;
+      return client;
+    }).catch(err => {
+      connectionPromise = null; // Allow retry on failure
+      throw err;
+    });
   }
+  
+  return connectionPromise;
 }
 
 /**
@@ -95,9 +89,19 @@ async function connectMCPClient(): Promise<Client> {
     version: "1.0.0",
   });
 
-  // Connect
-  await client.connect(mcpTransport);
-  console.log("[MCP Client] Connected successfully");
+  // Connect with retry
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await client.connect(mcpTransport);
+      console.log("[MCP Client] Connected successfully");
+      break;
+    } catch (err) {
+      console.error(`[MCP Client] Connection attempt ${attempt}/${maxRetries} failed:`, err);
+      if (attempt === maxRetries) throw err;
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+    }
+  }
 
   // Clear tool cache on new connection
   toolCache = null;

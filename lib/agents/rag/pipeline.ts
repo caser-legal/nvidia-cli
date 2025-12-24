@@ -88,14 +88,19 @@ export class RAGPipeline {
       this.config.groundednessThreshold
     );
     
-    // Auto-load persisted data
-    this.init();
+    // Note: init() is called lazily on first operation, not in constructor
   }
 
+  private initPromise: Promise<void> | null = null;
+  
   private async init(): Promise<void> {
     if (this.initialized) return;
-    await this.vectorStore.loadFromDisk();
-    this.initialized = true;
+    if (!this.initPromise) {
+      this.initPromise = this.vectorStore.loadFromDisk().then(() => {
+        this.initialized = true;
+      });
+    }
+    await this.initPromise;
   }
 
   /**

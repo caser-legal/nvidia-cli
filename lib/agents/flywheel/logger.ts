@@ -9,8 +9,9 @@ import {
   WorkloadClassification 
 } from "./types";
 
-// In-memory store (replace with database in production)
+// In-memory store with eviction to prevent OOM
 const recordStore: Map<string, FlywheelRecord[]> = new Map();
+const MAX_RECORDS_PER_WORKLOAD = 500;
 
 // Generate unique ID
 function generateId(): string {
@@ -112,14 +113,20 @@ export class FlywheelLogger {
       ),
     };
     
-    // Store record
+    // Store record with eviction
     const key = `${this.clientId}:${this.workloadId}`;
     if (!recordStore.has(key)) {
       recordStore.set(key, []);
     }
-    recordStore.get(key)!.push(record);
+    const records = recordStore.get(key)!;
     
-    console.log(`[Flywheel] Logged interaction ${record.id} for ${key}`);
+    // Evict oldest records if at capacity
+    while (records.length >= MAX_RECORDS_PER_WORKLOAD) {
+      records.shift();
+    }
+    records.push(record);
+    
+    console.log(`[Flywheel] Logged interaction ${record.id} for ${key} (${records.length}/${MAX_RECORDS_PER_WORKLOAD})`);
     return record;
   }
   
