@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:sections": "./scripts/lint-sections.sh",
-    "terminal": "npx ts-node --esm lib/terminal-server.ts",
+    "terminal": "npx tsx lib/terminal-server.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run terminal\""
   },
   "dependencies": {

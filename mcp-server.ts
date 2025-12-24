@@ -1,4 +1,4 @@
-#!/usr/bin/env npx ts-node --esm
+#!/usr/bin/env npx tsx
 /**
  * NVIDIA CLI MCP Server
  * Exposes all nvidia-cli tools via Model Context Protocol for Codex CLI integration
@@ -6,7 +6,7 @@
  * Usage in ~/.codex/config.toml:
  * [mcp_servers.nvidia-cli]
  * command = "npx"
- * args = ["ts-node", "--esm", "/Users/home/Documents/nvidia-cli/mcp-server.ts"]
+ * args = ["tsx", "/Users/home/Documents/nvidia-cli/mcp-server.ts"]
  * cwd = "/Users/home/Documents/nvidia-cli"
  */
 

@@ -1,6 +1,6 @@
 // Terminal WebSocket Server
 // Run alongside Next.js for full xterm.js support
-// Usage: npx ts-node lib/terminal-server.ts
+// Usage: npx tsx lib/terminal-server.ts
 
 import { WebSocketServer, WebSocket } from "ws";
 import * as pty from "node-pty";

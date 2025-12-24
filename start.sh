@@ -9,7 +9,7 @@ LOG_FILE="/tmp/nvidia-cli-dev.log"
 > "$LOG_FILE"
 
 # Start terminal server (detached)
-nohup npx ts-node --esm lib/terminal-server.ts > /tmp/nvidia-cli-terminal.log 2>&1 &
+nohup npx tsx lib/terminal-server.ts > /tmp/nvidia-cli-terminal.log 2>&1 &
 
 # Start next dev (detached, survives terminal close)
 nohup bash -c 'NODE_OPTIONS="--max-old-space-size=8192 --no-deprecation --no-warnings" npm run dev' > "$LOG_FILE" 2>&1 &
