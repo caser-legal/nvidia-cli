@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Your NVIDIA Powered Co-Worker</strong><br/>
-  <em>Powered by NVIDIA NIM • 36 Custom Tools • 1M Token Context • RAG + Memory</em>
+  <em>Powered by NVIDIA NIM • 35 Custom Tools • 1M Token Context • RAG + Memory</em>
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@
 
 It's not a wrapper around ChatGPT. It's not a simple API call. It's a fully custom system with:
 
-- **36 hand-built tools** for file operations, code search, web research, memory, and more
+- **35 hand-built tools** for file operations, code search, web research, memory, and more
 - **A RAG (Retrieval-Augmented Generation) system** that indexes your entire Xcode project
 - **Persistent vector memory** that remembers everything across sessions
 - **MCP (Model Context Protocol) integration** so the same tools work in multiple AI clients
@@ -58,7 +58,7 @@ A Next.js web app running at `localhost:3000` that provides:
 
 ### 2. The MCP Server
 
-A standalone server (`mcp-server.ts`) that exposes all 36 tools via the **Model Context Protocol**. This means:
+A standalone server (`mcp-server.ts`) that exposes all 35 tools via the **Model Context Protocol**. This means:
 
 - **Codex CLI** (OpenAI's terminal AI) can use our tools
 - **Dory web app** can use our tools
@@ -68,7 +68,7 @@ One tool implementation, unlimited clients.
 
 ### 3. The Tool Library
 
-36 custom tools organized into categories:
+35 custom tools organized into categories:
 
 | Category | Tools | What They Do |
 |----------|-------|--------------|
@@ -224,7 +224,7 @@ Now both **Codex CLI** and **Dory web app** use the exact same tools:
 
 ```
 ┌─────────────┐     ┌─────────────────┐     ┌──────────────┐
-│  Codex CLI  │────▶│   MCP Server    │────▶│  36 Tools    │
+│  Codex CLI  │────▶│   MCP Server    │────▶│  35 Tools    │
 └─────────────┘     │ (mcp-server.ts) │     │              │
                     │                 │     │ • file_read  │
 ┌─────────────┐     │   JSON-RPC      │     │ • bash       │
@@ -257,7 +257,7 @@ tool_timeout_sec = 120
 env = { NGC_API_KEY = "${NGC_API_KEY}", NVIDIA_API_KEY = "${NGC_API_KEY}" }
 ```
 
-Now when you run `codex`, it has access to all 36 tools!
+Now when you run `codex`, it has access to all 35 tools!
 
 ---
 
@@ -435,12 +435,13 @@ High-scoring interactions become training data. Low-scoring ones get reviewed.
 
 | Metric | Value |
 |--------|-------|
-| **Tools** | 36 custom implementations |
+| **Tools** | 35 custom implementations |
 | **Context Window** | 1,000,000 tokens (Nemotron 3 Nano) |
 | **Embedding Dimensions** | 2,048 (NV-EmbedQA) |
 | **RAG Chunk Size** | 800 characters |
 | **RAG Chunk Overlap** | 120 characters |
 | **Retrieval Candidates** | 100 → Rerank → 10 |
+| **Quality Threshold** | 7/10 (LLM-as-Judge score for training data) |
 | **API Keys Required** | 1 (NVIDIA) + 2 optional (Google) |
 | **Lines of Code** | ~15,000+ TypeScript |
 
@@ -733,6 +734,7 @@ flowchart TB
 | `lib/agents/rag/embeddings.ts` | NVIDIA NV-EmbedQA + NV-RerankQA |
 | `lib/agents/rag/reflection.ts` | Relevance/groundedness checking |
 | `lib/agents/rag/query-decomposition.ts` | Complex query breakdown |
+| `lib/agents/rag/auto-updater.ts` | Sync high-quality flywheel records to RAG |
 
 ### Why Hybrid Retrieval?
 
@@ -1153,6 +1155,17 @@ flowchart TB
 - Token counts, latency
 - Quality score (if evaluated)
 
+### Quality Threshold
+
+Only high-quality interactions are included in training datasets:
+
+| Score | Action |
+|-------|--------|
+| **≥ 7/10** | Included in training dataset |
+| **< 7/10** | Excluded, analyzed for failure patterns |
+
+The `QUALITY_THRESHOLD = 7` ensures only the best interactions train future models.
+
 ### Components
 
 | Component | File | Purpose |
@@ -1234,14 +1247,18 @@ From NVIDIA docs: *"The chain server stores the conversation history and knowled
 
 ### PII Guard
 
-Automatically redacts before processing:
+Automatically redacts sensitive data before processing:
 
 | Pattern | Replacement |
 |---------|-------------|
-| Email | `[EMAIL_REDACTED]` |
-| Phone | `[PHONE_REDACTED]` |
-| API keys | `[API_KEY_REDACTED]` |
-| IP addresses | `[IP_REDACTED]` |
+| Email addresses | `[EMAIL_REDACTED]` |
+| Phone numbers | `[PHONE_REDACTED]` |
+| Social Security Numbers | `[SSN_REDACTED]` |
+| Credit card numbers | `[CREDIT_CARD_REDACTED]` |
+| AWS access keys | `[AWS_KEY_REDACTED]` |
+| AWS secret keys | `[SECRET_REDACTED]` |
+| Private keys (RSA, EC, etc.) | `[PRIVATE_KEY_REDACTED]` |
+| API keys (OpenAI, NVIDIA, GitHub) | `[API_KEY_REDACTED]` |
 
 ### Not Using (Private Use)
 
@@ -1269,7 +1286,13 @@ GOOGLE_CSE_ID=xxx
 # Local LLM (instead of hosted API)
 USE_LOCAL_LLM=true
 OLLAMA_BASE_URL=http://localhost:11434
-LOCAL_EMBED_URL=http://192.168.50.50:8000
+
+# Logging
+LOG_LEVEL=info              # debug|info|warn|error
+LOG_JSON=true               # Structured JSON output
+
+# Tracing
+TRACE_EXPORT=true           # Export spans to console
 ```
 
 ---
@@ -1279,46 +1302,60 @@ LOCAL_EMBED_URL=http://192.168.50.50:8000
 ```
 nvidia-cli/
 ├── app/
+│   ├── layout.tsx                  # Root layout with ErrorBoundary
 │   ├── page.tsx                    # Main interface
 │   ├── settings/page.tsx           # Settings
 │   └── api/
-│       ├── agent-chat/route.ts     # Main endpoint (38 tools)
+│       ├── agent-chat/route.ts     # Main endpoint (35 tools)
+│       ├── health/route.ts         # Health check endpoint
 │       └── chat/route.ts           # Alternative endpoint
 │
 ├── lib/
+│   ├── config.ts                   # Centralized configuration
+│   ├── logger.ts                   # Structured logging with levels
+│   ├── context-manager.ts          # Token tracking + safety margins
+│   ├── mcp-client.ts               # MCP client with retry logic
+│   │
 │   ├── agents/
-│   │   ├── agent.ts                # Core agent loop
+│   │   ├── agent.ts                # Core agent loop with timeout
 │   │   ├── unified-context.ts      # Context aggregation
-│   │   ├── retrieval-router.ts     # Query routing
+│   │   ├── retrieval-router.ts     # Query routing with fast path
+│   │   ├── feedback-optimizer.ts   # Failure analysis with Nemotron
 │   │   │
-│   │   ├── tools/                  # 38 tools
-│   │   │   ├── vision-analysis.ts  # VLM tools
-│   │   │   ├── rag-tools.ts        # RAG tools (8)
-│   │   │   ├── specialist-agents.ts # Multi-agent (8)
+│   │   ├── tools/                  # 35 tools with zod validation
+│   │   │   ├── registry.ts         # Single source of truth
+│   │   │   ├── file-read.ts        # With zod schema
+│   │   │   ├── file-write.ts       # With zod schema
+│   │   │   ├── bash.ts             # With zod schema
+│   │   │   ├── google-search.ts    # With zod schema
 │   │   │   └── ...
 │   │   │
 │   │   ├── rag/                    # RAG V2 system
 │   │   │   ├── pipeline-v2.ts      # Main pipeline
 │   │   │   ├── config.ts           # Profiles
-│   │   │   ├── hybrid-retriever.ts # BM25 + Vector
-│   │   │   ├── contextual-retriever.ts
-│   │   │   ├── text-splitter.ts    # Swift-aware
-│   │   │   ├── embeddings.ts       # NVIDIA models
-│   │   │   ├── reflection.ts       # Self-correction
-│   │   │   └── query-decomposition.ts
+│   │   │   ├── auto-updater.ts     # Flywheel → RAG sync
+│   │   │   └── ...
 │   │   │
-│   │   └── flywheel/               # Data logging
-│   │       ├── logger.ts
-│   │       ├── evaluator.ts
-│   │       └── dataset-creator.ts
+│   │   ├── memory/                 # Vector memory
+│   │   │   └── vector-memory.ts    # Semantic storage
+│   │   │
+│   │   ├── flywheel/               # Data logging
+│   │   │   ├── logger.ts           # QUALITY_THRESHOLD = 7
+│   │   │   ├── evaluator.ts        # LLM-as-Judge
+│   │   │   └── dataset-creator.ts  # Train/eval/test splits
+│   │   │
+│   │   └── observability/
+│   │       └── tracer.ts           # Span export (console + OTLP)
 │   │
-│   ├── nvidia.ts                   # Model configs
-│   ├── context-manager.ts          # Token management
 │   └── security/
-│       └── pii-guard.ts            # PII redaction
+│       └── pii-guard.ts            # Extended PII patterns
 │
-├── components/                     # React components
-├── public/                         # Static assets
+├── components/
+│   ├── error-boundary.tsx          # React error boundary
+│   └── ...
+│
+├── mcp-server.ts                   # MCP server (npx tsx)
+├── start.sh                        # Dev startup script
 └── .env.local                      # NVIDIA_API_KEY here
 ```
 
@@ -1338,8 +1375,41 @@ nvidia-cli/
 | Data Flywheel Logging | FlywheelLogger | ✅ |
 | LLM-as-Judge | FlywheelEvaluator | ✅ |
 | Vision Analysis | Nemotron Nano VL 12B v2 | ✅ |
+| Quality Threshold | QUALITY_THRESHOLD = 7 | ✅ |
 
 ---
+
+## Recent Improvements (Dec 2025)
+
+### Reliability
+- **LLM Request Timeout**: 120s AbortController prevents hanging requests
+- **Token Safety Margin**: 25% buffer for code-heavy content prevents API overflow
+- **MCP Connection Retry**: 3-attempt exponential backoff (1s, 2s, 4s)
+- **Nudge Loop Limit**: MAX_NUDGES = 3 prevents infinite retry loops
+- **Context Truncation**: Preserves first user message (original request)
+
+### Code Quality
+- **Centralized Config**: `lib/config.ts` eliminates hardcoded paths
+- **Shared Tool Registry**: `lib/agents/tools/registry.ts` - single source of truth
+- **Zod Validation**: Core tools validate inputs with schemas
+- **Structured Logging**: `lib/logger.ts` with levels and JSON output
+- **ErrorBoundary**: React error boundary wraps main app
+
+### Security
+- **Extended PII Guard**: SSN, credit cards, AWS keys, private keys
+- **No Hardcoded Keys**: Google API requires environment variables
+
+### Data Quality
+- **Quality Threshold**: Only interactions scoring ≥ 7/10 enter training datasets
+- **FeedbackOptimizer**: Analyzes failures with Nemotron, suggests fixes
+- **AutoRAGUpdater**: Deduplicates before ingesting to RAG
+
+### Cleanup
+- **Removed**: ToolGuard (unnecessary for private use)
+- **Removed**: RAG V1 pipeline (V2 is now the only implementation)
+- **Removed**: Prisma (unused database layer)
+- **Removed**: tavily-search.ts (dead code)
+- **Standardized**: All scripts use `tsx` instead of `ts-node`
 
 ---
 
@@ -1364,7 +1434,7 @@ flowchart TB
     end
 
     subgraph MCP["🔌 MCP Protocol"]
-        SERVER["mcp-server.ts<br/>36 Tools Exposed"]
+        SERVER["mcp-server.ts<br/>35 Tools Exposed"]
     end
 
     subgraph Tools["🛠️ Tool Implementations"]

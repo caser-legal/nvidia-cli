@@ -1,6 +1,6 @@
 /**
  * Structured Logger
- * Wraps console with levels and optional JSON output
+ * Centralized logging with levels and optional JSON output
  */
 
 type LogLevel = "debug" | "info" | "warn" | "error";
@@ -27,7 +27,14 @@ function formatMessage(level: LogLevel, component: string, message: string, data
   return data ? `${prefix} ${message} ${JSON.stringify(data)}` : `${prefix} ${message}`;
 }
 
-export function createLogger(component: string) {
+export interface Logger {
+  debug: (message: string, data?: Record<string, unknown>) => void;
+  info: (message: string, data?: Record<string, unknown>) => void;
+  warn: (message: string, data?: Record<string, unknown>) => void;
+  error: (message: string, data?: Record<string, unknown>) => void;
+}
+
+export function createLogger(component: string): Logger {
   return {
     debug: (message: string, data?: Record<string, unknown>) => {
       if (shouldLog("debug")) console.debug(formatMessage("debug", component, message, data));
@@ -44,4 +51,5 @@ export function createLogger(component: string) {
   };
 }
 
-export const log = createLogger("app");
+// Pre-created loggers for common components
+export const log = createLogger("App");

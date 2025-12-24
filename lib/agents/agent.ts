@@ -20,10 +20,10 @@ import { ToolOrchestrator } from "./tool-orchestrator";
 import { FeedbackOptimizer } from "./feedback-optimizer";
 import { AutoRAGUpdater } from "./rag/auto-updater";
 import { FlywheelEvaluator } from "./flywheel/evaluator";
-import { 
-  ContextManager, 
-  getContextLimits
-} from "../context-manager";
+import { ContextManager, getContextLimits } from "../context-manager";
+import { createLogger } from "../logger";
+
+const log = createLogger("Agent");
 
 // Check if using local LLM
 const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
@@ -33,9 +33,8 @@ const CONTEXT_LIMITS = getContextLimits(USE_LOCAL_LLM);
 const DEFAULT_CONFIG: AgentConfig = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
   maxTokens: 16384,
-  temperature: 0.6,  // NVIDIA recommends 0.6 for tool calling (not 1.0)
-  topP: 0.95,        // NVIDIA recommends 0.95 for tool calling (not 1.0)
-  // Use actual API limit, not model native limit
+  temperature: 0.6,
+  topP: 0.95,
   contextWindowTokens: CONTEXT_LIMITS.maxInputTokens,
 };
 
@@ -89,7 +88,6 @@ export class Agent {
     });
 
     this.config = { ...DEFAULT_CONFIG, ...options.config };
-    // Map model name for Ollama
     if (useLocalLLM && this.config.model === "nvidia/nemotron-3-nano-30b-a3b") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.config.model = "nemotron-3-nano" as any;
@@ -105,12 +103,10 @@ export class Agent {
     this.evaluator = options.evaluator;
     this.abortSignal = options.abortSignal;
     
-    // Initialize Context Manager with correct backend limits
     this.contextManager = new ContextManager(useLocalLLM);
     const limits = this.contextManager.getLimits();
-    console.log(`[Agent] Context limits: ${limits.maxInputTokens.toLocaleString()} tokens (${useLocalLLM ? 'local' : 'hosted API'})`);
+    log.info(`Context limits: ${limits.maxInputTokens.toLocaleString()} tokens`, { backend: useLocalLLM ? "local" : "hosted" });
     
-    // Initialize Security & Observability
     this.piiGuard = new PIIGuard();
     this.tracer = globalTracer;
 
@@ -118,9 +114,8 @@ export class Agent {
       this.tools.set(tool.name, tool);
     }
     
-    console.log("[Agent] Constructor - registered", this.tools.size, "tools:", Array.from(this.tools.keys()).join(", "));
+    log.info(`Registered ${this.tools.size} tools`, { tools: Array.from(this.tools.keys()) });
     
-    // Initialize flywheel logging
     this.flywheelLogger = options.flywheelLogger;
     this.mode = options.mode || "chat";
   }
@@ -141,63 +136,45 @@ export class Agent {
     const toolCalls: ToolCall[] = [];
     if (!content) return toolCalls;
     
-    // Regex to capture <tool_call> ... </tool_call>
     const toolCallRegex = /<tool_call>([\s\S]*?)<\/tool_call>/g;
     let match;
 
-    console.log("[Agent] Parsing content for tool calls, length:", content.length);
-    console.log("[Agent] Content preview:", content.substring(0, 500));
+    log.debug("Parsing content for tool calls", { length: content.length });
 
     while ((match = toolCallRegex.exec(content)) !== null) {
       const inner = match[1];
-      console.log("[Agent] Found tool_call block:", inner);
-      
-      // Extract function name
       const funcMatch = /<function=([a-zA-Z0-9_]+)>/.exec(inner);
-      if (!funcMatch) {
-        console.log("[Agent] No function match found in:", inner);
-        continue;
-      }
+      if (!funcMatch) continue;
+      
       const name = funcMatch[1];
-      console.log("[Agent] Function name:", name);
-
-      // Extract parameters
       const args: Record<string, unknown> = {};
       const paramRegex = /<parameter=([a-zA-Z0-9_]+)>([\s\S]*?)<\/parameter>/g;
       let paramMatch;
       while ((paramMatch = paramRegex.exec(inner)) !== null) {
-        const key = paramMatch[1];
-        const value = paramMatch[2].trim();
-        args[key] = value;
-        console.log("[Agent] Parameter:", key, "=", value);
+        args[paramMatch[1]] = paramMatch[2].trim();
       }
 
       toolCalls.push({
         id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         type: "function",
-        function: {
-          name,
-          arguments: JSON.stringify(args),
-        },
+        function: { name, arguments: JSON.stringify(args) },
       });
     }
     
-    console.log("[Agent] Total tool calls parsed:", toolCalls.length);
+    log.debug("Parsed tool calls", { count: toolCalls.length });
     return toolCalls;
   }
 
   async run(userMessage: string, conversationHistory?: AgentMessage[]): Promise<string> {
     const runSpanId = this.tracer.startSpan("agent_run", { mode: this.mode });
     const startTime = Date.now();
-    this.toolCallRecords = []; // Reset for this run
+    this.toolCallRecords = [];
     
-    // Redact PII from incoming message
     const sanitizedUserMessage = this.piiGuard.redact(userMessage);
     
     this.emit({ type: "status", status: "running" });
     this.emit({ type: "message", role: "user", content: sanitizedUserMessage });
 
-    // Retrieve Unified Context
     let contextPrompt = "";
     if (this.unifiedContext) {
       try {
@@ -209,31 +186,25 @@ export class Agent {
           contextPrompt = `\n\n### Additional Context\n${contextResult.formattedContext}`;
         }
       } catch (error) {
-        console.error("Failed to retrieve unified context:", error);
+        log.error("Failed to retrieve unified context", { error: String(error) });
       }
     }
 
-    // All tools are passed to LLM - it decides which to use
-    // ToolOrchestrator was removed as it added latency without benefit
-
-    // Initialize with conversation history if provided
     if (conversationHistory && conversationHistory.length > 0) {
       this.messages = [...conversationHistory];
     }
 
-    // Add user message
     this.messages.push({ role: "user", content: sanitizedUserMessage });
 
     let iterations = 0;
-    const maxIterations = 1000; // Extended for long-running tasks
+    const maxIterations = 1000;
     let finalResponse = "";
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
     let nudgeCount = 0;
-    const MAX_NUDGES = 3; // Prevent infinite nudge loops
+    const MAX_NUDGES = 3;
 
     while (iterations < maxIterations) {
-      // Check for abort
       if (this.abortSignal?.aborted) {
         this.emit({ type: "status", status: "completed" });
         return finalResponse || "Request cancelled";
@@ -242,35 +213,22 @@ export class Agent {
       iterations++;
       const iterSpanId = this.tracer.startSpan(`iteration_${iterations}`);
 
-      // Build messages for API
       const apiMessages: OpenAI.ChatCompletionMessageParam[] = [
         { role: "system", content: this.systemPrompt + contextPrompt },
         ...this.messages.map((m) => {
           if (m.role === "tool") {
-            return {
-              role: "tool" as const,
-              content: m.content || "",
-              tool_call_id: m.tool_call_id || "",
-            };
+            return { role: "tool" as const, content: m.content || "", tool_call_id: m.tool_call_id || "" };
           }
           if (m.role === "assistant" && m.tool_calls) {
-            return {
-              role: "assistant" as const,
-              content: m.content,
-              tool_calls: m.tool_calls,
-            };
+            return { role: "assistant" as const, content: m.content, tool_calls: m.tool_calls };
           }
-          return {
-            role: m.role as "user" | "assistant",
-            content: m.content || "",
-          };
+          return { role: m.role as "user" | "assistant", content: m.content || "" };
         }),
       ];
 
       try {
         const toolDefs = this.tools.size > 0 ? this.getToolDefinitions() : undefined;
         
-        // Context management: Check and truncate if needed
         const contextCheck = this.contextManager.prepareForAPI(
           apiMessages,
           toolDefs as OpenAI.ChatCompletionTool[] | undefined,
@@ -278,25 +236,15 @@ export class Agent {
         );
         
         if (contextCheck.warning) {
-          console.log(`[Agent] Context warning: ${contextCheck.warning}`);
-          this.emit({ 
-            type: "status", 
-            status: "thinking", 
-            message: contextCheck.warning 
-          });
+          log.warn(contextCheck.warning);
+          this.emit({ type: "status", status: "thinking", message: contextCheck.warning });
         }
         
-        // Use truncated messages if needed
         const finalMessages = contextCheck.truncated ? contextCheck.messages : apiMessages;
         
-        console.log("[Agent] Sending to LLM with", toolDefs?.length || 0, "tools");
-        console.log(`[Agent] Context: ${contextCheck.stats.finalTokens.toLocaleString()} tokens`);
-        if (toolDefs && toolDefs.length > 0) {
-          console.log("[Agent] Tool names:", toolDefs.map(t => t.function.name).join(", "));
-        }
+        log.debug("Sending to LLM", { tools: toolDefs?.length || 0, tokens: contextCheck.stats.finalTokens });
         
-        // Call NVIDIA NIM API with managed context and timeout
-        const LLM_TIMEOUT_MS = 120000; // 2 minutes
+        const LLM_TIMEOUT_MS = 120000;
         const timeoutController = new AbortController();
         const timeoutId = setTimeout(() => timeoutController.abort(), LLM_TIMEOUT_MS);
         
@@ -315,7 +263,6 @@ export class Agent {
           clearTimeout(timeoutId);
         }
 
-        // Track token usage
         if (response.usage) {
           totalPromptTokens += response.usage.prompt_tokens || 0;
           totalCompletionTokens += response.usage.completion_tokens || 0;
@@ -324,21 +271,15 @@ export class Agent {
         const choice = response.choices[0];
         const message = choice.message;
         
-        console.log("[Agent] LLM response - native tool_calls:", message.tool_calls?.length || 0);
-        console.log("[Agent] LLM response - content:", message.content?.substring(0, 200));
+        log.debug("LLM response", { toolCalls: message.tool_calls?.length || 0, contentLen: message.content?.length || 0 });
 
-        // Fallback: Check for XML tool calls if native ones are missing
         if (!message.tool_calls && message.content) {
           const parsedTools = this.parseToolCallsFromContent(message.content);
           if (parsedTools.length > 0) {
-            console.log("[Agent] Parsed XML tool calls:", JSON.stringify(parsedTools, null, 2));
             message.tool_calls = parsedTools;
           }
         }
-        
-        console.log("[Agent] Tool calls to execute:", message.tool_calls?.length || 0);
 
-        // Add assistant message to history
         const assistantMessage: AgentMessage = {
           role: "assistant",
           content: message.content,
@@ -351,11 +292,9 @@ export class Agent {
           finalResponse = message.content;
         }
 
-        // Check if we need to execute tools
         if (message.tool_calls && message.tool_calls.length > 0) {
-          console.log("[Agent] Executing", message.tool_calls.length, "tool(s)...");
+          log.debug(`Executing ${message.tool_calls.length} tool(s)`);
           
-          // Execute tools and emit events
           const results: ToolResult[] = [];
           for (const tc of message.tool_calls as ToolCall[]) {
             this.emit({ type: "tool_call", name: tc.function.name, args: tc.function.arguments });
@@ -363,36 +302,21 @@ export class Agent {
             this.emit({ type: "tool_result", name: tc.function.name, result: result.content, is_error: result.is_error });
             results.push(result);
           }
-          
-          console.log("[Agent] Tool results:", JSON.stringify(results.map(r => ({ 
-            id: r.tool_call_id, 
-            error: r.is_error,
-            content: r.content.substring(0, 300) 
-          })), null, 2));
 
-          // Add tool results to messages
           for (const result of results) {
-            this.messages.push({
-              role: "tool",
-              content: result.content,
-              tool_call_id: result.tool_call_id,
-            });
+            this.messages.push({ role: "tool", content: result.content, tool_call_id: result.tool_call_id });
           }
           
           this.tracer.endSpan(iterSpanId);
-          // Continue the loop to get next response
           continue;
         }
 
-        // No tool calls - check if LLM actually responded or just gave up
         const hasContent = message.content && message.content.trim().length > 50;
-        console.log(`[Agent] No tool calls. hasContent=${hasContent}, iterations=${iterations}, content length=${message.content?.length || 0}`);
-        
-        // Nudge if no content and we haven't made any file_write calls yet
         const madeEdits = this.toolCallRecords.some(r => r.toolName === 'file_write' && r.success);
+        
         if (!hasContent && !madeEdits && nudgeCount < MAX_NUDGES) {
           nudgeCount++;
-          console.log(`[Agent] No edits made yet, nudging LLM (${nudgeCount}/${MAX_NUDGES})...`);
+          log.debug(`Nudging LLM (${nudgeCount}/${MAX_NUDGES})`);
           this.messages.push({
             role: "user",
             content: "You have not made any code changes yet. Use file_write(operation='edit', path='...', old_text='exact text to replace', new_text='replacement text') to implement improvements NOW. Do not just read files - EDIT them.",
@@ -401,22 +325,17 @@ export class Agent {
           continue;
         }
         
-        // If we've exhausted nudges without edits, return graceful failure
         if (!hasContent && !madeEdits && nudgeCount >= MAX_NUDGES) {
-          console.log("[Agent] Max nudges reached without edits, returning failure");
+          log.warn("Max nudges reached without edits");
           this.emit({ type: "status", status: "completed" });
           return "I was unable to complete the requested edits after multiple attempts. Please provide more specific instructions about what changes you'd like me to make, including the exact file paths and the specific code sections to modify.";
         }
         
-        console.log("[Agent] Marking task as completed");
+        log.info("Task completed");
         this.emit({ type: "status", status: "completed" });
         
-        // Log to flywheel
         if (this.flywheelLogger) {
-          const historyForLog = (conversationHistory || []).map(m => ({
-            role: m.role,
-            content: m.content || "",
-          }));
+          const historyForLog = (conversationHistory || []).map(m => ({ role: m.role, content: m.content || "" }));
           
           this.flywheelLogger.logInteraction({
             userMessage: sanitizedUserMessage,
@@ -435,7 +354,6 @@ export class Agent {
           });
         }
         
-        // Trigger learning loop
         await this.learn();
 
         this.tracer.endSpan(runSpanId, { status: "completed" });
@@ -453,18 +371,15 @@ export class Agent {
     return "Error: Maximum iterations reached";
   }
 
-  // Stream version for real-time updates
   async *runStream(userMessage: string): AsyncGenerator<AgentEvent> {
     const runSpanId = this.tracer.startSpan("agent_run_stream", { mode: this.mode });
     
-    // Redact PII
     const sanitizedUserMessage = this.piiGuard.redact(userMessage);
 
     this.emit({ type: "status", status: "running" });
     yield { type: "status", status: "running" };
     yield { type: "message", role: "user", content: sanitizedUserMessage };
 
-    // Retrieve Unified Context
     let contextPrompt = "";
     if (this.unifiedContext) {
       try {
@@ -476,11 +391,10 @@ export class Agent {
           contextPrompt = `\n\n### Additional Context\n${contextResult.formattedContext}`;
         }
       } catch (error) {
-        console.error("Failed to retrieve unified context:", error);
+        log.error("Failed to retrieve unified context", { error: String(error) });
       }
     }
 
-    // Dynamic Tool Selection
     let activeToolNames: string[] | undefined;
     if (this.toolOrchestrator) {
       try {
@@ -488,20 +402,17 @@ export class Agent {
         activeToolNames = await this.toolOrchestrator.selectTools(sanitizedUserMessage);
         this.tracer.endSpan(spanId, { selected: activeToolNames });
       } catch (e) {
-        console.error("Tool selection failed:", e);
+        log.error("Tool selection failed", { error: String(e) });
       }
     }
 
     this.messages.push({ role: "user", content: sanitizedUserMessage });
 
     let iterations = 0;
-    const maxIterations = 1000; // Extended for long-running tasks
+    const maxIterations = 1000;
 
     while (iterations < maxIterations) {
-      // Check for abort
-      if (this.abortSignal?.aborted) {
-        return;
-      }
+      if (this.abortSignal?.aborted) return;
       
       iterations++;
       const iterSpanId = this.tracer.startSpan(`iteration_${iterations}`);
@@ -510,30 +421,18 @@ export class Agent {
         { role: "system", content: this.systemPrompt + contextPrompt },
         ...this.messages.map((m) => {
           if (m.role === "tool") {
-            return {
-              role: "tool" as const,
-              content: m.content || "",
-              tool_call_id: m.tool_call_id || "",
-            };
+            return { role: "tool" as const, content: m.content || "", tool_call_id: m.tool_call_id || "" };
           }
           if (m.role === "assistant" && m.tool_calls) {
-            return {
-              role: "assistant" as const,
-              content: m.content,
-              tool_calls: m.tool_calls,
-            };
+            return { role: "assistant" as const, content: m.content, tool_calls: m.tool_calls };
           }
-          return {
-            role: m.role as "user" | "assistant",
-            content: m.content || "",
-          };
+          return { role: m.role as "user" | "assistant", content: m.content || "" };
         }),
       ];
 
       try {
         const toolDefs = this.tools.size > 0 ? this.getToolDefinitions() : undefined;
         
-        // Context management: Check and truncate if needed
         const contextCheck = this.contextManager.prepareForAPI(
           apiMessages,
           toolDefs as OpenAI.ChatCompletionTool[] | undefined,
@@ -541,15 +440,10 @@ export class Agent {
         );
         
         if (contextCheck.warning) {
-          console.log(`[Agent] Context warning: ${contextCheck.warning}`);
-          yield { 
-            type: "status", 
-            status: "thinking", 
-            message: contextCheck.warning 
-          };
+          log.warn(contextCheck.warning);
+          yield { type: "status", status: "thinking", message: contextCheck.warning };
         }
         
-        // Use truncated messages if needed
         const finalMessages = contextCheck.truncated ? contextCheck.messages : apiMessages;
         
         const stream = await this.client.chat.completions.create({
@@ -578,11 +472,7 @@ export class Agent {
             for (const tc of delta.tool_calls) {
               if (tc.index !== undefined) {
                 if (!toolCalls[tc.index]) {
-                  toolCalls[tc.index] = {
-                    id: tc.id || "",
-                    type: "function",
-                    function: { name: "", arguments: "" },
-                  };
+                  toolCalls[tc.index] = { id: tc.id || "", type: "function", function: { name: "", arguments: "" } };
                 }
                 if (tc.id) toolCalls[tc.index].id = tc.id;
                 if (tc.function?.name) toolCalls[tc.index].function.name = tc.function.name;
@@ -592,15 +482,11 @@ export class Agent {
           }
         }
 
-        // Fallback: Check for XML tool calls if content exists but native tools don't
         if (toolCalls.length === 0 && content) {
           const parsedTools = this.parseToolCallsFromContent(content);
-          if (parsedTools.length > 0) {
-            toolCalls = parsedTools;
-          }
+          if (parsedTools.length > 0) toolCalls = parsedTools;
         }
 
-        // Add assistant message
         const assistantMessage: AgentMessage = {
           role: "assistant",
           content: content || null,
@@ -608,7 +494,6 @@ export class Agent {
         };
         this.messages.push(assistantMessage);
 
-        // Execute tools if needed
         if (toolCalls.length > 0) {
           for (const tc of toolCalls) {
             yield { type: "tool_call", name: tc.function.name, args: tc.function.arguments };
@@ -616,17 +501,12 @@ export class Agent {
             const result = await this.executeToolCall(tc);
             yield { type: "tool_result", name: tc.function.name, result: result.content, is_error: result.is_error };
             
-            this.messages.push({
-              role: "tool",
-              content: result.content,
-              tool_call_id: result.tool_call_id,
-            });
+            this.messages.push({ role: "tool", content: result.content, tool_call_id: result.tool_call_id });
           }
           this.tracer.endSpan(iterSpanId);
           continue;
         }
 
-        // Trigger learning loop
         await this.learn();
 
         this.tracer.endSpan(iterSpanId);
@@ -661,14 +541,13 @@ export class Agent {
     try {
       args = JSON.parse(argsString);
     } catch {
-      args = { raw: argsString }; // Fallback for poorly formatted JSON
+      args = { raw: argsString };
     }
     
-    // Use shared tool alias resolution
     const { resolveToolAlias } = await import("./tools/registry");
     const resolved = resolveToolAlias(name, args);
     if (resolved.name !== name) {
-      console.log(`[Agent] Redirecting "${name}" to "${resolved.name}"`);
+      log.debug(`Redirecting "${name}" to "${resolved.name}"`);
     }
     name = resolved.name;
     args = resolved.args;
@@ -680,17 +559,12 @@ export class Agent {
     if (!tool) {
       const error = `Tool ${name} not found`;
       this.tracer.failSpan(spanId, new Error(error));
-      return {
-        tool_call_id: toolCall.id,
-        content: error,
-        is_error: true,
-      };
+      return { tool_call_id: toolCall.id, content: error, is_error: true };
     }
 
     try {
       const content = await tool.execute(args);
       
-      // Record for flywheel
       this.toolCallRecords.push({
         toolName: name,
         arguments: args,
@@ -700,10 +574,7 @@ export class Agent {
       });
 
       this.tracer.endSpan(spanId, { success: true });
-      return {
-        tool_call_id: toolCall.id,
-        content,
-      };
+      return { tool_call_id: toolCall.id, content };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.tracer.failSpan(spanId, error instanceof Error ? error : new Error(errorMessage));
@@ -717,23 +588,17 @@ export class Agent {
         error: errorMessage
       });
 
-      return {
-        tool_call_id: toolCall.id,
-        content: `Error: ${errorMessage}`,
-        is_error: true,
-      };
+      return { tool_call_id: toolCall.id, content: `Error: ${errorMessage}`, is_error: true };
     }
   }
 
   private async learn(): Promise<void> {
-    // 1. Run automatic evaluation if evaluator is available
     if (this.evaluator && this.flywheelLogger) {
       const records = this.flywheelLogger.getRecords();
       const lastRecord = records[records.length - 1];
       if (lastRecord && !lastRecord.qualitySignals?.overallScore) {
         try {
           const scores = await this.evaluator.evaluateRecord(lastRecord);
-          // Update the record with judge scores
           lastRecord.qualitySignals = {
             overallScore: scores.overall || 5,
             helpfulness: scores.helpfulness,
@@ -744,12 +609,11 @@ export class Agent {
             errorCount: lastRecord.qualitySignals?.errorCount || 0,
           };
         } catch (e) {
-          console.error("Auto-evaluation failed:", e);
+          log.error("Auto-evaluation failed", { error: String(e) });
         }
       }
     }
 
-    // 2. Run feedback optimizer and auto RAG updater if available
     await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this.feedbackOptimizer as any)?.generateOptimizations?.(),

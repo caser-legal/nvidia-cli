@@ -1,36 +1,26 @@
 /**
  * MCP Agent
  * Agent that uses MCP protocol for tool discovery and execution
- * 
- * This is the production-grade agent that mirrors how Codex CLI works:
- * - Tools are discovered via MCP protocol
- * - Tool execution happens via MCP callTool
- * - Same MCP server serves both Codex CLI and this web app
  */
 
 import OpenAI from "openai";
 import type { AgentMessage, AgentConfig, AgentEvent, ToolCall, ToolResult } from "./types";
-import { 
-  getMCPClient, 
-  getMCPToolDefinitions, 
-  callMCPTool,
-  listMCPTools,
-  type OpenAIToolDefinition 
-} from "../mcp-client";
+import { getMCPClient, getMCPToolDefinitions, callMCPTool, type OpenAIToolDefinition } from "../mcp-client";
 import { FlywheelLogger, ToolCallRecord } from "./flywheel";
 import { PIIGuard } from "../security/pii-guard";
 import { ContextManager, getContextLimits } from "../context-manager";
+import { createLogger } from "../logger";
 
-// Check if using local LLM
+const log = createLogger("MCPAgent");
+
 const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
 const CONTEXT_LIMITS = getContextLimits(USE_LOCAL_LLM);
 
-// Default config optimized for tool calling
 const DEFAULT_CONFIG: AgentConfig = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
   maxTokens: 16384,
-  temperature: 0.6,  // NVIDIA recommends 0.6 for tool calling
-  topP: 0.95,        // NVIDIA recommends 0.95 for tool calling
+  temperature: 0.6,
+  topP: 0.95,
   contextWindowTokens: CONTEXT_LIMITS.maxInputTokens,
 };
 
@@ -79,37 +69,26 @@ export class MCPAgent {
     this.mode = options.mode || "chat";
     this.abortSignal = options.abortSignal;
     
-    // Initialize components
     this.piiGuard = new PIIGuard();
     this.contextManager = new ContextManager(useLocalLLM);
     
     const limits = this.contextManager.getLimits();
-    console.log(`[MCPAgent] Context limits: ${limits.maxInputTokens.toLocaleString()} tokens`);
+    log.info(`Context limits: ${limits.maxInputTokens.toLocaleString()} tokens`);
   }
 
   private emit(event: AgentEvent) {
     this.onEvent?.(event);
   }
 
-  /**
-   * Initialize MCP connection and discover tools
-   */
   private async initializeMCP(): Promise<void> {
     if (this.toolDefinitions) return;
     
-    console.log("[MCPAgent] Initializing MCP connection...");
-    
-    // Connect to MCP server and get tool definitions
+    log.info("Initializing MCP connection");
     await getMCPClient();
     this.toolDefinitions = await getMCPToolDefinitions();
-    
-    console.log(`[MCPAgent] Discovered ${this.toolDefinitions.length} tools via MCP`);
-    console.log("[MCPAgent] Tools:", this.toolDefinitions.map(t => t.function.name).join(", "));
+    log.info(`Discovered ${this.toolDefinitions.length} tools via MCP`, { tools: this.toolDefinitions.map(t => t.function.name) });
   }
 
-  /**
-   * Parse XML-style tool calls from content (fallback for models that don't use native tool calling)
-   */
   private parseToolCallsFromContent(content: string): ToolCall[] {
     const toolCalls: ToolCall[] = [];
     if (!content) return toolCalls;
@@ -141,9 +120,6 @@ export class MCPAgent {
     return toolCalls;
   }
 
-  /**
-   * Execute a tool call via MCP
-   */
   private async executeToolCall(toolCall: ToolCall): Promise<ToolResult> {
     const { name, arguments: argsString } = toolCall.function;
     const startTime = Date.now();
@@ -155,9 +131,8 @@ export class MCPAgent {
       args = { raw: argsString };
     }
 
-    console.log(`[MCPAgent] Executing tool: ${name}`);
+    log.debug(`Executing tool: ${name}`);
 
-    // Handle tool aliases (common hallucinated tool names)
     const aliasMap: Record<string, { name: string; transform?: (a: Record<string, unknown>) => Record<string, unknown> }> = {
       "str_replace_editor": {
         name: args.command === "view" ? "file_read" : "file_write",
@@ -185,17 +160,13 @@ export class MCPAgent {
     if (aliasMap[name]) {
       const alias = aliasMap[name];
       actualName = typeof alias.name === "string" ? alias.name : name;
-      if (alias.transform) {
-        actualArgs = alias.transform(args);
-      }
-      console.log(`[MCPAgent] Redirecting "${name}" to "${actualName}"`);
+      if (alias.transform) actualArgs = alias.transform(args);
+      log.debug(`Redirecting "${name}" to "${actualName}"`);
     }
 
-    // Execute via MCP
     const result = await callMCPTool(actualName, actualArgs);
     const duration = Date.now() - startTime;
 
-    // Record for flywheel
     this.toolCallRecords.push({
       toolName: actualName,
       arguments: actualArgs,
@@ -205,30 +176,20 @@ export class MCPAgent {
       error: result.isError ? result.content : undefined,
     });
 
-    return {
-      tool_call_id: toolCall.id,
-      content: result.content,
-      is_error: result.isError,
-    };
+    return { tool_call_id: toolCall.id, content: result.content, is_error: result.isError };
   }
 
-  /**
-   * Main agent loop
-   */
   async run(userMessage: string, conversationHistory?: AgentMessage[]): Promise<string> {
     const startTime = Date.now();
     this.toolCallRecords = [];
     
-    // Initialize MCP connection
     await this.initializeMCP();
     
-    // Redact PII
     const sanitizedUserMessage = this.piiGuard.redact(userMessage);
     
     this.emit({ type: "status", status: "running" });
     this.emit({ type: "message", role: "user", content: sanitizedUserMessage });
 
-    // Initialize with conversation history
     if (conversationHistory && conversationHistory.length > 0) {
       this.messages = [...conversationHistory];
     }
@@ -242,7 +203,6 @@ export class MCPAgent {
     let totalCompletionTokens = 0;
 
     while (iterations < maxIterations) {
-      // Check for abort
       if (this.abortSignal?.aborted) {
         this.emit({ type: "status", status: "completed" });
         return finalResponse || "Request cancelled";
@@ -250,48 +210,32 @@ export class MCPAgent {
       
       iterations++;
 
-      // Build messages for API
       const apiMessages: OpenAI.ChatCompletionMessageParam[] = [
         { role: "system", content: this.systemPrompt },
         ...this.messages.map((m) => {
           if (m.role === "tool") {
-            return {
-              role: "tool" as const,
-              content: m.content || "",
-              tool_call_id: m.tool_call_id || "",
-            };
+            return { role: "tool" as const, content: m.content || "", tool_call_id: m.tool_call_id || "" };
           }
           if (m.role === "assistant" && m.tool_calls) {
-            return {
-              role: "assistant" as const,
-              content: m.content,
-              tool_calls: m.tool_calls,
-            };
+            return { role: "assistant" as const, content: m.content, tool_calls: m.tool_calls };
           }
-          return {
-            role: m.role as "user" | "assistant",
-            content: m.content || "",
-          };
+          return { role: m.role as "user" | "assistant", content: m.content || "" };
         }),
       ];
 
       try {
-        // Context management
         const contextCheck = this.contextManager.prepareForAPI(
           apiMessages,
           this.toolDefinitions as OpenAI.ChatCompletionTool[] | undefined,
           "tool_results_first"
         );
         
-        if (contextCheck.warning) {
-          console.log(`[MCPAgent] Context warning: ${contextCheck.warning}`);
-        }
+        if (contextCheck.warning) log.warn(contextCheck.warning);
         
         const finalMessages = contextCheck.truncated ? contextCheck.messages : apiMessages;
         
-        console.log(`[MCPAgent] Iteration ${iterations}, ${this.toolDefinitions?.length || 0} tools, ${contextCheck.stats.finalTokens} tokens`);
+        log.debug(`Iteration ${iterations}`, { tools: this.toolDefinitions?.length || 0, tokens: contextCheck.stats.finalTokens });
 
-        // Call LLM
         const response = await this.client.chat.completions.create({
           model: this.config.model,
           messages: finalMessages,
@@ -302,7 +246,6 @@ export class MCPAgent {
           tool_choice: this.toolDefinitions && this.toolDefinitions.length > 0 ? "auto" : undefined,
         });
 
-        // Track tokens
         if (response.usage) {
           totalPromptTokens += response.usage.prompt_tokens || 0;
           totalCompletionTokens += response.usage.completion_tokens || 0;
@@ -311,15 +254,11 @@ export class MCPAgent {
         const choice = response.choices[0];
         const message = choice.message;
 
-        // Fallback: Parse XML tool calls if native ones missing
         if (!message.tool_calls && message.content) {
           const parsedTools = this.parseToolCallsFromContent(message.content);
-          if (parsedTools.length > 0) {
-            message.tool_calls = parsedTools;
-          }
+          if (parsedTools.length > 0) message.tool_calls = parsedTools;
         }
 
-        // Add assistant message to history
         const assistantMessage: AgentMessage = {
           role: "assistant",
           content: message.content,
@@ -332,30 +271,23 @@ export class MCPAgent {
           finalResponse = message.content;
         }
 
-        // Execute tools if needed
         if (message.tool_calls && message.tool_calls.length > 0) {
-          console.log(`[MCPAgent] Executing ${message.tool_calls.length} tool(s)...`);
+          log.debug(`Executing ${message.tool_calls.length} tool(s)`);
           
           for (const tc of message.tool_calls as ToolCall[]) {
             this.emit({ type: "tool_call", name: tc.function.name, args: tc.function.arguments });
             const result = await this.executeToolCall(tc);
             this.emit({ type: "tool_result", name: tc.function.name, result: result.content, is_error: result.is_error });
             
-            this.messages.push({
-              role: "tool",
-              content: result.content,
-              tool_call_id: result.tool_call_id,
-            });
+            this.messages.push({ role: "tool", content: result.content, tool_call_id: result.tool_call_id });
           }
           
-          continue; // Loop to get next response
+          continue;
         }
 
-        // No tool calls - task complete
-        console.log("[MCPAgent] Task completed");
+        log.info("Task completed");
         this.emit({ type: "status", status: "completed" });
         
-        // Log to flywheel
         if (this.flywheelLogger) {
           this.flywheelLogger.logInteraction({
             userMessage: sanitizedUserMessage,
@@ -377,7 +309,7 @@ export class MCPAgent {
         return message.content || "";
 
       } catch (error) {
-        console.error("[MCPAgent] Error:", error);
+        log.error("Error in agent loop", { error: String(error) });
         throw error;
       }
     }
@@ -387,11 +319,7 @@ export class MCPAgent {
     return "Error: Maximum iterations reached";
   }
 
-  /**
-   * Streaming version of run
-   */
   async *runStream(userMessage: string): AsyncGenerator<AgentEvent> {
-    // Initialize MCP
     await this.initializeMCP();
     
     const sanitizedUserMessage = this.piiGuard.redact(userMessage);
@@ -467,31 +395,24 @@ export class MCPAgent {
           }
         }
 
-        // Fallback XML parsing
         if (toolCalls.length === 0 && content) {
           const parsedTools = this.parseToolCallsFromContent(content);
           if (parsedTools.length > 0) toolCalls = parsedTools;
         }
 
-        // Add assistant message
         this.messages.push({
           role: "assistant",
           content: content || null,
           tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
         });
 
-        // Execute tools
         if (toolCalls.length > 0) {
           for (const tc of toolCalls) {
             yield { type: "tool_call", name: tc.function.name, args: tc.function.arguments };
             const result = await this.executeToolCall(tc);
             yield { type: "tool_result", name: tc.function.name, result: result.content, is_error: result.is_error };
             
-            this.messages.push({
-              role: "tool",
-              content: result.content,
-              tool_call_id: result.tool_call_id,
-            });
+            this.messages.push({ role: "tool", content: result.content, tool_call_id: result.tool_call_id });
           }
           continue;
         }

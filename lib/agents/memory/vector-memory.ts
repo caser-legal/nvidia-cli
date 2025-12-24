@@ -1,18 +1,14 @@
 /**
  * Vector-Based Memory Store
  * Based on NVIDIA RAG Blueprint multi-turn conversation pattern
- * 
- * NVIDIA approach: Store conversation history in a dedicated vector store
- * with semantic retrieval - not just keyword matching.
- * 
- * Reference: https://nvidia.github.io/GenerativeAIExamples/0.5.0/multi-turn.html
- * "The chain server stores the conversation history and knowledge base in a 
- * vector database and retrieves them at runtime to understand contextual queries."
  */
 
 import * as fs from "fs/promises";
 import * as path from "path";
 import { NVIDIAEmbeddings } from "../rag/embeddings";
+import { createLogger } from "../../logger";
+
+const log = createLogger("VectorMemory");
 
 const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
 const MEMORY_DIR = path.join(HOME_DIR, ".nvidia-cli", "memory");
@@ -31,11 +27,6 @@ interface StoredEntry extends MemoryEntry {
   embedding: number[];
 }
 
-/**
- * Unified Vector Memory Store
- * Single store for all memories - no short-term/long-term distinction
- * Everything persists and is retrieved via semantic search
- */
 export class VectorMemoryStore {
   private entries: Map<string, StoredEntry> = new Map();
   private embeddings: NVIDIAEmbeddings;
@@ -60,7 +51,7 @@ export class VectorMemoryStore {
       for (const entry of parsed) {
         this.entries.set(entry.id, entry);
       }
-      console.log(`[VectorMemory] Loaded ${this.entries.size} memories from disk`);
+      log.info(`Loaded ${this.entries.size} memories from disk`);
     } catch {
       // No existing store - start fresh
     }
@@ -76,9 +67,6 @@ export class VectorMemoryStore {
     this.dirty = false;
   }
 
-  /**
-   * Add a memory entry with embedding
-   */
   async add(
     type: MemoryEntry["type"],
     content: string,
@@ -88,8 +76,6 @@ export class VectorMemoryStore {
     await this.ensureLoaded();
 
     const id = `mem-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-    
-    // Embed the content for semantic search
     const [embedding] = await this.embeddings.embed([content]);
     
     const entry: StoredEntry = {
@@ -104,39 +90,25 @@ export class VectorMemoryStore {
 
     this.entries.set(id, entry);
     this.dirty = true;
-    
-    // Auto-save (debounced in production, immediate for simplicity)
     await this.save();
     
     return entry;
   }
 
-  /**
-   * Semantic search for relevant memories
-   * This is the NVIDIA way - vector similarity, not keyword matching
-   */
   async search(query: string, topK: number = 10, sessionId?: string): Promise<MemoryEntry[]> {
     await this.ensureLoaded();
     
     if (this.entries.size === 0) return [];
 
-    // Embed the query
     const queryEmbedding = await this.embeddings.embedQuery(query);
-    
-    // Calculate similarity scores
     const scored: { entry: StoredEntry; score: number }[] = [];
     
     for (const entry of this.entries.values()) {
-      // Optionally filter by session
-      if (sessionId && entry.sessionId && entry.sessionId !== sessionId) {
-        continue;
-      }
-      
+      if (sessionId && entry.sessionId && entry.sessionId !== sessionId) continue;
       const score = this.cosineSimilarity(queryEmbedding, entry.embedding);
       scored.push({ entry, score });
     }
 
-    // Sort by score and return top K
     return scored
       .sort((a, b) => b.score - a.score)
       .slice(0, topK)
@@ -150,17 +122,11 @@ export class VectorMemoryStore {
       }));
   }
 
-  /**
-   * Get recent memories (for context window)
-   */
   async getRecent(count: number = 20, sessionId?: string): Promise<MemoryEntry[]> {
     await this.ensureLoaded();
     
     let entries = Array.from(this.entries.values());
-    
-    if (sessionId) {
-      entries = entries.filter(e => e.sessionId === sessionId);
-    }
+    if (sessionId) entries = entries.filter(e => e.sessionId === sessionId);
     
     return entries
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -169,9 +135,6 @@ export class VectorMemoryStore {
       .map(({ embedding: _, ...rest }) => rest);
   }
 
-  /**
-   * Get all memories of a specific type
-   */
   async getByType(type: MemoryEntry["type"]): Promise<MemoryEntry[]> {
     await this.ensureLoaded();
     
@@ -181,9 +144,6 @@ export class VectorMemoryStore {
       .map(({ embedding: _, ...rest }) => rest);
   }
 
-  /**
-   * Delete a memory
-   */
   async delete(id: string): Promise<boolean> {
     await this.ensureLoaded();
     
@@ -196,9 +156,6 @@ export class VectorMemoryStore {
     return false;
   }
 
-  /**
-   * Clear all memories (or just for a session)
-   */
   async clear(sessionId?: string): Promise<number> {
     await this.ensureLoaded();
     
@@ -220,9 +177,6 @@ export class VectorMemoryStore {
     return count;
   }
 
-  /**
-   * Get total count
-   */
   async count(): Promise<number> {
     await this.ensureLoaded();
     return this.entries.size;
@@ -231,10 +185,7 @@ export class VectorMemoryStore {
   private cosineSimilarity(a: number[], b: number[]): number {
     if (a.length !== b.length) return 0;
     
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-    
+    let dotProduct = 0, normA = 0, normB = 0;
     for (let i = 0; i < a.length; i++) {
       dotProduct += a[i] * b[i];
       normA += a[i] * a[i];
@@ -246,12 +197,9 @@ export class VectorMemoryStore {
   }
 }
 
-// Singleton instance
 let vectorMemoryInstance: VectorMemoryStore | null = null;
 
 export function getVectorMemory(): VectorMemoryStore {
-  if (!vectorMemoryInstance) {
-    vectorMemoryInstance = new VectorMemoryStore();
-  }
+  if (!vectorMemoryInstance) vectorMemoryInstance = new VectorMemoryStore();
   return vectorMemoryInstance;
 }
