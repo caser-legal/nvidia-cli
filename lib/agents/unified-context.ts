@@ -4,15 +4,12 @@
  * to provide a comprehensive context for agents.
  */
 
-import { RAGPipeline, Document } from "./rag/pipeline";
 import { RAGPipelineV2 } from "./rag/pipeline-v2";
+import { Document } from "./rag/types";
 import { ShortTermMemory, LongTermMemory, MemoryEntry, ConversationSummary, EntityMemoryTool } from "./tools/memory";
 import { FlywheelLogger } from "./flywheel/logger";
 import { FlywheelRecord } from "./flywheel/types";
 import { RetrievalRouter, RetrievalSource } from "./retrieval-router";
-
-// Support both V1 and V2 pipelines
-type RAGPipelineInterface = RAGPipeline | RAGPipelineV2;
 
 export interface UnifiedContextQuery {
   query: string;
@@ -34,7 +31,7 @@ export interface UnifiedContextResult {
 
 export class UnifiedContext {
   constructor(
-    private rag: RAGPipelineInterface,
+    private rag: RAGPipelineV2,
     private shortTerm: ShortTermMemory,
     private longTerm: LongTermMemory,
     private flywheel: FlywheelLogger,

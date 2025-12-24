@@ -1,16 +1,12 @@
 
-import { RAGPipeline } from "./pipeline";
 import { RAGPipelineV2 } from "./pipeline-v2";
 import { FlywheelLogger } from "../flywheel/logger";
-
-// Support both V1 and V2 pipelines
-type RAGPipelineInterface = RAGPipeline | RAGPipelineV2;
 
 export class AutoRAGUpdater {
   private ingestedIds: Set<string> = new Set();
   
   constructor(
-    private rag: RAGPipelineInterface,
+    private rag: RAGPipelineV2,
     private flywheel: FlywheelLogger
   ) {}
 

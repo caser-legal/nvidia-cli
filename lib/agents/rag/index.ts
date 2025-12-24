@@ -3,13 +3,9 @@
  * Based on NVIDIA RAG Blueprint (Dec 2025)
  */
 
-// Core pipeline (v2 with NVIDIA best practices)
+// Core pipeline
 export { RAGPipelineV2, getRAGPipeline, resetRAGPipeline } from './pipeline-v2';
 export type { RAGPipelineV2Config } from './pipeline-v2';
-
-// Legacy pipeline (for backwards compatibility)
-export { RAGPipeline } from './pipeline';
-export type { RAGPipelineConfig } from './pipeline';
 
 // Configuration
 export {
