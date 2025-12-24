@@ -177,6 +177,41 @@ export class FlywheelLogger {
     });
   }
   
+  // Export records in NVIDIA NeMo/NIM JSONL format
+  // Compatible with NeMo Curator and NIM fine-tuning pipelines
+  exportForNIM(): string[] {
+    const records = this.getRecords();
+    return records.map(r => {
+      // NeMo expects "conversations" array with "value" field
+      const conversations = [
+        { from: "system", value: r.systemPrompt },
+        ...r.conversationHistory.map(m => ({ from: m.role, value: m.content })),
+        { from: "human", value: r.userMessage },
+        { from: "gpt", value: r.assistantResponse },
+      ];
+      
+      // Include tool calls if present (NeMo function calling format)
+      const toolCalls = r.toolCalls.length > 0 ? r.toolCalls.map(tc => ({
+        name: tc.toolName,
+        arguments: tc.arguments,
+        result: tc.result,
+        success: tc.success,
+      })) : undefined;
+      
+      return JSON.stringify({
+        conversations,
+        tool_calls: toolCalls,
+        metadata: {
+          model: r.model,
+          mode: r.mode,
+          workload_id: r.workloadId,
+          quality_score: r.qualitySignals?.overallScore,
+          latency_ms: r.latencyMs,
+        },
+      });
+    });
+  }
+  
   // Export records with tool calls (for tool-calling fine-tuning)
   exportWithToolCalls(): string[] {
     const records = this.getRecords().filter(r => r.toolCalls.length > 0);

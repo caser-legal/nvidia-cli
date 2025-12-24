@@ -27,7 +27,11 @@ export function estimateTokens(text: string): number {
   const codeRatio = codeSymbols / text.length;
   const avgCharsPerToken = 4 - (codeRatio * 1); // 3-4 range
   
-  return Math.ceil(text.length / avgCharsPerToken);
+  const baseEstimate = Math.ceil(text.length / avgCharsPerToken);
+  
+  // Add 25% safety margin for code-heavy content to prevent API overflow errors
+  const safetyMargin = codeRatio > 0.05 ? 1.25 : 1.1;
+  return Math.ceil(baseEstimate * safetyMargin);
 }
 
 // Estimate tokens for a message array (OpenAI format)

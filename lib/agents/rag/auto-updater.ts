@@ -7,6 +7,8 @@ import { FlywheelLogger } from "../flywheel/logger";
 type RAGPipelineInterface = RAGPipeline | RAGPipelineV2;
 
 export class AutoRAGUpdater {
+  private ingestedIds: Set<string> = new Set();
+  
   constructor(
     private rag: RAGPipelineInterface,
     private flywheel: FlywheelLogger
@@ -14,20 +16,23 @@ export class AutoRAGUpdater {
 
   /**
    * Auto-ingest high-quality resolved interactions into RAG
+   * Deduplicates by record ID to prevent duplicate entries
    */
   async sync(minRating: number = 5): Promise<number> {
     const candidates = this.flywheel.getHighQualityRecords(minRating);
     let ingestedCount = 0;
 
     for (const record of candidates) {
-      // Check if already ingested (using ID)
-      // Note: SimpleVectorStore doesn't expose an 'exists' check efficiently, 
-      // so we might duplicate or rely on RAGPipeline dedupe logic.
+      // Skip if already ingested (ID-based deduplication)
+      const docId = `flywheel-${record.id}`;
+      if (this.ingestedIds.has(docId)) {
+        continue;
+      }
       
       const docContent = `Q: ${record.userMessage}\nA: ${record.assistantResponse}`;
       
       await this.rag.ingest([{
-        id: `flywheel-${record.id}`,
+        id: docId,
         content: docContent,
         metadata: {
           source: "flywheel_auto_update",
@@ -37,9 +42,17 @@ export class AutoRAGUpdater {
         }
       }]);
       
+      this.ingestedIds.add(docId);
       ingestedCount++;
     }
 
     return ingestedCount;
+  }
+  
+  /**
+   * Clear ingestion tracking (for testing or reset)
+   */
+  reset(): void {
+    this.ingestedIds.clear();
   }
 }

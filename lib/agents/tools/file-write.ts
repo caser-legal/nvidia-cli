@@ -105,12 +105,15 @@ Uses the current project directory (use set_project to change it).`;
     }
 
     const count = content.split(oldText).length - 1;
+    
+    // Fail on ambiguous matches to prevent silent partial edits
+    if (count > 1) {
+      return `Error: Found ${count} occurrences of the specified text in ${filePath}. Please provide more context to make old_text unique (include surrounding lines).`;
+    }
+    
     const newContent = content.replace(oldText, newText);
     await fs.writeFile(resolved, newContent, "utf-8");
 
-    if (count > 1) {
-      return `Warning: Found ${count} occurrences. Only first was replaced in ${filePath}`;
-    }
     return `Successfully edited ${filePath}`;
   }
 }

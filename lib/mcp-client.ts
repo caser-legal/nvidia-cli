@@ -36,9 +36,11 @@ let mcpTransport: StdioClientTransport | null = null;
 let toolCache: MCPTool[] | null = null;
 let connectionPromise: Promise<Client> | null = null;
 
-// Path to MCP server
-const MCP_SERVER_PATH = process.env.MCP_SERVER_PATH || "/Users/home/Documents/nvidia-cli/mcp-server.ts";
-const MCP_SERVER_CWD = process.env.MCP_SERVER_CWD || "/Users/home/Documents/nvidia-cli";
+// Path to MCP server - use config
+import config from "./config";
+
+const MCP_SERVER_PATH = config.mcp.serverPath;
+const MCP_SERVER_CWD = config.mcp.serverCwd;
 
 /**
  * Get or create MCP client connection

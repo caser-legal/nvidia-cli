@@ -3,8 +3,9 @@
 
 import { BaseTool } from "../base-tool";
 
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || "AIzaSyAItqaim6u_IqbbPbRUvLddZEAgZo9OU8E";
-const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_CSE_ID || "c793827e2e54f4511";
+// API keys must be set via environment variables - no fallbacks
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_CSE_ID;
 
 export class GoogleSearchTool extends BaseTool {
   name = "google_search";
@@ -25,7 +26,15 @@ Use this for fact-checking, research, and finding information.`;
   };
 
   async execute(args: Record<string, unknown>): Promise<string> {
+    if (!GOOGLE_API_KEY || !GOOGLE_SEARCH_ENGINE_ID) {
+      return "Error: GOOGLE_API_KEY and GOOGLE_CSE_ID environment variables must be set";
+    }
+    
     const query = args.query as string;
+    if (!query || typeof query !== "string") {
+      return "Error: query parameter is required and must be a string";
+    }
+    
     const num = Math.min(10, Math.max(1, (args.num as number) || 5));
 
     try {

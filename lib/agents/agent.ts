@@ -216,23 +216,8 @@ export class Agent {
       }
     }
 
-    // Dynamic Tool Selection - DISABLED for simplicity
-    // The ToolOrchestrator was filtering tools but causing issues
-    // Just pass all tools and let the LLM decide
-    const activeToolNames: string[] | undefined = undefined; // undefined = use all tools
-    
-    /*
-    if (this.toolOrchestrator) {
-      try {
-        const spanId = this.tracer.startSpan("tool_selection");
-        activeToolNames = await this.toolOrchestrator.selectTools(sanitizedUserMessage);
-        this.tracer.endSpan(spanId, { selected: activeToolNames });
-        this.emit({ type: "status", status: "thinking", message: `Selected tools: ${activeToolNames.join(", ")}` });
-      } catch (e) {
-        console.error("Tool selection failed:", e);
-      }
-    }
-    */
+    // All tools are passed to LLM - it decides which to use
+    // ToolOrchestrator was removed as it added latency without benefit
 
     // Initialize with conversation history if provided
     if (conversationHistory && conversationHistory.length > 0) {
@@ -286,7 +271,7 @@ export class Agent {
       ];
 
       try {
-        const toolDefs = this.tools.size > 0 ? this.getToolDefinitions(activeToolNames) : undefined;
+        const toolDefs = this.tools.size > 0 ? this.getToolDefinitions() : undefined;
         
         // Context management: Check and truncate if needed
         const contextCheck = this.contextManager.prepareForAPI(
@@ -313,16 +298,25 @@ export class Agent {
           console.log("[Agent] Tool names:", toolDefs.map(t => t.function.name).join(", "));
         }
         
-        // Call NVIDIA NIM API with managed context
-        const response = await this.client.chat.completions.create({
-          model: this.config.model,
-          messages: finalMessages,
-          max_tokens: this.config.maxTokens,
-          temperature: this.config.temperature,
-          top_p: this.config.topP,
-          tools: toolDefs,
-          tool_choice: toolDefs && toolDefs.length > 0 ? "auto" : undefined,
-        });
+        // Call NVIDIA NIM API with managed context and timeout
+        const LLM_TIMEOUT_MS = 120000; // 2 minutes
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => timeoutController.abort(), LLM_TIMEOUT_MS);
+        
+        let response;
+        try {
+          response = await this.client.chat.completions.create({
+            model: this.config.model,
+            messages: finalMessages,
+            max_tokens: this.config.maxTokens,
+            temperature: this.config.temperature,
+            top_p: this.config.topP,
+            tools: toolDefs,
+            tool_choice: toolDefs && toolDefs.length > 0 ? "auto" : undefined,
+          }, { signal: timeoutController.signal });
+        } finally {
+          clearTimeout(timeoutId);
+        }
 
         // Track token usage
         if (response.usage) {
@@ -540,7 +534,7 @@ export class Agent {
       ];
 
       try {
-        const toolDefs = this.tools.size > 0 ? this.getToolDefinitions(activeToolNames) : undefined;
+        const toolDefs = this.tools.size > 0 ? this.getToolDefinitions() : undefined;
         
         // Context management: Check and truncate if needed
         const contextCheck = this.contextManager.prepareForAPI(
@@ -673,62 +667,14 @@ export class Agent {
       args = { raw: argsString }; // Fallback for poorly formatted JSON
     }
     
-    // Tool alias mapping - redirect common hallucinated tool names to actual tools
-    const toolAliases: Record<string, { name: string; transform?: (args: Record<string, unknown>) => Record<string, unknown> }> = {
-      "str_replace_editor": {
-        name: args.command === "view" || args.operation === "read" ? "file_read" : "file_write",
-        transform: (a) => {
-          // Handle view/read commands -> file_read
-          if (a.command === "view" || a.operation === "read") {
-            return { operation: "read", path: a.path || a.file_path };
-          }
-          // Handle write/create commands -> file_write with operation="write"
-          if (a.command === "create" || a.operation === "write") {
-            return {
-              operation: "write",
-              path: a.path || a.file_path,
-              content: a.content || a.file_text,
-            };
-          }
-          // Handle str_replace/edit commands -> file_write with operation="edit"
-          return {
-            operation: "edit",
-            path: a.path || a.file_path,
-            old_text: a.old_str,
-            new_text: a.new_str,
-          };
-        },
-      },
-      "str_replace": {
-        name: "file_write", 
-        transform: (a) => ({
-          operation: "edit",
-          path: a.path || a.file_path,
-          old_text: a.old_str,
-          new_text: a.new_str,
-        }),
-      },
-      "view": {
-        name: "file_read",
-        transform: (a) => ({ operation: "read", path: a.path || a.file_path }),
-      },
-      "create": {
-        name: "file_write",
-        transform: (a) => ({ operation: "write", path: a.path || a.file_path, content: a.file_text || a.content }),
-      },
-    };
-    
-    if (toolAliases[name]) {
-      // Re-evaluate which tool to use based on args (for str_replace_editor)
-      const alias = name === "str_replace_editor" 
-        ? { ...toolAliases[name], name: args.command === "view" || args.operation === "read" ? "file_read" : "file_write" }
-        : toolAliases[name];
-      console.log(`[Agent] Redirecting "${name}" to "${alias.name}"`);
-      name = alias.name;
-      if (alias.transform) {
-        args = alias.transform(args);
-      }
+    // Use shared tool alias resolution
+    const { resolveToolAlias } = await import("./tools/registry");
+    const resolved = resolveToolAlias(name, args);
+    if (resolved.name !== name) {
+      console.log(`[Agent] Redirecting "${name}" to "${resolved.name}"`);
     }
+    name = resolved.name;
+    args = resolved.args;
     
     const tool = this.tools.get(name);
     const toolStartTime = Date.now();

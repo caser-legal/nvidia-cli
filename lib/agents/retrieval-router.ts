@@ -15,11 +15,18 @@ export interface RetrievalPlan {
   reasoning: string;
 }
 
+// Keyword patterns for fast routing without LLM call
+const FAST_ROUTE_PATTERNS: { pattern: RegExp; source: RetrievalSource }[] = [
+  { pattern: /^(hi|hello|hey|thanks|thank you|bye|goodbye)\b/i, source: RetrievalSource.NONE },
+  { pattern: /\b(what did (i|we|you) (say|mention|discuss)|earlier|before|previous)\b/i, source: RetrievalSource.MEMORY },
+  { pattern: /\b(latest|current|today|news|2024|2025)\b/i, source: RetrievalSource.WEB },
+  { pattern: /\b(our (project|code|app)|this (file|function|class)|local)\b/i, source: RetrievalSource.RAG },
+];
+
 export class RetrievalRouter {
   private client: OpenAI;
   private model: string;
 
-  // Use Nemotron 3 Nano for routing - best reasoning and instruction following
   constructor(apiKey?: string, model: string = "nvidia/nemotron-3-nano-30b-a3b") {
     const key = apiKey || process.env.NVIDIA_API_KEY;
     if (!key) throw new Error("API Key required for RetrievalRouter");
@@ -32,6 +39,18 @@ export class RetrievalRouter {
   }
 
   async route(query: string, context?: string): Promise<RetrievalPlan> {
+    // Fast path: Check keyword patterns first to avoid LLM call
+    for (const { pattern, source } of FAST_ROUTE_PATTERNS) {
+      if (pattern.test(query)) {
+        return { source, queries: [query], reasoning: "keyword_match" };
+      }
+    }
+    
+    // Short queries without specific keywords -> hybrid as safe default
+    if (query.length < 20) {
+      return { source: RetrievalSource.HYBRID, queries: [query], reasoning: "short_query_default" };
+    }
+
     const prompt = `
 You are a retrieval strategist. Analyze the user's query and decide the best information source.
 
