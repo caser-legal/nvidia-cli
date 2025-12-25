@@ -24,13 +24,13 @@
 
 ---
 
-# 🎯 What is Dory?
+#  What is Dory?
 
 **Dory is a complete AI-powered coding assistant built from scratch for iOS/SwiftUI development.**
 
 It's not a wrapper around ChatGPT. It's not a simple API call. It's a fully custom system with:
 
-- **35 hand-built tools** for file operations, code search, web research, memory, and more
+- **36 hand-built tools** for file operations, code search, web research, memory, and more
 - **A RAG (Retrieval-Augmented Generation) system** that indexes your entire Xcode project
 - **Persistent vector memory** that remembers everything across sessions
 - **MCP (Model Context Protocol) integration** so the same tools work in multiple AI clients
@@ -40,7 +40,7 @@ All powered by **NVIDIA's newest models** with up to **1 million token context w
 
 ---
 
-# 🏗️ The Complete System
+#  The Complete System
 
 ## What We Built
 
@@ -51,14 +51,14 @@ This project started as a simple chat interface and evolved into a full AI agent
 A Next.js web app running at `localhost:3000` that provides:
 
 - **Chat interface** - Talk to the AI, see tool calls in real-time
-- **Agent system** - The AI can use 35 tools to accomplish tasks
+- **Agent system** - The AI can use 36 tools to accomplish tasks
 - **RAG integration** - Index and search your entire codebase
 - **Memory system** - The AI remembers past conversations
 - **Settings page** - Configure API keys, view stats
 
 ### 2. The MCP Server
 
-A standalone server (`mcp-server.ts`) that exposes all 35 tools via the **Model Context Protocol**. This means:
+A standalone server (`mcp-server.ts`) that exposes all 36 tools via the **Model Context Protocol**. This means:
 
 - **Codex CLI** (OpenAI's terminal AI) can use our tools
 - **Dory web app** can use our tools
@@ -68,7 +68,7 @@ One tool implementation, unlimited clients.
 
 ### 3. The Tool Library
 
-35 custom tools organized into categories:
+36 custom tools organized into categories:
 
 | Category | Tools | What They Do |
 |----------|-------|--------------|
@@ -114,7 +114,7 @@ Logs every interaction for future model improvement:
 
 ---
 
-# ⚙️ How It All Works
+#  How It All Works
 
 ## The Flow: From Your Question to the Answer
 
@@ -217,7 +217,7 @@ Then we wanted to use them in **Codex CLI** (OpenAI's terminal AI). We'd have to
 We created `mcp-server.ts` which:
 
 1. **Starts as a subprocess** - Spawned by any MCP client
-2. **Exposes all 35 tools** - Via JSON-RPC over stdio
+2. **Exposes all 36 tools** - Via JSON-RPC over stdio
 3. **Handles tool calls** - Executes tools and returns results
 
 Now both **Codex CLI** and **Dory web app** use the exact same tools:
@@ -257,7 +257,7 @@ tool_timeout_sec = 120
 env = { NGC_API_KEY = "${NGC_API_KEY}", NVIDIA_API_KEY = "${NGC_API_KEY}" }
 ```
 
-Now when you run `codex`, it has access to all 35 tools!
+Now when you run `codex`, it has access to all 36 tools!
 
 ---
 
@@ -402,13 +402,13 @@ High-scoring interactions become training data. Low-scoring ones get reviewed.
 
 ---
 
-# 🚀 The Result
+#  The Result
 
 ## What You Can Do Now
 
 ### With Dory (Web App)
 
-- Chat with an AI that has access to 35 tools
+- Chat with an AI that has access to 36 tools
 - Index your entire iOS project with RAG
 - Search code semantically AND by keyword
 - Generate documentation automatically
@@ -418,7 +418,7 @@ High-scoring interactions become training data. Low-scoring ones get reviewed.
 
 ### With Codex CLI
 
-- Use the same 35 tools in your terminal
+- Use the same 36 tools in your terminal
 - Powered by NVIDIA's Nemotron 3 Nano
 - Full MCP integration
 - Works alongside your existing workflow
@@ -431,7 +431,7 @@ High-scoring interactions become training data. Low-scoring ones get reviewed.
 
 ---
 
-# 📊 By The Numbers
+#  By The Numbers
 
 | Metric | Value |
 |--------|-------|
@@ -509,9 +509,9 @@ flowchart LR
     end
 
     subgraph Models["Model Stack"]
-        KEY --> LLM["🧠 Nemotron 3 Nano 30B<br/>Main LLM<br/>1M context, MoE"]
-        KEY --> EMB["📊 NV-EmbedQA 1B v2<br/>Embeddings<br/>2048 dimensions"]
-        KEY --> RR["⚡ NV-RerankQA 1B v2<br/>Reranker<br/>Score refinement"]
+        KEY --> LLM[" Nemotron 3 Nano 30B<br/>Main LLM<br/>1M context, MoE"]
+        KEY --> EMB[" NV-EmbedQA 1B v2<br/>Embeddings<br/>2048 dimensions"]
+        KEY --> RR[" NV-RerankQA 1B v2<br/>Reranker<br/>Score refinement"]
         KEY --> VIS["👁️ Nemotron Nano VL 12B v2<br/>Vision<br/>UI analysis"]
     end
 
@@ -574,7 +574,7 @@ flowchart TB
         CH --> BM[BM25 Index<br/>Lexical tokens]
     end
 
-    subgraph Retrieval["🔍 Hybrid Retrieval"]
+    subgraph Retrieval[" Hybrid Retrieval"]
         Q[User Query] --> QE[Query Embedding]
         Q --> QT[Query Tokenization]
         QE --> VEC[Vector Search<br/>Cosine similarity]
@@ -586,7 +586,7 @@ flowchart TB
         RRF --> TOP[Top 100 Candidates]
     end
 
-    subgraph Reranking["⚡ Contextual Compression"]
+    subgraph Reranking[" Contextual Compression"]
         TOP --> RR[NVIDIA NV-RerankQA 1B v2]
         RR --> TOPK[Top 10 Results]
     end
@@ -623,7 +623,7 @@ flowchart TB
     USER[/"👤 User Query<br/>'How do I implement OAuth in SwiftUI?'"/]
     
     %% Step 1: Query Analysis
-    USER --> ANALYZE["🔍 Analyze Query Complexity"]
+    USER --> ANALYZE[" Analyze Query Complexity"]
     
     ANALYZE --> COMPLEX{Is it complex?<br/>Multiple topics?}
     
@@ -643,7 +643,7 @@ flowchart TB
     SUB3 --> PARALLEL
     
     %% Parallel Search
-    PARALLEL["⚡ Parallel Search<br/>All queries at once"]
+    PARALLEL[" Parallel Search<br/>All queries at once"]
     PARALLEL --> SEARCH
     
     %% Hybrid Search
@@ -655,32 +655,32 @@ flowchart TB
     VECTOR --> FUSION
     
     %% Get candidates
-    FUSION --> CANDIDATES["📚 100 Candidate Chunks"]
+    FUSION --> CANDIDATES[" 100 Candidate Chunks"]
     
     %% Rerank
-    CANDIDATES --> RERANK["⚡ NV-RerankQA<br/>Re-score by relevance"]
-    RERANK --> TOP10["🎯 Top 10 Results"]
+    CANDIDATES --> RERANK[" NV-RerankQA<br/>Re-score by relevance"]
+    RERANK --> TOP10[" Top 10 Results"]
     
     %% Reflection Check
     TOP10 --> CHECK{{"🤔 Are results relevant<br/>to original query?"}}
     
     %% Not relevant - loop back
-    CHECK -->|"❌ No - Poor results"| REWRITE["✏️ Rewrite Query<br/>Try different terms"]
+    CHECK -->|" No - Poor results"| REWRITE["✏️ Rewrite Query<br/>Try different terms"]
     REWRITE -->|"Loop back"| SEARCH
     
     %% Relevant - continue
-    CHECK -->|"✅ Yes - Good results"| CONTEXT["📄 Build Context<br/>Format for LLM"]
+    CHECK -->|" Yes - Good results"| CONTEXT["📄 Build Context<br/>Format for LLM"]
     
     %% Generate
-    CONTEXT --> LLM["🧠 Nemotron 3 Nano<br/>Generate answer"]
+    CONTEXT --> LLM[" Nemotron 3 Nano<br/>Generate answer"]
     LLM --> GROUND{{"📏 Is answer grounded<br/>in the sources?"}}
     
     %% Not grounded - regenerate
-    GROUND -->|"❌ No - Hallucination"| REGEN["🔄 Regenerate<br/>Stick to sources"]
+    GROUND -->|" No - Hallucination"| REGEN[" Regenerate<br/>Stick to sources"]
     REGEN --> LLM
     
     %% Final output
-    GROUND -->|"✅ Yes - Factual"| ANSWER[/"💬 Final Answer<br/>with citations [1][2][3]"/]
+    GROUND -->|" Yes - Factual"| ANSWER[/"💬 Final Answer<br/>with citations [1][2][3]"/]
     
     %% Styling
     style USER fill:#76b900,color:#000
@@ -870,17 +870,17 @@ flowchart TB
     REDACT_EMAIL --> SANITIZED
     REDACT_PHONE --> SANITIZED
     REDACT_KEY --> SANITIZED
-    CLEAN --> SANITIZED["✅ Sanitized Query"]
+    CLEAN --> SANITIZED[" Sanitized Query"]
     
     %% ===== ROUTING =====
-    SANITIZED --> ROUTER["🧠 Retrieval Router<br/>Analyze query intent"]
+    SANITIZED --> ROUTER[" Retrieval Router<br/>Analyze query intent"]
     
     ROUTER --> ROUTE_DECISION{{"What context needed?"}}
     
     %% ===== CONTEXT PATHS =====
-    ROUTE_DECISION -->|"Needs codebase knowledge"| RAG_PATH["📚 RAG Path"]
-    ROUTE_DECISION -->|"Needs past info"| MEM_PATH["🧠 Memory Path"]
-    ROUTE_DECISION -->|"Needs current info"| SEARCH_PATH["🌐 Search Path"]
+    ROUTE_DECISION -->|"Needs codebase knowledge"| RAG_PATH[" RAG Path"]
+    ROUTE_DECISION -->|"Needs past info"| MEM_PATH[" Memory Path"]
+    ROUTE_DECISION -->|"Needs current info"| SEARCH_PATH[" Search Path"]
     
     %% RAG Branch
     RAG_PATH --> RAG_SEARCH["RAG Hybrid Search<br/>BM25 + Vector"]
@@ -901,23 +901,23 @@ flowchart TB
     CONTEXT["📋 Unified Context<br/>Aggregate all sources"]
     
     %% ===== AGENT CORE =====
-    CONTEXT --> AGENT["🤖 Agent Core"]
-    AGENT --> LLM["🧠 Nemotron 3 Nano 30B<br/>1M context window<br/>MoE: 3.5B active params"]
+    CONTEXT --> AGENT[" Agent Core"]
+    AGENT --> LLM[" Nemotron 3 Nano 30B<br/>1M context window<br/>MoE: 3.5B active params"]
     
     LLM --> RESPONSE_CHECK{{"Response type?"}}
     
     %% ===== TOOL EXECUTION =====
-    RESPONSE_CHECK -->|"Needs to use tools"| TOOL_CALL["🛠️ Tool Call Detected"]
+    RESPONSE_CHECK -->|"Needs to use tools"| TOOL_CALL[" Tool Call Detected"]
     
     TOOL_CALL --> TOOL_TYPE{{"Which tool?"}}
     
-    TOOL_TYPE -->|"File operations"| FS_TOOLS["📁 File System<br/>file_read, file_write"]
+    TOOL_TYPE -->|"File operations"| FS_TOOLS[" File System<br/>file_read, file_write"]
     TOOL_TYPE -->|"Run command"| SYS_TOOLS["💻 System<br/>bash"]
-    TOOL_TYPE -->|"Search docs"| RAG_TOOLS["📚 RAG Tools<br/>rag_search, rag_query"]
+    TOOL_TYPE -->|"Search docs"| RAG_TOOLS[" RAG Tools<br/>rag_search, rag_query"]
     TOOL_TYPE -->|"Analyze image"| VIS_TOOLS["👁️ Vision<br/>ios_ui_review"]
-    TOOL_TYPE -->|"Web search"| SRCH_TOOLS["🌐 Search<br/>google_search"]
-    TOOL_TYPE -->|"Complex task"| SPEC_TOOLS["🎯 Specialists<br/>8 sub-agents"]
-    TOOL_TYPE -->|"Remember"| MEM_TOOLS["🧠 Memory<br/>memory, entity_memory"]
+    TOOL_TYPE -->|"Web search"| SRCH_TOOLS[" Search<br/>google_search"]
+    TOOL_TYPE -->|"Complex task"| SPEC_TOOLS[" Specialists<br/>8 sub-agents"]
+    TOOL_TYPE -->|"Remember"| MEM_TOOLS[" Memory<br/>memory, entity_memory"]
     
     FS_TOOLS --> TOOL_RESULT["📤 Tool Result"]
     SYS_TOOLS --> TOOL_RESULT
@@ -933,7 +933,7 @@ flowchart TB
     RESPONSE_CHECK -->|"Final answer ready"| FINAL["💬 Final Response"]
     
     %% ===== LEARNING =====
-    FINAL --> LOG["📊 Flywheel Logger<br/>Record interaction"]
+    FINAL --> LOG[" Flywheel Logger<br/>Record interaction"]
     LOG --> METRICS["Calculate metrics:<br/>Tokens, latency, tool count"]
     
     %% ===== OUTPUT =====
@@ -1037,17 +1037,17 @@ flowchart TB
     INTERACTION[/"👤 Agent Interaction<br/>'How do I fix this SwiftUI bug?'<br/>+ Response + Tool calls"/]
     
     %% ===== LOGGING =====
-    INTERACTION --> LOGGER["📝 FlywheelLogger<br/>lib/agents/flywheel/logger.ts"]
+    INTERACTION --> LOGGER[" FlywheelLogger<br/>lib/agents/flywheel/logger.ts"]
     
     LOGGER --> RECORD["📋 Create Record"]
     
     RECORD --> REC_FIELDS["Record Fields:"]
     REC_FIELDS --> F1["⏰ Timestamp"]
     REC_FIELDS --> F2["💬 User query"]
-    REC_FIELDS --> F3["🤖 Assistant response"]
-    REC_FIELDS --> F4["🛠️ Tools called + results"]
-    REC_FIELDS --> F5["📊 Token counts"]
-    REC_FIELDS --> F6["⚡ Latency (ms)"]
+    REC_FIELDS --> F3[" Assistant response"]
+    REC_FIELDS --> F4[" Tools called + results"]
+    REC_FIELDS --> F5[" Token counts"]
+    REC_FIELDS --> F6[" Latency (ms)"]
     REC_FIELDS --> F7["🏷️ Session ID"]
     
     F1 --> STORE
@@ -1058,14 +1058,14 @@ flowchart TB
     F6 --> STORE
     F7 --> STORE
     
-    STORE["💾 Store Record<br/>In-memory Map"]
+    STORE[" Store Record<br/>In-memory Map"]
     
     %% ===== EVALUATION =====
     STORE --> EVAL_CHECK{{"Run evaluation?"}}
     
     EVAL_CHECK -->|"Yes"| EVALUATOR["⚖️ FlywheelEvaluator<br/>lib/agents/flywheel/evaluator.ts"]
     
-    EVALUATOR --> JUDGE["🧠 LLM-as-Judge<br/>Send to Nemotron for scoring"]
+    EVALUATOR --> JUDGE[" LLM-as-Judge<br/>Send to Nemotron for scoring"]
     
     JUDGE --> CRITERIA["Score on criteria:"]
     CRITERIA --> C1["Helpfulness (0-10)"]
@@ -1080,25 +1080,25 @@ flowchart TB
     C4 --> SCORES
     C5 --> SCORES
     
-    SCORES["📊 Quality Scores<br/>Attached to record"]
+    SCORES[" Quality Scores<br/>Attached to record"]
     
     EVAL_CHECK -->|"No"| SKIP["Skip evaluation"]
     SKIP --> ACCUMULATE
     SCORES --> ACCUMULATE
     
     %% ===== DATASET CREATION =====
-    ACCUMULATE["📚 Accumulate Records"]
+    ACCUMULATE[" Accumulate Records"]
     
     ACCUMULATE --> ENOUGH{{"Enough records?<br/>(min 10)"}}
     
     ENOUGH -->|"No"| WAIT["⏳ Wait for more data"]
     WAIT -->|"New interaction"| INTERACTION
     
-    ENOUGH -->|"Yes"| CREATOR["📊 DatasetCreator<br/>lib/agents/flywheel/dataset-creator.ts"]
+    ENOUGH -->|"Yes"| CREATOR[" DatasetCreator<br/>lib/agents/flywheel/dataset-creator.ts"]
     
-    CREATOR --> FILTER["🔍 Filter Quality<br/>Keep rating ≥ 4"]
+    CREATOR --> FILTER[" Filter Quality<br/>Keep rating ≥ 4"]
     
-    FILTER --> VALIDATE["✅ Validate Records<br/>Has input + output?<br/>Response > 50 chars?<br/>Error rate < 50%?"]
+    FILTER --> VALIDATE[" Validate Records<br/>Has input + output?<br/>Response > 50 chars?<br/>Error rate < 50%?"]
     
     VALIDATE --> SPLIT["✂️ Split Dataset<br/>80% / 10% / 10%"]
     
@@ -1116,14 +1116,14 @@ flowchart TB
     %% ===== FUTURE USE =====
     JSONL --> FUTURE{{"Future: Fine-tune?"}}
     
-    FUTURE -->|"Yes"| FINETUNE["🔧 LoRA Fine-tuning<br/>On smaller model"]
+    FUTURE -->|"Yes"| FINETUNE[" LoRA Fine-tuning<br/>On smaller model"]
     
-    FINETUNE --> SMALLER["🚀 Optimized Model<br/>Llama-3.2-1B<br/>98% cost reduction"]
+    FINETUNE --> SMALLER[" Optimized Model<br/>Llama-3.2-1B<br/>98% cost reduction"]
     
     SMALLER -->|"Deploy"| DEPLOY["☁️ Deploy to Production"]
     DEPLOY -->|"Handles new queries"| INTERACTION
     
-    FUTURE -->|"Not yet"| STORE_DATA["💾 Store for later"]
+    FUTURE -->|"Not yet"| STORE_DATA[" Store for later"]
     
     %% ===== STYLING =====
     style Legend fill:#1a1a2e,color:#fff
@@ -1200,13 +1200,13 @@ flowchart TB
         AGENT[Agent learns a fact]
     end
 
-    subgraph Storage["💾 Vector Memory Store"]
+    subgraph Storage[" Vector Memory Store"]
         USER --> EMBED["NVIDIA NV-EmbedQA 1B v2<br/>Embed content"]
         AGENT --> EMBED
         EMBED --> STORE[("~/.nvidia-cli/memory/<br/>vector-memory.json<br/>Content + Embeddings")]
     end
 
-    subgraph Retrieval["🔍 Semantic Retrieval"]
+    subgraph Retrieval[" Semantic Retrieval"]
         QUERY[New query] --> QEMBED["Embed query"]
         QEMBED --> COSINE["Cosine similarity<br/>vs all memories"]
         STORE --> COSINE
@@ -1306,7 +1306,7 @@ nvidia-cli/
 │   ├── page.tsx                    # Main interface
 │   ├── settings/page.tsx           # Settings
 │   └── api/
-│       ├── agent-chat/route.ts     # Main endpoint (35 tools)
+│       ├── agent-chat/route.ts     # Main endpoint (36 tools)
 │       ├── health/route.ts         # Health check endpoint
 │       └── chat/route.ts           # Alternative endpoint
 │
@@ -1322,7 +1322,7 @@ nvidia-cli/
 │   │   ├── retrieval-router.ts     # Query routing with fast path
 │   │   ├── feedback-optimizer.ts   # Failure analysis with Nemotron
 │   │   │
-│   │   ├── tools/                  # 35 tools with zod validation
+│   │   ├── tools/                  # 36 tools with zod validation
 │   │   │   ├── registry.ts         # Single source of truth
 │   │   │   ├── file-read.ts        # With zod schema
 │   │   │   ├── file-write.ts       # With zod schema
@@ -1365,17 +1365,17 @@ nvidia-cli/
 
 | NVIDIA Pattern | Dory Implementation | Status |
 |----------------|---------------------|--------|
-| RecursiveCharacterTextSplitter | SwiftTextSplitter | ✅ |
-| ContextualCompressionRetriever | Wide net → Rerank → Narrow | ✅ |
-| Hybrid Retrieval (BM25 + FAISS) | BM25 + Vector with RRF | ✅ |
-| NV-EmbedQA 1B v2 | Embeddings | ✅ |
-| NV-RerankQA 1B v2 | Reranking | ✅ |
-| Query Decomposition | Complex query breakdown | ✅ |
-| Self-Correction Loop | Relevance checking | ✅ |
-| Data Flywheel Logging | FlywheelLogger | ✅ |
-| LLM-as-Judge | FlywheelEvaluator | ✅ |
-| Vision Analysis | Nemotron Nano VL 12B v2 | ✅ |
-| Quality Threshold | QUALITY_THRESHOLD = 7 | ✅ |
+| RecursiveCharacterTextSplitter | SwiftTextSplitter |  |
+| ContextualCompressionRetriever | Wide net → Rerank → Narrow |  |
+| Hybrid Retrieval (BM25 + FAISS) | BM25 + Vector with RRF |  |
+| NV-EmbedQA 1B v2 | Embeddings |  |
+| NV-RerankQA 1B v2 | Reranking |  |
+| Query Decomposition | Complex query breakdown |  |
+| Self-Correction Loop | Relevance checking |  |
+| Data Flywheel Logging | FlywheelLogger |  |
+| LLM-as-Judge | FlywheelEvaluator |  |
+| Vision Analysis | Nemotron Nano VL 12B v2 |  |
+| Quality Threshold | QUALITY_THRESHOLD = 7 |  |
 
 ---
 
@@ -1437,7 +1437,7 @@ flowchart TB
         SERVER["mcp-server.ts<br/>35 Tools Exposed"]
     end
 
-    subgraph Tools["🛠️ Tool Implementations"]
+    subgraph Tools[" Tool Implementations"]
         BASH["bash"]
         FILE["file_read/write"]
         RAG["rag_* (8 tools)"]
@@ -1466,7 +1466,7 @@ flowchart TB
 
 ### How It Works
 
-1. **MCP Server** (`mcp-server.ts`) exposes all 35 tools via JSON-RPC over stdio
+1. **MCP Server** (`mcp-server.ts`) exposes all 36 tools via JSON-RPC over stdio
 2. **Clients** connect to the server and discover available tools via `listTools()`
 3. **Tool calls** happen via `callTool(name, args)` - same interface for all clients
 4. **Results** return as structured JSON
@@ -1475,7 +1475,7 @@ flowchart TB
 
 | File | Purpose |
 |------|---------|
-| `mcp-server.ts` | MCP server exposing 35 tools (runs with `npx tsx`) |
+| `mcp-server.ts` | MCP server exposing 36 tools (runs with `npx tsx`) |
 | `lib/mcp-client.ts` | MCP client for web app (spawns server, caches tools) |
 | `lib/agents/mcp-agent.ts` | Agent that uses MCP for tool discovery/execution |
 | `app/api/mcp-chat/route.ts` | API endpoint using MCP agent |
@@ -1527,7 +1527,7 @@ npx tsx mcp-server.ts
 
 # In Codex CLI, check tools are available
 /mcp
-# Should show nvidia-cli with 35 tools
+# Should show nvidia-cli with 36 tools
 ```
 
 ### Why MCP Matters
@@ -1690,7 +1690,7 @@ Private use only.
 
 ---
 
-## 🚀 Production Data Flywheel (Dec 2025)
+##  Production Data Flywheel (Dec 2025)
 
 ### Plain-English Overview
 
@@ -1831,10 +1831,10 @@ All implementations verified against official NVIDIA NeMo Agent Toolkit 1.3 docu
 
 | Component | NVIDIA Reference | Status |
 |-----------|------------------|--------|
-| DFWESRecord schema | `nat.plugins.data_flywheel.observability.schema.sink.elasticsearch` | ✅ |
-| RetryMixin fields | `nat.data_models.retry_mixin` | ✅ |
-| Wildcard status codes | `retry_on_status_codes: ["429", "5xx"]` | ✅ |
-| Contract version | `"1.1"` | ✅ |
+| DFWESRecord schema | `nat.plugins.data_flywheel.observability.schema.sink.elasticsearch` |  |
+| RetryMixin fields | `nat.data_models.retry_mixin` |  |
+| Wildcard status codes | `retry_on_status_codes: ["429", "5xx"]` |  |
+| Contract version | `"1.1"` |  |
 
 ---
 
@@ -1848,7 +1848,7 @@ alias nv="/Users/home/Documents/nvidia-cli/start.sh"
 alias codex="/Users/home/Documents/nvidia-cli/start.sh"
 
 # Stop all services
-alias nvquit="pkill -f 'next dev' ; pkill -f 'terminal-server' ; pkill -f 'mcp-server' ; pkill -f 'node.*nvidia-cli' ; kill \$(cat ~/Downloads/elasticsearch-8.11.0/es.pid 2>/dev/null) 2>/dev/null ; echo '✅ Dory + ES shutdown complete.'"
+alias nvquit="pkill -f 'next dev' ; pkill -f 'terminal-server' ; pkill -f 'mcp-server' ; pkill -f 'node.*nvidia-cli' ; kill \$(cat ~/Downloads/elasticsearch-8.11.0/es.pid 2>/dev/null) 2>/dev/null ; echo ' Dory + ES shutdown complete.'"
 ```
 
 After adding, run `source ~/.zshrc` or open a new terminal.
