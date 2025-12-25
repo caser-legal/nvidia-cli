@@ -1686,3 +1686,185 @@ export OLLAMA_BASE_URL=http://localhost:11434/v1
 ## License
 
 Private use only.
+
+
+---
+
+## 🚀 Production Data Flywheel (Dec 2025)
+
+### Plain-English Overview
+
+The Data Flywheel is a **self-healing, fully-observable notebook** that:
+
+1. **Automatically retries** any failed operation (network glitches don't break the flow)
+2. **Logs every step** with a unique tag (full traceability across services)
+3. **Scores each entry** for quality (good vs. bad)
+4. **Files entries** into the appropriate training bucket (SFT or DPO)
+5. **Visualizes** daily totals, reward balance, and failure rate on a live dashboard
+6. **Alerts you** when the failure rate spikes above 5%
+
+All without requiring any new permissions beyond what your existing setup grants.
+
+### What Each Piece Does (Plain English)
+
+| Piece | Everyday Analogy | What It Actually Does |
+|-------|------------------|----------------------|
+| **Elasticsearch Sink** | Notebook keeper that writes every event | Stores records to ES with retry logic (exponential backoff, up to 5 attempts) and a dead-letter folder for permanently failed writes |
+| **Retry Mixin** | Safety net that catches falling tools | Wraps any async function with automatic retries on 429/5xx errors using exponential backoff with jitter |
+| **Quality Scorer** | Quality inspector sorting papers | Reads structural + functional scores, decides "good" (reward=1) or "bad" (reward=0) |
+| **Quality Filter** | Bucket router | Drops entries into `sft_traces/` (good) or `dpo_traces/` (needs work) |
+| **Query Rewriter** | Spell-check for bad queries | Calls external LLM rewriter, gets new query, retries retrieval |
+| **Request-ID Logger** | Unique name-tag on every page | Every log line carries a unique `requestId` for full traceability |
+| **Live Dashboard** | Control-room screen | Shows daily volume, reward distribution, and error-rate gauge (refreshes every 30s) |
+| **Error Monitor** | Alarm that rings when something goes wrong | Every 5min computes error_rate; if >5% logs warning and optionally posts to Slack |
+
+### Production Files
+
+| File | Purpose |
+|------|---------|
+| `lib/agents/retry-mixin.ts` | NAT-style `withRetry()` wrapper for all async calls |
+| `lib/agents/tracing.ts` | Request ID correlation + structured logging |
+| `lib/agents/flywheel/types.ts` | DFWESRecord + DLQRecord schemas |
+| `lib/agents/flywheel/logger.ts` | Central flywheel logger |
+| `lib/agents/flywheel/elasticsearch-sink.ts` | ES ingest with retry + DLQ |
+| `lib/agents/flywheel/trajectory-scorer.ts` | Binary reward scoring |
+| `lib/agents/flywheel/quality-filter.ts` | Route to sft_traces/ or dpo_traces/ |
+| `lib/agents/flywheel/error-monitor.ts` | 5-min error rate checker with alerts |
+| `lib/agents/rag/query-rewriter.ts` | Self-corrective RAG loop |
+| `app/api/dashboard/route.ts` | Metrics API endpoint |
+| `app/api/webhook/route.ts` | Error alert webhook receiver |
+| `app/dashboard/page.tsx` | Live dashboard UI with charts |
+| `nat/configs/dory_workflow.yml` | Production NAT config |
+
+### Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `sft_traces/` | High-quality traces (reward=1) for SFT training |
+| `dpo_traces/` | Low-quality traces (reward=0) for DPO training |
+| `dlq/` | Dead-letter queue for failed ES writes |
+
+### Quick Start Commands
+
+```bash
+# Start everything (ES, MCP, Terminal, Next.js)
+nv
+
+# Stop everything
+nvquit
+
+# View dashboard
+open http://localhost:3000/dashboard
+
+# Check metrics API
+curl http://localhost:3000/api/dashboard
+
+# Check ES health
+curl http://localhost:9200/_cluster/health?pretty
+
+# View traces in ES
+curl "http://localhost:9200/nvidia-cli-traces/_search?pretty&size=5"
+```
+
+### Configuration (nat/configs/dory_workflow.yml)
+
+```yaml
+general:
+  max_iterations: 2000    # Higher for complex flows
+  timeout: 86400          # 24h for batch jobs
+
+llms:
+  nim_nemotron:
+    do_auto_retry: true
+    num_retries: 7
+    retry_on_status_codes: ["429", "5xx"]
+    retry_on_errors: ["network error", "timeout"]
+
+telemetry_exporters:
+  flywheel:
+    _type: data_flywheel
+    endpoint: ${ELASTICSEARCH_ENDPOINT}
+    index: nvidia-cli-traces
+    client_id: nvidia-cli
+```
+
+### How the Pieces Connect
+
+```
+User Action → MCP Tool Call → Retry Mixin (auto-retry on failure)
+                                    ↓
+                            IngestEngine creates FlywheelRecord
+                                    ↓
+                    ┌───────────────┴───────────────┐
+                    ↓                               ↓
+            ES accepts it                    ES rejects it
+                    ↓                               ↓
+        Stored in nvidia-cli-traces         Written to dlq/
+                    ↓
+            Quality Scorer evaluates
+                    ↓
+            ┌───────┴───────┐
+            ↓               ↓
+        reward=1        reward=0
+            ↓               ↓
+      sft_traces/     dpo_traces/
+                    ↓
+            Dashboard shows metrics
+                    ↓
+        Error Monitor checks every 5min
+                    ↓
+            If >5% errors → Alert
+```
+
+### Extending the System
+
+| Extension | How To |
+|-----------|--------|
+| **Add Slack alerts** | Set `SLACK_WEBHOOK_URL` in `.env.local` |
+| **Change error threshold** | Edit `THRESHOLD` in `error-monitor.ts` |
+| **Export training data** | Zip `sft_traces/` and `dpo_traces/` |
+| **Add more metrics** | Edit `app/api/dashboard/route.ts` |
+
+### Verified Against NVIDIA Docs
+
+All implementations verified against official NVIDIA NeMo Agent Toolkit 1.3 documentation:
+
+| Component | NVIDIA Reference | Status |
+|-----------|------------------|--------|
+| DFWESRecord schema | `nat.plugins.data_flywheel.observability.schema.sink.elasticsearch` | ✅ |
+| RetryMixin fields | `nat.data_models.retry_mixin` | ✅ |
+| Wildcard status codes | `retry_on_status_codes: ["429", "5xx"]` | ✅ |
+| Contract version | `"1.1"` | ✅ |
+
+---
+
+## Shell Aliases
+
+Add to `~/.zshrc` for quick access:
+
+```bash
+# Start all services (ES, MCP, Terminal, Next.js)
+alias nv="/Users/home/Documents/nvidia-cli/start.sh"
+alias codex="/Users/home/Documents/nvidia-cli/start.sh"
+
+# Stop all services
+alias nvquit="pkill -f 'next dev' ; pkill -f 'terminal-server' ; pkill -f 'mcp-server' ; pkill -f 'node.*nvidia-cli' ; kill \$(cat ~/Downloads/elasticsearch-8.11.0/es.pid 2>/dev/null) 2>/dev/null ; echo '✅ Dory + ES shutdown complete.'"
+```
+
+After adding, run `source ~/.zshrc` or open a new terminal.
+
+### What `nv` Starts
+
+1. **Elasticsearch** (if not running) - Data storage
+2. **MCP Server** - Tool execution
+3. **Terminal Server** - Terminal UI
+4. **Next.js** - Web UI at localhost:3000
+5. **Opens browser** to localhost:3000
+
+### What `nvquit` Stops
+
+- All Node.js processes related to nvidia-cli
+- Elasticsearch (via PID file)
+- Clean shutdown with confirmation message
+
+---

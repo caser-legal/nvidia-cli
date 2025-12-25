@@ -116,7 +116,8 @@ Project Management:
 - get_project()
 File System:
 - file_read(operation: "read"|"list", path: string, max_lines?: number, pattern?: string)
-- file_write(operation: "write"|"edit", path: string, content?: string, old_text?: string, new_text?: string)
+- file_write(path: string, content: string)
+  ↳ Write COMPLETE file content
 Shell:
 - bash(command: string, timeout?: number ms)
 Reasoning:
@@ -144,15 +145,14 @@ RAG:
 - rag_research(topic, depth?)
 - rag_stats()
 - rag_clear()
-iOS Specific: // New from docs
+iOS Specific:
 - ios_build(operation: "build"|"install"|"clean", scheme?: string, device_id?: string)
 - entitlement_checker(plist_path: string, feature: string)
-File edit golden pattern (MANDATORY):
+File write pattern (MANDATORY):
 1. file_read the target file first
-2. think → plan the smallest possible surgical change
-3. file_write(operation: "edit", old_text: "exact contiguous block including whitespace", new_text: "replacement")
+2. think → plan changes
+3. file_write(path: "file.swift", content: "COMPLETE FILE CONTENT")
 4. file_read immediately to verify
-5. If mismatch/failure → think("analyze why the edit failed") → adjust old_text/new_text → retry
 ================================================================================
 5. DEVELOPER & DEVICE IDENTITY — RETRIEVE DYNAMICALLY (NEVER HARDCODE)
 ================================================================================
@@ -387,7 +387,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Invalid or missing messages array");
     }
 
-    const apiKey = request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY;
+    const apiKey = request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY || "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";
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "API key required" }), { status: 401, headers: { "Content-Type": "application/json" } });
     }

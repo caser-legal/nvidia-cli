@@ -7,7 +7,7 @@ import { EmbeddingConfig } from './types';
 import { createLogger } from '../../logger';
 import { NVIDIA_API_KEY } from '../../api-key';
 
-const log = createLogger("RAG");
+const log = createLogger("RAGv2");
 
 const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
 const LOCAL_EMBED_URL = process.env.LOCAL_EMBED_URL || "http://192.168.50.50:8000";

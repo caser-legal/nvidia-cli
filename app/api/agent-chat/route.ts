@@ -137,12 +137,7 @@ Never create temporary/backup files (.backup, .bak, .old, .tmp) — use git chec
 4. AVAILABLE TOOLS — USE ONLY THESE (CRITICAL)
 ================================================================================
 
-⚠️ FORBIDDEN TOOLS (NEVER USE - THEY DO NOT EXIST):
-- str_replace_editor ❌ (use file_write with operation="edit" instead)
-- str_replace ❌ (use file_write with operation="edit" instead)
-- view ❌ (use file_read instead)
-- create ❌ (use file_write with operation="write" instead)
-- Any tool not explicitly listed below will FAIL
+Any tool not listed below will FAIL.
 
 Project Management:
 - set_project(path: string)
@@ -150,8 +145,8 @@ Project Management:
 
 File System:
 - file_read(operation: "read"|"list", path: string, max_lines?: number, pattern?: string)
-- file_write(operation: "write"|"edit", path: string, content?: string, old_text?: string, new_text?: string)
-  ↳ For edits: file_write(operation: "edit", path: "file.swift", old_text: "exact text to find", new_text: "replacement")
+- file_write(path: string, content: string)
+  ↳ Write COMPLETE file content. Read file first, modify in memory, write entire file back.
 
 Shell:
 - bash(command: string, timeout?: number ms)
@@ -188,12 +183,11 @@ RAG:
 - rag_stats()
 - rag_clear()
 
-File edit golden pattern (MANDATORY):
+File write pattern (MANDATORY):
 A. file_read the target file first
-B. think → plan the smallest possible surgical change
-C. file_write(operation: "edit", old_text: "exact contiguous block including whitespace", new_text: "replacement")
+B. think → plan changes
+C. file_write(path: "file.swift", content: "COMPLETE FILE CONTENT WITH ALL CHANGES")
 D. file_read immediately to verify
-E. If mismatch/failure → think("analyze why the edit failed") → adjust old_text/new_text → retry
 
 ================================================================================
 5. DEVELOPER & DEVICE IDENTITY — RETRIEVE DYNAMICALLY (NEVER HARDCODE)
@@ -450,13 +444,13 @@ C. memory(operation: "recall", content: "similar app patterns") — check past l
 PHASE 3: IMPLEMENT (make actual code changes)
 A. For EACH file that needs changes:
    - file_read the file first
-   - think about the minimal surgical change
-   - file_write(operation: "edit", ...) to make the change
+   - think about the changes needed
+   - file_write(path: "file.swift", content: "COMPLETE FILE WITH CHANGES") 
    - file_read to verify
 B. Continue until ALL requested changes are made
-C. Do NOT stop after reading files — you must EDIT them
+C. Do NOT stop after reading files — you must WRITE them
 
-PHASE 4: BUILD & INSTALL (only after all edits complete)
+PHASE 4: BUILD & INSTALL (only after all writes complete)
 A. bash("xcodebuild -project *.xcodeproj -scheme <SCHEME> -destination 'generic/platform=iOS' -allowProvisioningUpdates -allowProvisioningDeviceRegistration build")
 B. If build fails: read error, fix code, rebuild
 C. bash("xcrun devicectl device install app --device <ID> <path-to-.app>")
@@ -1021,7 +1015,7 @@ export async function POST(request: NextRequest) {
     };
 
     const apiKey =
-      request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY;
+      request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY || "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";
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "API key required" }), {

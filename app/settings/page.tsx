@@ -49,8 +49,8 @@ const TOOLS = [
     name: "file_write",
     path: "lib/agents/tools/file-write.ts",
     category: "File System", 
-    description: "Creates, overwrites, or edits files.",
-    howItWorks: "Uses Node.js fs module. 'write' operation creates/overwrites entire file. 'edit' operation does find-and-replace within existing file. Creates parent directories if they don't exist.",
+    description: "Creates or overwrites files with complete content.",
+    howItWorks: "Uses Node.js fs module. Always use 'write' operation with complete file content. Creates parent directories if they don't exist.",
     example: 'file_write({ operation: "write", path: "hello.txt", content: "Hello World" })',
   },
   // ============ SYSTEM (1) ============

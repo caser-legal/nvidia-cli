@@ -1,0 +1,26 @@
+{
+  "contract_version": "1.1",
+  "request": {
+    "method": "POST",
+    "url": "/api/test",
+    "args": {
+      "test": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "data": "ok",
+    "latencyMs": 42
+  },
+  "client_id": "nvidia-cli",
+  "workload_id": "upgrade-test",
+  "timestamp": 1766626926711,
+  "quality": {
+    "structural": {
+      "score": 0.95
+    },
+    "functional": {
+      "score": 0.9
+    }
+  }
+}

@@ -134,35 +134,8 @@ export class MCPAgent {
 
     log.debug(`Executing tool: ${name}`);
 
-    const aliasMap: Record<string, { name: string; transform?: (a: Record<string, unknown>) => Record<string, unknown> }> = {
-      "str_replace_editor": {
-        name: args.command === "view" ? "file_read" : "file_write",
-        transform: (a) => a.command === "view" 
-          ? { operation: "read", path: a.path }
-          : { operation: "edit", path: a.path, old_text: a.old_str, new_text: a.new_str },
-      },
-      "str_replace": {
-        name: "file_write",
-        transform: (a) => ({ operation: "edit", path: a.path, old_text: a.old_str, new_text: a.new_str }),
-      },
-      "view": {
-        name: "file_read",
-        transform: (a) => ({ operation: "read", path: a.path }),
-      },
-      "create": {
-        name: "file_write",
-        transform: (a) => ({ operation: "write", path: a.path, content: a.file_text || a.content }),
-      },
-    };
-
-    let actualName = name;
-    let actualArgs = args;
-    
-    if (aliasMap[name]) {
-      const alias = aliasMap[name];
-      actualName = typeof alias.name === "string" ? alias.name : name;
-      if (alias.transform) actualArgs = alias.transform(args);
-      log.debug(`Redirecting "${name}" to "${actualName}"`);
+    const actualName = name;
+    const actualArgs = args;
     }
 
     const result = await callMCPTool(actualName, actualArgs);

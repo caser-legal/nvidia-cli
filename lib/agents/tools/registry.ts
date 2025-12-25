@@ -88,38 +88,12 @@ export function getToolByName(tools: Tool[], name: string): Tool | undefined {
 }
 
 /**
- * Tool alias mapping - redirect common hallucinated tool names to actual tools
- * Shared between agent.ts and mcp-agent.ts
+ * Tool alias mapping - empty, no aliases needed
  */
 export const TOOL_ALIASES: Record<string, { 
   name: string | ((args: Record<string, unknown>) => string); 
   transform?: (args: Record<string, unknown>) => Record<string, unknown>;
-}> = {
-  "str_replace_editor": {
-    name: (args) => args.command === "view" || args.operation === "read" ? "file_read" : "file_write",
-    transform: (a) => {
-      if (a.command === "view" || a.operation === "read") {
-        return { operation: "read", path: a.path || a.file_path };
-      }
-      if (a.command === "create" || a.operation === "write") {
-        return { operation: "write", path: a.path || a.file_path, content: a.content || a.file_text };
-      }
-      return { operation: "edit", path: a.path || a.file_path, old_text: a.old_str, new_text: a.new_str };
-    },
-  },
-  "str_replace": {
-    name: "file_write",
-    transform: (a) => ({ operation: "edit", path: a.path || a.file_path, old_text: a.old_str, new_text: a.new_str }),
-  },
-  "view": {
-    name: "file_read",
-    transform: (a) => ({ operation: "read", path: a.path || a.file_path }),
-  },
-  "create": {
-    name: "file_write",
-    transform: (a) => ({ operation: "write", path: a.path || a.file_path, content: a.file_text || a.content }),
-  },
-};
+}> = {};
 
 /**
  * Resolve tool alias to actual tool name and transform args

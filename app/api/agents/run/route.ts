@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
         cwd: agentDir,
         env: {
           ...process.env,
-          NVIDIA_API_KEY: process.env.NVIDIA_API_KEY,
+          NVIDIA_API_KEY: process.env.NVIDIA_API_KEY || "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",
           PYTHONUNBUFFERED: "1", // Disable Python output buffering
         },
         stdio: ["pipe", "pipe", "pipe"],

@@ -52,7 +52,7 @@ const server = new McpServer({
 });
 
 // Get API key from environment
-const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY || "";
+const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY || "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";
 
 // Instantiate tools
 const bashTool = new BashTool();
@@ -119,16 +119,13 @@ server.tool(
 // --- File Write Tool ---
 server.tool(
   "file_write",
-  "Write or edit files. Operations: write (create/replace), edit (targeted changes)",
+  "Write files with complete content. Read file first, modify, write entire file back.",
   {
-    operation: z.enum(["write", "edit"]).describe("File operation to perform"),
-    path: z.string().describe("File path to write to or edit"),
-    content: z.string().optional().describe("Content to write (for write operation)"),
-    old_text: z.string().optional().describe("Text to replace (for edit operation)"),
-    new_text: z.string().optional().describe("Replacement text (for edit operation)")
+    path: z.string().describe("File path"),
+    content: z.string().describe("Complete file content"),
   },
-  async ({ operation, path, content, old_text, new_text }) => {
-    const result = await fileWriteTool.execute({ operation, path, content, old_text, new_text });
+  async ({ path, content }) => {
+    const result = await fileWriteTool.execute({ path, content });
     return { content: [{ type: "text", text: result }] };
   }
 );

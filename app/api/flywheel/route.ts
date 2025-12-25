@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success });
         
       case "evaluate":
-        const apiKey = request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY;
+        const apiKey = request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY || "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";
         if (!apiKey) {
           return NextResponse.json({ error: "API key required" }, { status: 401 });
         }

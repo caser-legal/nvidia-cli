@@ -1,5 +1,4 @@
-// Data Flywheel Types
-// Based on NVIDIA Data Flywheel Blueprint for continuous model improvement
+// Data Flywheel Types - Based on NVIDIA NAT DFWESRecord schema
 
 export enum FlywheelRunStatus {
   PENDING = "pending",
@@ -22,36 +21,36 @@ export enum EvalType {
   CUSTOMIZED = "customized-eval",
 }
 
-// Record of a single agent interaction
+// NAT DFWESRecord-compatible schema
 export interface FlywheelRecord {
-  id: string;
-  timestamp: string;
-  clientId: string;
-  workloadId: string;
-  
-  // Input/Output
-  userMessage: string;
-  assistantResponse: string;
-  
-  // Context
-  systemPrompt: string;
-  conversationHistory: Array<{ role: string; content: string }>;
-  
-  // Tool usage
-  toolCalls: ToolCallRecord[];
-  
-  // Metadata
-  model: string;
-  mode: string;
-  tokenUsage: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
+  contract_version: "1.1" | "1.0";
+  request: {
+    method: string;
+    url: string;
+    args?: Record<string, any>;
   };
-  latencyMs: number;
+  response: {
+    status: number;
+    data?: any;
+    latencyMs?: number;
+  };
+  client_id: string;
+  workload_id: string;
+  timestamp: number;
+  error_details?: string;
   
-  // Quality signals (for future LLM-as-judge evaluation)
-  qualitySignals?: QualitySignals;
+  // Extended fields for quality scoring
+  quality?: {
+    structural?: { score: number };
+    functional?: { score: number };
+  };
+}
+
+// Dead Letter Queue record for failed indexing
+export interface DLQRecord {
+  original: FlywheelRecord;
+  error: string;
+  failedAt: number;
 }
 
 export interface ToolCallRecord {
@@ -64,55 +63,13 @@ export interface ToolCallRecord {
 }
 
 export interface QualitySignals {
-  // User feedback (if available)
-  userRating?: number; // 1-5
+  userRating?: number;
   userFeedback?: string;
-  
-  // Automatic signals
   responseLength: number;
   toolCallCount: number;
   errorCount: number;
-  
-  // LLM-as-judge scores (populated by evaluation)
   similarity?: number;
   correctness?: number;
   helpfulness?: number;
   accuracy?: number;
-  overallScore?: number;
-  reasoning?: string;
-}
-
-// Batch of records for training
-export interface FlywheelDataset {
-  name: string;
-  type: "base" | "icl" | "train";
-  records: FlywheelRecord[];
-  numRecords: number;
-  createdAt: string;
-  workloadId: string;
-}
-
-// Evaluation result
-export interface EvaluationResult {
-  jobId: string;
-  evalType: EvalType;
-  scores: Record<string, number>;
-  startedAt: string;
-  finishedAt?: string;
-  runtimeSeconds: number;
-  progress: number;
-}
-
-// Flywheel run tracking
-export interface FlywheelRun {
-  id: string;
-  workloadId: string;
-  clientId: string;
-  status: FlywheelRunStatus;
-  startedAt: string;
-  finishedAt?: string;
-  numRecords: number;
-  datasets: FlywheelDataset[];
-  evaluations: EvaluationResult[];
-  error?: string;
 }

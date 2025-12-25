@@ -2,9 +2,7 @@
 // Executes multiple search queries concurrently and deduplicates results
 
 import { BaseTool } from "../base-tool";
-
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || "AIzaSyAItqaim6u_IqbbPbRUvLddZEAgZo9OU8E";
-const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_CSE_ID || "c793827e2e54f4511";
+import { GOOGLE_API_KEY, GOOGLE_CSE_ID } from "../../api-key";
 
 interface SearchResult {
   title: string;
@@ -42,7 +40,7 @@ Results are automatically deduplicated by URL.`;
 
   private async searchSingle(query: string, num: number): Promise<SearchResult[]> {
     try {
-      const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=${num}`;
+      const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CSE_ID}&q=${encodeURIComponent(query)}&num=${num}`;
       const res = await fetch(url);
       const data = await res.json();
 

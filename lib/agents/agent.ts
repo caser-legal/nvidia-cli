@@ -324,7 +324,7 @@ export class Agent {
           log.debug(`Nudging LLM - user requested edits but none made (${nudgeCount}/${MAX_NUDGES})`);
           this.messages.push({
             role: "user",
-            content: "You have not made any code changes yet. The user requested edits/changes. Use file_write(operation='edit', path='...', old_text='exact text to replace', new_text='replacement text') to implement the requested changes NOW. Do not just summarize - EDIT the files.",
+            content: "You have not made any code changes yet. The user requested edits/changes. Use file_write(path='...', content='COMPLETE FILE CONTENT') to implement the requested changes NOW. Read the file first, modify it, then write the entire file back.",
           });
           this.tracer.endSpan(iterSpanId);
           continue;
