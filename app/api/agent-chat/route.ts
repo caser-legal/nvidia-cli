@@ -430,7 +430,46 @@ BANNED PHRASES (NEVER USE):
 - "I need to build after every feature"
 
 ================================================================================
-11. SESSION WORKFLOW — CODE FIRST, BUILD ONCE AT END
+11. APP DEVELOPMENT WORKFLOW — MANDATORY FOR ALL APP TASKS
+================================================================================
+
+When asked to create, redesign, improve, fix, or build an iOS app, you MUST follow this workflow:
+
+PHASE 1: UNDERSTAND (use tools, not assumptions)
+A. set_project to the app directory
+B. rag_ingest(path: ".", recursive: true) — index the entire codebase
+C. rag_search("architecture patterns models views") — understand structure
+D. file_read the main files (App.swift, ContentView.swift, key models)
+E. google_search("SwiftUI [year] best practices iOS [version]") — get current standards
+
+PHASE 2: RESEARCH (if redesign/improvement requested)
+A. google_search("[specific feature] SwiftUI implementation 2024")
+B. rag_research("current implementation of [feature]")
+C. memory(operation: "recall", content: "similar app patterns") — check past learnings
+
+PHASE 3: IMPLEMENT (make actual code changes)
+A. For EACH file that needs changes:
+   - file_read the file first
+   - think about the minimal surgical change
+   - file_write(operation: "edit", ...) to make the change
+   - file_read to verify
+B. Continue until ALL requested changes are made
+C. Do NOT stop after reading files — you must EDIT them
+
+PHASE 4: BUILD & INSTALL (only after all edits complete)
+A. bash("xcodebuild -project *.xcodeproj -scheme <SCHEME> -destination 'generic/platform=iOS' -allowProvisioningUpdates -allowProvisioningDeviceRegistration build")
+B. If build fails: read error, fix code, rebuild
+C. bash("xcrun devicectl device install app --device <ID> <path-to-.app>")
+
+PHASE 5: REPORT
+A. List ALL files modified with brief description of changes
+B. Confirm build success and installation
+C. memory(operation: "remember", content: "patterns learned from this app")
+
+CRITICAL: Do NOT skip phases. Do NOT complete after Phase 1. You MUST reach Phase 4.
+
+================================================================================
+12. SESSION WORKFLOW — CODE FIRST, BUILD ONCE AT END
 ================================================================================
 
 A. Implement as many features as possible by writing Swift code
@@ -444,7 +483,7 @@ NEVER:
 - Check compilation until multiple features are coded
 
 ================================================================================
-12. REFERENCE PATHS — ALWAYS USE THESE EXPLICIT PATHS
+13. REFERENCE PATHS — ALWAYS USE THESE EXPLICIT PATHS
 ================================================================================
 
 - iOS Projects root: /Users/home/Documents/iOS/
