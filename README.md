@@ -754,7 +754,7 @@ For iOS/Swift code search:
 | `set_project` | Set working directory |
 | `get_project` | Get current directory |
 | `file_read` | Read files/directories |
-| `file_write` | Create/edit files |
+| `file_write` | Write complete file content |
 | `bash` | Execute shell commands |
 
 ### Vision Analysis (3)
