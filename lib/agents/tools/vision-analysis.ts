@@ -5,8 +5,8 @@
 import { BaseTool } from "../base-tool";
 import * as fs from "fs";
 import * as path from "path";
+import { NVIDIA_API_KEY } from "../../api-key";
 
-const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || "";
 const VLM_MODEL = "nvidia/nemotron-nano-12b-v2-vl";
 const VLM_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
 

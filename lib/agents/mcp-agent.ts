@@ -6,6 +6,7 @@
 import OpenAI from "openai";
 import type { AgentMessage, AgentConfig, AgentEvent, ToolCall, ToolResult } from "./types";
 import { getMCPClient, getMCPToolDefinitions, callMCPTool, type OpenAIToolDefinition } from "../mcp-client";
+import { NVIDIA_API_KEY } from "../api-key";
 import { FlywheelLogger, ToolCallRecord } from "./flywheel";
 import { PIIGuard } from "../security/pii-guard";
 import { ContextManager, getContextLimits } from "../context-manager";
@@ -50,7 +51,7 @@ export class MCPAgent {
   }) {
     const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
     const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://192.168.50.50:11434/v1";
-    const apiKey = useLocalLLM ? "ollama" : (options.apiKey || process.env.NVIDIA_API_KEY);
+    const apiKey = useLocalLLM ? "ollama" : (options.apiKey || NVIDIA_API_KEY);
     
     if (!useLocalLLM && !apiKey) {
       throw new Error("NVIDIA_API_KEY is required");

@@ -4,6 +4,7 @@
  */
 
 import * as path from "path";
+import { NVIDIA_API_KEY } from "./api-key";
 import * as os from "os";
 import { createLogger } from "./logger";
 
@@ -46,7 +47,7 @@ export const config = {
   },
 };
 
-if (!process.env.NVIDIA_API_KEY && !config.features.useLocalLLM) {
+if (!NVIDIA_API_KEY && !config.features.useLocalLLM) {
   log.warn("NVIDIA_API_KEY not set and USE_LOCAL_LLM is false");
 }
 

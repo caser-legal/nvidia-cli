@@ -5,6 +5,7 @@
 
 import { EmbeddingConfig } from './types';
 import { createLogger } from '../../logger';
+import { NVIDIA_API_KEY } from '../../api-key';
 
 const log = createLogger("RAG");
 
@@ -37,7 +38,7 @@ export class NVIDIAEmbeddings {
     if (texts.length === 0) return [];
     if (this.useLocal) return this.embedLocal(texts);
 
-    const apiKey = this.config.apiKey || process.env.NVIDIA_API_KEY;
+    const apiKey = this.config.apiKey || NVIDIA_API_KEY;
     if (!apiKey) throw new Error('NVIDIA API key required for embeddings');
 
     const batchSize = 64;
@@ -115,7 +116,7 @@ export class NVIDIAEmbeddings {
   async embedQuery(query: string): Promise<number[]> {
     if (this.useLocal) return this.embedQueryLocal(query);
 
-    const apiKey = this.config.apiKey || process.env.NVIDIA_API_KEY;
+    const apiKey = this.config.apiKey || NVIDIA_API_KEY;
     if (!apiKey) throw new Error('NVIDIA API key required for embeddings');
 
     const response = await fetch(`${this.baseUrl}/embeddings`, {
@@ -159,7 +160,7 @@ export class NVIDIAReranker {
     if (documents.length === 0) return [];
     if (this.useLocal) return this.rerankLocal(query, documents);
 
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) throw new Error('NVIDIA API key required for reranking');
 
     const modelPath = this.model.replace(/\./g, '_');

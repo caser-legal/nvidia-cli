@@ -5,6 +5,7 @@
 
 import { DecomposedQuery } from './types';
 import { createLogger } from '../../logger';
+import { NVIDIA_API_KEY } from '../../api-key';
 
 const log = createLogger("QueryDecomposer");
 
@@ -39,7 +40,7 @@ export class QueryDecomposer {
   }
 
   async decompose(query: string): Promise<DecomposedQuery> {
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) {
       return { originalQuery: query, subQueries: [{ query, rationale: 'Original query' }], needsDecomposition: false };
     }
@@ -81,7 +82,7 @@ export class QueryDecomposer {
   async rewriteWithContext(query: string, history: { question: string; answer: string }[]): Promise<string> {
     if (history.length === 0) return query;
 
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) return query;
 
     try {
@@ -104,7 +105,7 @@ export class QueryDecomposer {
   }
 
   async generateFollowUp(originalQuery: string, history: { question: string; answer: string }[], context: string): Promise<string | null> {
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) return null;
 
     try {

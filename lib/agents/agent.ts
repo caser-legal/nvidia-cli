@@ -1,4 +1,5 @@
 // Agent Core
+import { NVIDIA_API_KEY } from "../api-key";
 // Main agent loop using NVIDIA NIM API with tool execution
 // Integrated with Data Flywheel for continuous model improvement
 // Context management for handling API token limits
@@ -76,7 +77,7 @@ export class Agent {
   }) {
     const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
     const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://192.168.50.50:11434/v1";
-    const apiKey = useLocalLLM ? "ollama" : (options.apiKey || process.env.NVIDIA_API_KEY);
+    const apiKey = useLocalLLM ? "ollama" : (options.apiKey || NVIDIA_API_KEY);
     
     if (!useLocalLLM && !apiKey) {
       throw new Error("NVIDIA_API_KEY is required. Set it in .env.local or pass it to the Agent constructor.");

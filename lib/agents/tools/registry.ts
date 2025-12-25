@@ -6,6 +6,7 @@
 import { Tool } from "../types";
 import { FileReadTool } from "./file-read";
 import { FileWriteTool } from "./file-write";
+import { NVIDIA_API_KEY } from "../../api-key";
 import { BashTool } from "./bash";
 import { ThinkTool } from "./think";
 import { SetProjectTool, GetProjectTool } from "./project";
@@ -31,7 +32,7 @@ export interface ToolRegistryConfig {
  * Use this instead of instantiating tools directly
  */
 export function createToolRegistry(config: ToolRegistryConfig = {}): Tool[] {
-  const apiKey = config.apiKey || process.env.NVIDIA_API_KEY || "";
+  const apiKey = config.apiKey || NVIDIA_API_KEY || "";
   
   const tools: Tool[] = [
     // Core file operations

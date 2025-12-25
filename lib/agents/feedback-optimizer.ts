@@ -6,6 +6,7 @@
 import OpenAI from "openai";
 import { FlywheelLogger, QUALITY_THRESHOLD } from "./flywheel/logger";
 import { FlywheelRecord } from "./flywheel/types";
+import { NVIDIA_API_KEY } from "../api-key";
 import { createLogger } from "../logger";
 
 const log = createLogger("FeedbackOptimizer");
@@ -54,7 +55,7 @@ export class FeedbackOptimizer {
     apiKey?: string,
     model: string = "nvidia/nemotron-3-nano-30b-a3b"
   ) {
-    const key = apiKey || process.env.NVIDIA_API_KEY;
+    const key = apiKey || NVIDIA_API_KEY;
     if (!key) throw new Error("API key required for FeedbackOptimizer");
 
     this.client = new OpenAI({

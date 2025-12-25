@@ -6,6 +6,7 @@
 
 import { Document, SubQuery } from './types';
 import { QueryDecomposer } from './query-decomposition';
+import { NVIDIA_API_KEY } from '../../api-key';
 import { ReflectionSystem, ReflectionCounter } from './reflection';
 import { NVIDIAReranker } from './embeddings';
 
@@ -208,7 +209,7 @@ export class ResearchWorkflow {
   }
 
   private async summarize(existingReport: string, newFindings: string): Promise<string> {
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) {
       return existingReport + '\n\n' + newFindings;
     }
@@ -244,7 +245,7 @@ export class ResearchWorkflow {
   }
 
   private async reflect(topic: string, report: string): Promise<{ hasGap: boolean; gap: string; query: string }> {
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) {
       return { hasGap: false, gap: '', query: '' };
     }

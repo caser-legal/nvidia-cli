@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { NVIDIA_API_KEY } from "../api-key";
 import { Tool } from "./types";
 import { FlywheelLogger } from "./flywheel";
 import { createLogger } from "../logger";
@@ -12,7 +13,7 @@ export class ToolOrchestrator {
   private flywheel?: FlywheelLogger;
 
   constructor(tools: Tool[], apiKey?: string, model: string = "nvidia/nemotron-3-nano-30b-a3b", flywheel?: FlywheelLogger) {
-    const key = apiKey || process.env.NVIDIA_API_KEY;
+    const key = apiKey || NVIDIA_API_KEY;
     if (!key) throw new Error("API Key required for ToolOrchestrator");
 
     this.client = new OpenAI({ baseURL: "https://integrate.api.nvidia.com/v1", apiKey: key });

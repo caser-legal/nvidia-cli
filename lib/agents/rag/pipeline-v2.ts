@@ -8,6 +8,7 @@ import { NVIDIAEmbeddings, NVIDIAReranker, SimpleVectorStore } from './embedding
 import { QueryDecomposer } from './query-decomposition';
 import { ReflectionSystem, ReflectionCounter } from './reflection';
 import { ResearchWorkflow, ResearchResult } from './research-workflow';
+import { NVIDIA_API_KEY } from '../../api-key';
 import { RecursiveCharacterTextSplitter, SwiftTextSplitter } from './text-splitter';
 import { ContextualCompressionRetriever, AgentControlledRetriever } from './contextual-retriever';
 import { RAGProfile, IOS_DEVELOPMENT_PROFILE, getRAGProfile, ChunkingConfig, RetrievalConfig, ModelConfig } from './config';
@@ -185,7 +186,7 @@ export class RAGPipelineV2 {
     }
 
     const context = searchResult.documents.map((d, i) => `[${i + 1}] ${d.content}`).join('\n\n');
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) return { answer: "API key not configured for response generation.", sources: searchResult.documents };
 
     const prompt = `Based on the following context, answer the question. Cite sources using [1], [2], etc.\n\nContext:\n${context}\n\nQuestion: ${query}\n\nAnswer:`;

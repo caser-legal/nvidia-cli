@@ -5,6 +5,7 @@
 
 import { ReflectionResult, Document } from './types';
 import { createLogger } from '../../logger';
+import { NVIDIA_API_KEY } from '../../api-key';
 
 const log = createLogger("Reflection");
 
@@ -22,7 +23,7 @@ export class ReflectionSystem {
   }
 
   async checkContextRelevance(query: string, documents: Document[]): Promise<ReflectionResult> {
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) return { isRelevant: true, isGrounded: true, score: 2 };
 
     const contextText = documents.map(d => d.content).join('\n\n---\n\n');
@@ -52,7 +53,7 @@ export class ReflectionSystem {
   }
 
   async checkResponseGroundedness(response: string, documents: Document[]): Promise<ReflectionResult> {
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) return { isRelevant: true, isGrounded: true, score: 2 };
 
     const contextText = documents.map(d => d.content).join('\n\n---\n\n');
@@ -82,7 +83,7 @@ export class ReflectionSystem {
   }
 
   async rewriteQueryForRelevance(query: string, documents: Document[]): Promise<string> {
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) return query;
 
     const contextText = documents.map(d => d.content).join('\n\n').slice(0, 2000);
@@ -104,7 +105,7 @@ export class ReflectionSystem {
   }
 
   async regenerateResponse(query: string, documents: Document[], previousResponse: string): Promise<string | null> {
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = NVIDIA_API_KEY;
     if (!apiKey) return null;
 
     const contextText = documents.map(d => d.content).join('\n\n---\n\n');
