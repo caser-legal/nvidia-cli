@@ -96,15 +96,27 @@ Uses the current project directory (use set_project to change it).`;
     if (!stat.isFile()) return `Error: ${filePath} is not a file`;
 
     const content = await fs.readFile(resolved, "utf-8");
-    if (!content.includes(oldText)) return `Error: The specified text was not found in ${filePath}`;
+    if (!content.includes(oldText)) {
+      // Provide actionable guidance - this is critical for agent retry logic
+      const lines = content.split('\n');
+      const preview = lines.slice(0, 10).join('\n');
+      return `EDIT_FAILED: old_text not found in ${filePath}. 
+ACTION REQUIRED: Read the file again with file_read to get exact text including whitespace.
+File has ${lines.length} lines. First 10 lines:
+${preview}
+...
+DO NOT hallucinate success. You MUST retry with correct old_text or use operation="write" to replace entire file.`;
+    }
 
     const count = content.split(oldText).length - 1;
     if (count > 1) {
-      return `Error: Found ${count} occurrences of the specified text in ${filePath}. Please provide more context to make old_text unique (include surrounding lines).`;
+      return `EDIT_FAILED: Found ${count} occurrences of old_text in ${filePath}.
+ACTION REQUIRED: Include more surrounding lines in old_text to make it unique.
+DO NOT hallucinate success. You MUST retry with more context.`;
     }
     
     const newContent = content.replace(oldText, newText);
     await fs.writeFile(resolved, newContent, "utf-8");
-    return `Successfully edited ${filePath}`;
+    return `SUCCESS: Edited ${filePath} - replaced ${oldText.length} chars with ${newText.length} chars`;
   }
 }
