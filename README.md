@@ -1429,6 +1429,7 @@ MCP (Model Context Protocol) is an open standard by Anthropic that lets AI tools
 flowchart TB
     subgraph Clients["🖥️ AI Clients"]
         CODEX["Codex CLI<br/>(OpenAI)"]
+        KIRO["Kiro CLI<br/>(AWS Dory Agent)"]
         DORY["Dory Web App<br/>(This project)"]
         FUTURE["Future Clients<br/>(Claude, etc.)"]
     end
@@ -1448,6 +1449,7 @@ flowchart TB
     end
 
     CODEX -->|"stdio/JSON-RPC"| SERVER
+    KIRO -->|"stdio/JSON-RPC"| SERVER
     DORY -->|"stdio/JSON-RPC"| SERVER
     FUTURE -->|"stdio/JSON-RPC"| SERVER
 
@@ -1547,6 +1549,190 @@ npx tsx mcp-server.ts
 const bashTool = new BashTool();
 const result = await bashTool.execute({ command: "ls" });
 ```
+
+
+---
+
+## Kiro CLI Integration (AWS Kiro + Dory Agent)
+
+### What is Kiro CLI?
+
+**Kiro CLI** is AWS's AI-powered coding assistant that supports MCP servers and custom agents. The **Dory agent** configuration connects Kiro to nvidia-cli's 36 tools plus Context7 for live documentation lookup.
+
+### Architecture
+
+```mermaid
+flowchart TB
+    subgraph Kiro["🖥️ Kiro CLI (AWS)"]
+        AGENT[Dory Agent<br/>~/.kiro/agents/dory.json]
+        HOOKS[Hooks System<br/>agentSpawn, postToolUse, stop]
+        MEMORY_FILE[User Memory<br/>~/.kiro/user-memory.md]
+    end
+
+    subgraph MCP_Servers["🔌 MCP Servers"]
+        NVIDIA[nvidia-cli<br/>36 Tools]
+        CTX7[Context7<br/>Live Docs Lookup]
+    end
+
+    subgraph Tools["🛠️ Available Tools"]
+        FILE[file_read/write]
+        BASH[bash]
+        RAG[rag_* (8 tools)]
+        SEARCH[google_search]
+        MEM[memory, entity_memory]
+        FLY[flywheel_*]
+        RESOLVE[resolve-library-id]
+        GETDOCS[get-library-docs]
+    end
+
+    AGENT -->|"spawns"| NVIDIA
+    AGENT -->|"spawns"| CTX7
+    HOOKS -->|"agentSpawn"| MEMORY_FILE
+    HOOKS -->|"postToolUse"| MEMORY_FILE
+    
+    NVIDIA --> FILE
+    NVIDIA --> BASH
+    NVIDIA --> RAG
+    NVIDIA --> SEARCH
+    NVIDIA --> MEM
+    NVIDIA --> FLY
+    
+    CTX7 --> RESOLVE
+    CTX7 --> GETDOCS
+
+    style Kiro fill:#FF9900
+    style MCP_Servers fill:#0984e3
+    style Tools fill:#fdcb6e,color:#000
+```
+
+### Dory Agent Configuration
+
+The Dory agent is configured at `~/.kiro/agents/dory.json`:
+
+```json
+{
+  "name": "dory",
+  "description": "NVIDIA-only agent - uses nvidia-cli and context7 MCP tools only",
+  "mcpServers": {
+    "nvidia-cli": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["tsx", "/Users/home/Documents/nvidia-cli/mcp-server.ts"],
+      "cwd": "/Users/home/Documents/nvidia-cli",
+      "env": {
+        "NVIDIA_API_KEY": "${NVIDIA_API_KEY}",
+        "GOOGLE_API_KEY": "${GOOGLE_API_KEY}",
+        "GOOGLE_CSE_ID": "${GOOGLE_CSE_ID}"
+      },
+      "timeout": 120000
+    },
+    "context7": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@upstash/context7-mcp", "--transport", "stdio", "--api-key", "${CONTEXT7_API_KEY}"],
+      "timeout": 120000
+    }
+  },
+  "tools": ["@nvidia-cli", "@context7"],
+  "hooks": {
+    "agentSpawn": [
+      { "command": "echo '=== USER MEMORY LOADED ===' && cat ~/.kiro/user-memory.md" }
+    ],
+    "postToolUse": [
+      {
+        "matcher": "@nvidia-cli/memory",
+        "command": "if echo \"$tool_input\" | grep -q '\"operation\":\"remember\"'; then echo \"$(date): $(echo \"$tool_input\" | jq -r '.content')\" >> ~/.kiro/user-memory.md; fi"
+      }
+    ]
+  },
+  "model": "claude-opus-4.5"
+}
+```
+
+### Hooks System
+
+The Dory agent uses hooks to inject context and persist memory:
+
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| `agentSpawn` | Agent starts | Loads `~/.kiro/user-memory.md` into context |
+| `postToolUse` | After `@nvidia-cli/memory` with `remember` | Auto-appends to user-memory.md |
+| `stop` | Conversation ends | Logs completion for flywheel |
+
+### User Memory File
+
+The `~/.kiro/user-memory.md` file persists user preferences across sessions:
+
+```markdown
+# User Preferences & Memory
+
+## Development Preferences
+- **Favorite code/framework**: SwiftUI
+- **Development approach**: Full implementation with ALL features
+- **Quality standards**: Production-ready with Apple documentation compliance
+
+## Project Context
+- **Current project**: iOS SpaceX App (3-2-1-Liftoff)
+- **Project path**: /Users/home/Documents/iOS/3-2-1-Liftoff
+
+## Instructions for AI Assistant
+- Always reference these preferences when answering questions
+- Maintain production-ready code standards
+- Follow Apple's official documentation guidelines
+```
+
+### Quick Start with Kiro CLI
+
+```bash
+# Start Kiro CLI with Dory agent
+q  # alias for: kiro-cli chat --agent dory
+
+# Or explicitly
+kiro-cli chat --agent dory
+
+# Stop all servers
+qquit  # alias to stop MCP servers
+
+# View live logs
+qlog  # alias to tail server logs
+```
+
+### Shell Aliases for Kiro
+
+Add to `~/.zshrc`:
+
+```bash
+# Start Kiro with Dory agent
+alias q="kiro-cli chat --agent dory"
+
+# Stop all Dory servers
+alias qquit="pkill -f 'mcp-server' ; pkill -f 'context7-mcp' ; echo '🛑 Dory servers stopped.'"
+
+# View live logs
+alias qlog="tail -f ~/.kiro/logs/*.log 2>/dev/null || echo 'No logs found'"
+```
+
+### Context7 Integration
+
+Context7 provides live documentation lookup for any library:
+
+```bash
+# In Kiro chat, ask about any library
+"How do I use SwiftUI NavigationStack?"
+
+# Dory will:
+# 1. Call resolve-library-id to find SwiftUI docs
+# 2. Call get-library-docs to fetch current documentation
+# 3. Answer with up-to-date code examples
+```
+
+### Why Kiro + Dory?
+
+| Feature | Benefit |
+|---------|---------|
+| **Claude Opus 4.5** | Most capable model for complex coding tasks |
+| **36 nvidia-cli tools** | Full file, RAG, search, memory capabilities |
+| **Context7 docs** | Always up-to-date library documentation |
+| **Persistent memory** | Remembers preferences across sessions |
+| **Hooks system** | Auto-injects context, auto-saves memories |
 
 **MCP (new way):**
 ```typescript
@@ -1843,17 +2029,35 @@ All implementations verified against official NVIDIA NeMo Agent Toolkit 1.3 docu
 Add to `~/.zshrc` for quick access:
 
 ```bash
+# === Kiro CLI + Dory Agent ===
+# Start Kiro with Dory agent (nvidia-cli + context7 MCP servers)
+alias q="kiro-cli chat --agent dory"
+
+# Stop all Dory MCP servers
+alias qquit="pkill -f 'mcp-server' ; pkill -f 'context7-mcp' ; echo '🛑 Dory servers stopped.'"
+
+# View live server logs
+alias qlog="tail -f ~/.kiro/logs/*.log 2>/dev/null || echo 'No logs found'"
+
+# === Web UI + Elasticsearch ===
 # Start all services (ES, MCP, Terminal, Next.js)
 alias nv="/Users/home/Documents/nvidia-cli/start.sh"
 alias codex="/Users/home/Documents/nvidia-cli/start.sh"
 
 # Stop all services
-alias nvquit="pkill -f 'next dev' ; pkill -f 'terminal-server' ; pkill -f 'mcp-server' ; pkill -f 'node.*nvidia-cli' ; kill \$(cat ~/Downloads/elasticsearch-8.11.0/es.pid 2>/dev/null) 2>/dev/null ; echo ' Dory + ES shutdown complete.'"
+alias nvquit="pkill -f 'next dev' ; pkill -f 'terminal-server' ; pkill -f 'mcp-server' ; pkill -f 'node.*nvidia-cli' ; kill \$(cat ~/Downloads/elasticsearch-8.11.0/es.pid 2>/dev/null) 2>/dev/null ; echo '🛑 Dory + ES shutdown complete.'"
 ```
 
 After adding, run `source ~/.zshrc` or open a new terminal.
 
-### What `nv` Starts
+### What `q` Starts (Kiro CLI)
+
+1. **nvidia-cli MCP Server** - 36 tools for file ops, RAG, search, memory
+2. **Context7 MCP Server** - Live documentation lookup
+3. **Loads user-memory.md** - Via agentSpawn hook
+4. **Claude Opus 4.5** - As the reasoning model
+
+### What `nv` Starts (Web UI)
 
 1. **Elasticsearch** (if not running) - Data storage
 2. **MCP Server** - Tool execution
@@ -1861,10 +2065,10 @@ After adding, run `source ~/.zshrc` or open a new terminal.
 4. **Next.js** - Web UI at localhost:3000
 5. **Opens browser** to localhost:3000
 
-### What `nvquit` Stops
+### What `qquit` / `nvquit` Stops
 
-- All Node.js processes related to nvidia-cli
-- Elasticsearch (via PID file)
+- All MCP server processes
+- Elasticsearch (via PID file for nvquit)
 - Clean shutdown with confirmation message
 
 ---
