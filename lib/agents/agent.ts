@@ -314,21 +314,43 @@ export class Agent {
         const hasContent = message.content && message.content.trim().length > 50;
         const madeEdits = this.toolCallRecords.some(r => r.toolName === 'file_write' && r.success);
         
-        if (!hasContent && !madeEdits && nudgeCount < MAX_NUDGES) {
+        // Detect if user requested code changes (edit, fix, implement, create, build, redesign, etc.)
+        const userRequestedEdits = /\b(edit|fix|implement|create|build|redesign|update|change|modify|add|remove|refactor|install)\b/i.test(sanitizedUserMessage);
+        
+        // If user requested edits but none were made, nudge regardless of content
+        if (userRequestedEdits && !madeEdits && nudgeCount < MAX_NUDGES) {
           nudgeCount++;
-          log.debug(`Nudging LLM (${nudgeCount}/${MAX_NUDGES})`);
+          log.debug(`Nudging LLM - user requested edits but none made (${nudgeCount}/${MAX_NUDGES})`);
           this.messages.push({
             role: "user",
-            content: "You have not made any code changes yet. Use file_write(operation='edit', path='...', old_text='exact text to replace', new_text='replacement text') to implement improvements NOW. Do not just read files - EDIT them.",
+            content: "You have not made any code changes yet. The user requested edits/changes. Use file_write(operation='edit', path='...', old_text='exact text to replace', new_text='replacement text') to implement the requested changes NOW. Do not just summarize - EDIT the files.",
           });
           this.tracer.endSpan(iterSpanId);
           continue;
         }
         
+        // For non-edit requests, original logic: nudge if no content and no edits
+        if (!userRequestedEdits && !hasContent && !madeEdits && nudgeCount < MAX_NUDGES) {
+          nudgeCount++;
+          log.debug(`Nudging LLM (${nudgeCount}/${MAX_NUDGES})`);
+          this.messages.push({
+            role: "user",
+            content: "Please provide a substantive response or use tools to complete the task.",
+          });
+          this.tracer.endSpan(iterSpanId);
+          continue;
+        }
+        
+        if (userRequestedEdits && !madeEdits && nudgeCount >= MAX_NUDGES) {
+          log.warn("Max nudges reached - user requested edits but none made");
+          this.emit({ type: "status", status: "completed" });
+          return "I was unable to complete the requested edits after multiple attempts. Please provide more specific instructions about what changes you'd like me to make, including the exact file paths and the specific code sections to modify.";
+        }
+        
         if (!hasContent && !madeEdits && nudgeCount >= MAX_NUDGES) {
           log.warn("Max nudges reached without edits");
           this.emit({ type: "status", status: "completed" });
-          return "I was unable to complete the requested edits after multiple attempts. Please provide more specific instructions about what changes you'd like me to make, including the exact file paths and the specific code sections to modify.";
+          return "I was unable to complete the requested task after multiple attempts. Please provide more specific instructions.";
         }
         
         log.info("Task completed");

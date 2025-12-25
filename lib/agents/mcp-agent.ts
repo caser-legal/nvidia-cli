@@ -285,6 +285,19 @@ export class MCPAgent {
           continue;
         }
 
+        // Check if user requested edits but none were made
+        const madeEdits = this.toolCallRecords.some(r => r.toolName === 'file_write' && r.success);
+        const userRequestedEdits = /\b(edit|fix|implement|create|build|redesign|update|change|modify|add|remove|refactor|install)\b/i.test(sanitizedUserMessage);
+        
+        if (userRequestedEdits && !madeEdits && iterations < 10) {
+          log.debug("User requested edits but none made - nudging");
+          this.messages.push({
+            role: "user",
+            content: "You have not made any code changes yet. The user requested edits/changes. Use file_write to implement the requested changes NOW. Do not just summarize - EDIT the files.",
+          });
+          continue;
+        }
+
         log.info("Task completed");
         this.emit({ type: "status", status: "completed" });
         
