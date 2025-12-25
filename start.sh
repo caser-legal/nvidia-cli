@@ -30,6 +30,10 @@ nohup npx tsx mcp-server.ts > /tmp/nvidia-cli-mcp.log 2>&1 &
 echo "Starting terminal server..."
 nohup npx tsx lib/terminal-server.ts > /tmp/nvidia-cli-terminal.log 2>&1 &
 
+# Start flywheel API server (detached)
+echo "Starting flywheel API..."
+nohup npx tsx flywheel-api.ts > /tmp/nvidia-cli-flywheel.log 2>&1 &
+
 # Start next dev (detached)
 echo "Starting Next.js..."
 nohup bash -c 'NODE_OPTIONS="--max-old-space-size=8192 --no-deprecation --no-warnings" npm run dev' > "$LOG_FILE" 2>&1 &

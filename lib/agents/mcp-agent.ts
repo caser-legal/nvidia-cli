@@ -134,16 +134,12 @@ export class MCPAgent {
 
     log.debug(`Executing tool: ${name}`);
 
-    const actualName = name;
-    const actualArgs = args;
-    }
-
-    const result = await callMCPTool(actualName, actualArgs);
+    const result = await callMCPTool(name, args);
     const duration = Date.now() - startTime;
 
     this.toolCallRecords.push({
-      toolName: actualName,
-      arguments: actualArgs,
+      toolName: name,
+      arguments: args,
       result: result.content,
       durationMs: duration,
       success: !result.isError,

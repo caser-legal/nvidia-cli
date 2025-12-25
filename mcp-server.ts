@@ -52,7 +52,7 @@ const server = new McpServer({
 });
 
 // Get API key from environment
-const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY || "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";
+const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY || "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";
 
 // Instantiate tools
 const bashTool = new BashTool();
@@ -81,6 +81,13 @@ const reportCompilerTool = new ReportCompilerTool();
 
 // Flywheel singleton
 const flywheelLogger = getFlywheelLogger({ enabled: true });
+
+// Auto-log every tool interaction
+let currentConversation = {
+  userMessage: "",
+  toolCalls: [],
+  startTime: Date.now()
+};
 
 // ============================================================================
 // TOOL REGISTRATIONS
@@ -534,7 +541,7 @@ server.tool(
     mode: z.string().optional().describe("Agent mode")
   },
   async ({ user_message, assistant_response, tool_calls, model, mode }) => {
-    const record = flywheelLogger.logInteraction({
+    const record = await flywheelLogger.logInteraction({
       userMessage: user_message,
       assistantResponse: assistant_response,
       systemPrompt: "",
@@ -557,36 +564,54 @@ server.tool(
 // --- Flywheel Stats ---
 server.tool(
   "flywheel_stats",
-  "Get statistics from the data flywheel",
+  "Get statistics from the data flywheel (now from Elasticsearch)",
   {},
   async () => {
-    const stats = flywheelLogger.getStats();
-    return { 
-      content: [{ 
-        type: "text", 
-        text: JSON.stringify(stats, null, 2) 
-      }] 
-    };
+    try {
+      const { getFlywheelStats } = await import("./lib/agents/flywheel/elasticsearch-query.ts");
+      const stats = await getFlywheelStats();
+      return { 
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify(stats, null, 2) 
+        }] 
+      };
+    } catch (error) {
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Error getting flywheel stats: ${error.message}` 
+        }]
+      };
+    }
   }
 );
 
 // --- Flywheel Export ---
 server.tool(
   "flywheel_export",
-  "Export flywheel data for training",
+  "Export flywheel data for training (now from Elasticsearch)",
   {
     include_tool_calls: z.boolean().optional().describe("Include tool call data")
   },
   async ({ include_tool_calls }) => {
-    const data = include_tool_calls 
-      ? flywheelLogger.exportWithToolCalls()
-      : flywheelLogger.exportForTraining();
-    return { 
-      content: [{ 
-        type: "text", 
-        text: `Exported ${data.length} records:\n${data.slice(0, 3).join('\n')}${data.length > 3 ? '\n...' : ''}` 
-      }] 
-    };
+    try {
+      const { exportFlywheelData } = await import("./lib/agents/flywheel/elasticsearch-query.ts");
+      const data = await exportFlywheelData();
+      return { 
+        content: [{ 
+          type: "text", 
+          text: `Exported ${data.length} records from Elasticsearch:\n${data.slice(0, 3).join('\n')}${data.length > 3 ? '\n...' : ''}` 
+        }] 
+      };
+    } catch (error) {
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Error exporting flywheel data: ${error.message}` 
+        }]
+      };
+    }
   }
 );
 

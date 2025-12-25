@@ -8,6 +8,7 @@ import {
   QualitySignals,
   WorkloadClassification 
 } from "./types";
+import { ingestFlywheelRecord } from "./elasticsearch-sink";
 
 // In-memory store (replace with database in production)
 const recordStore: Map<string, FlywheelRecord[]> = new Map();
@@ -53,7 +54,7 @@ export class FlywheelLogger {
     this.enabled = options.enabled ?? true;
   }
   
-  logInteraction(params: {
+  async logInteraction(params: {
     userMessage: string;
     assistantResponse: string;
     systemPrompt: string;
@@ -63,7 +64,7 @@ export class FlywheelLogger {
     mode: string;
     tokenUsage: { promptTokens: number; completionTokens: number; totalTokens: number };
     latencyMs: number;
-  }): FlywheelRecord | null {
+  }): Promise<FlywheelRecord | null> {
     if (!this.enabled) return null;
     
     const record: FlywheelRecord = {
@@ -87,7 +88,16 @@ export class FlywheelLogger {
     if (!recordStore.has(key)) recordStore.set(key, []);
     recordStore.get(key)!.push(record);
     
-    console.log(`[Flywheel] Logged interaction ${record.id} for ${key}`);
+    // Save to Elasticsearch for persistence
+    try {
+      await ingestFlywheelRecord(record);
+      console.log(`[Flywheel] Successfully saved to Elasticsearch: ${record.id}`);
+    } catch (err) {
+      console.error(`[Flywheel] Failed to save to Elasticsearch:`, err.message);
+      // Don't let Elasticsearch errors crash the logger
+    }
+    
+    console.log(`[Flywheel] Logged interaction ${record.id} for ${key} (saved to ES)`);
     return record;
   }
   

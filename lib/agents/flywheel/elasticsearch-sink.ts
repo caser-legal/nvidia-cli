@@ -29,36 +29,36 @@ async function writeDLQ(record: DLQRecord): Promise<void> {
   logger.warn(`DLQ record written: ${filename}`);
 }
 
-export async function ingestFlywheelRecord(record: FlywheelRecord): Promise<void> {
+export async function ingestFlywheelRecord(record: any): Promise<void> {
+  // Convert logger format to Elasticsearch format
   const payload = {
     contract_version: "1.1" as const,
-    request: {
-      method: record.request?.method ?? "UNKNOWN",
-      url: record.request?.url ?? "UNKNOWN",
-      args: record.request?.args ?? {},
-    },
-    response: {
-      status: record.response?.status ?? 0,
-      data: record.response?.data,
-      latencyMs: record.response?.latencyMs ?? 0,
-    },
-    client_id: record.client_id,
-    workload_id: record.workload_id,
+    id: record.id,
     timestamp: record.timestamp,
-    ...(record.error_details && { error_details: record.error_details }),
-    ...(record.quality && { quality: record.quality }),
+    client_id: record.clientId,
+    workload_id: record.workloadId,
+    user_message: record.userMessage,
+    assistant_response: record.assistantResponse,
+    system_prompt: record.systemPrompt,
+    conversation_history: record.conversationHistory,
+    tool_calls: record.toolCalls,
+    model: record.model,
+    mode: record.mode,
+    token_usage: record.tokenUsage,
+    latency_ms: record.latencyMs,
+    quality_signals: record.qualitySignals,
   };
 
   let attempt = 0;
   while (attempt < MAX_RETRIES) {
     try {
       const result = await esClient.index({
-        index: "nvidia-cli-traces",
-        id: `${record.workload_id}-${record.timestamp}`,
+        index: "nvidia-cli-flywheel",
+        id: record.id,
         body: payload,
       });
       if (result.result === "created" || result.result === "updated") {
-        logger.info(`Indexed: ${record.workload_id}-${record.timestamp}`);
+        console.log(`[Flywheel] Indexed to Elasticsearch: ${record.id}`);
         return;
       }
     } catch (err: any) {
@@ -67,7 +67,7 @@ export async function ingestFlywheelRecord(record: FlywheelRecord): Promise<void
 
       if (shouldRetry && attempt < MAX_RETRIES - 1) {
         const delay = backoffDelay(attempt);
-        logger.warn(`Retry ${attempt + 1}/${MAX_RETRIES} after ${Math.round(delay)}ms (status=${status})`);
+        console.warn(`[Flywheel] Retry ${attempt + 1}/${MAX_RETRIES} after ${Math.round(delay)}ms (status=${status})`);
         await new Promise((r) => setTimeout(r, delay));
         attempt++;
         continue;
@@ -75,9 +75,9 @@ export async function ingestFlywheelRecord(record: FlywheelRecord): Promise<void
 
       // Permanent failure → DLQ
       await writeDLQ({ original: record, error: JSON.stringify(err), failedAt: Date.now() });
-      logger.error("Giving up after retries – stored to DLQ");
+      console.error("[Flywheel] Giving up after retries – stored to DLQ");
       return;
     }
   }
-  logger.error("Max retries exceeded – record dropped");
+  console.error("[Flywheel] Max retries exceeded – record dropped");
 }
