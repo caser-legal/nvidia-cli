@@ -147,6 +147,9 @@ export class NVIDIAReranker {
   private baseUrl: string;
   private useLocal: boolean;
   private localUrl: string;
+  private static lastCallTime = 0;
+  private static readonly DEFAULT_RATE_LIMIT_MS = 1000;
+  private static readonly RATE_LIMIT_MS: number = Number(process.env.NVIDIA_RERANK_RATE_LIMIT_MS) || 1000;
 
   constructor(model: string = 'nvidia/llama-3.2-nv-rerankqa-1b-v2', topN: number = 5) {
     this.model = model;
@@ -156,20 +159,69 @@ export class NVIDIAReranker {
     this.baseUrl = 'https://ai.api.nvidia.com/v1/retrieval';
   }
 
+  /**
+   * Perform a fetch request with exponential backoff retry on 429 responses.
+   */
+  private async fetchWithRetry(
+    url: string,
+    options: RequestInit,
+    maxRetries = 3,
+    baseDelay = 1000
+  ): Promise<Response> {
+    let retries = 0;
+    while (true) {
+      const response = await fetch(url, options);
+      if (response.ok || response.status !== 429) {
+        return response;
+      }
+      if (retries >= maxRetries) {
+        const errorBody = await response.text();
+        throw new Error(
+          `Rerank request failed after ${maxRetries} retries: ${response.status} ${errorBody}`
+        );
+      }
+      const delayMs = baseDelay * Math.pow(2, retries);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      retries++;
+    }
+  }
+
+  private async throttle(): Promise<void> {
+    const now = Date.now();
+    const elapsed = now - NVIDIAReranker.lastCallTime;
+    if (elapsed < NVIDIAReranker.RATE_LIMIT_MS) {
+      await new Promise((resolve) => setTimeout(resolve, NVIDIAReranker.RATE_LIMIT_MS - elapsed));
+    }
+    NVIDIAReranker.lastCallTime = Date.now();
+  }
+
   async rerank(query: string, documents: { content: string; metadata?: Record<string, unknown> }[]): Promise<{ index: number; score: number; content: string; metadata?: Record<string, unknown> }[]> {
     if (documents.length === 0) return [];
     if (this.useLocal) return this.rerankLocal(query, documents);
+    
+    await this.throttle();
 
     const apiKey = NVIDIA_API_KEY;
     if (!apiKey) throw new Error('NVIDIA API key required for reranking');
 
     const modelPath = this.model.replace(/\./g, '_');
     
-    const response = await fetch(`${this.baseUrl}/${modelPath}/reranking`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: this.model, query: { text: query }, passages: documents.map((doc) => ({ text: doc.content })), top_n: Math.min(this.topN, documents.length), truncate: 'END' }),
-    });
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/${modelPath}/reranking`,
+      {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.model,
+          query: { text: query },
+          passages: documents.map((doc) => ({ text: doc.content })),
+          top_n: Math.min(this.topN, documents.length),
+          truncate: 'END',
+        }),
+      },
+      3,
+      1000
+    );
 
     if (!response.ok) {
       const error = await response.text();

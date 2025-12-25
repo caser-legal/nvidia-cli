@@ -42,6 +42,14 @@ export function ChatInput({
       e.preventDefault();
       handleSend();
     }
+    if (e.key === "j" && e.ctrlKey) {
+      e.preventDefault();
+      const target = e.currentTarget;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      setValue(value.slice(0, start) + "\n" + value.slice(end));
+      setTimeout(() => target.setSelectionRange(start + 1, start + 1), 0);
+    }
   };
 
   const handleSend = () => {
@@ -49,6 +57,9 @@ export function ChatInput({
     onSend(value.trim(), images.length > 0 ? images : undefined);
     setValue("");
     setImages([]);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
     textareaRef.current?.focus();
   };
 
@@ -105,7 +116,7 @@ export function ChatInput({
         )}
 
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-end gap-2 p-2 rounded-xl border bg-background shadow-sm focus-within:border-[#76B900] transition-colors">
+          <div className="flex items-end gap-2 p-2 rounded-xl border bg-muted/30 shadow-sm focus-within:border-[#76B900] transition-colors">
             {/* Attachment button */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -141,13 +152,13 @@ export function ChatInput({
                 placeholder={placeholder}
                 disabled={disabled || isLoading}
                 autoResize
-                className="border-0 focus-visible:ring-0 resize-none min-h-[40px] max-h-[200px] py-2 px-0 bg-transparent"
+                className="border-0 focus-visible:ring-0 focus:ring-0 ring-0 outline-none resize-none min-h-[40px] max-h-[200px] py-2 px-0 bg-transparent"
               />
             </div>
 
             {/* Character/token count */}
             {charCount > 0 && (
-              <div className="text-xs text-muted-foreground shrink-0 self-center px-2">
+              <div className="text-xs text-muted-foreground shrink-0 px-2">
                 {charCount > 1000 ? `${(charCount/1000).toFixed(1)}k` : charCount}
               </div>
             )}

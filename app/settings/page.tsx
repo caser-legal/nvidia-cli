@@ -13,11 +13,11 @@ import { useSettingsStore } from "@/lib/store";
 import { useAgentSessionsStore } from "@/lib/store/agent-sessions";
 import { 
   Sun, Moon, Monitor, Eye, EyeOff, Key, Terminal, ChevronDown, ChevronRight,
-  ArrowLeft, RotateCcw
+  ArrowLeft, RotateCcw, Cloud, Server, Cpu, RefreshCw, Lightbulb, Check
 } from "lucide-react";
 import { LiveLogs } from "@/components/live-logs";
 
-// Tool definitions with full documentation - All 38 tools
+// Tool definitions with full documentation - All 36 tools
 const TOOLS = [
   // ============ PROJECT (2) ============
   {
@@ -318,23 +318,6 @@ const TOOLS = [
     howItWorks: "When research pulls from many sources, citations can get messy. This tool: removes duplicates, standardizes formats, merges similar sources, and creates clean bibliography.",
     example: 'deduplicate_sources({ citations: [...] })',
   },
-  // ============ REFLECTION (2) ============
-  {
-    name: "reflect_on_report",
-    path: "lib/agents/tools/reflection.ts",
-    category: "Reflection",
-    description: "Self-critique and improvement suggestions for documents.",
-    howItWorks: "Reads a document and provides critical feedback: what's missing, what's unclear, what could be improved. Like having an editor review your work before publishing.",
-    example: 'reflect_on_report({ content: "..." })',
-  },
-  {
-    name: "extend_report",
-    path: "lib/agents/tools/reflection.ts",
-    category: "Reflection",
-    description: "Adds new sections to an existing report.",
-    howItWorks: "Given feedback from reflect_on_report or your own ideas, adds new sections to a document while maintaining style and flow consistency.",
-    example: 'extend_report({ report: "...", add_sections: ["Conclusion", "Future Work"] })',
-  },
 ];
 
 export default function SettingsPage() {
@@ -554,17 +537,17 @@ export default function SettingsPage() {
                 <div className="flex gap-2">
                   <Button
                     variant={!useLocalLLM ? "default" : "outline"}
-                    className="flex-1"
+                    className="flex-1 gap-2"
                     onClick={() => handleBackendChange(false)}
                   >
-                    ☁️ NVIDIA NIM API
+                    <Cloud className="h-4 w-4" /> NVIDIA NIM API
                   </Button>
                   <Button
                     variant={useLocalLLM ? "default" : "outline"}
-                    className="flex-1"
+                    className="flex-1 gap-2"
                     onClick={() => handleBackendChange(true)}
                   >
-                    🖥️ Local Ollama
+                    <Server className="h-4 w-4" /> Local Ollama
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -611,14 +594,14 @@ export default function SettingsPage() {
 
               {/* Model Info */}
               <div className="p-4 rounded-lg bg-muted/50 space-y-4">
-                <div className="font-medium text-lg">
-                  🧠 Your AI Model Stack
+                <div className="font-medium text-lg flex items-center gap-2">
+                  <Cpu className="h-5 w-5" /> Your AI Model Stack
                 </div>
                 
                 {/* Main LLM */}
                 <div className="border-l-2 border-green-500 pl-3 space-y-1">
                   <div className="font-medium flex items-center gap-2">
-                    Main LLM: Nemotron 3 Nano 30B
+                    Main LLM: Nemotron 3 Nano
                     <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400">
                       {useLocalLLM ? "Local" : "Cloud"}
                     </span>
@@ -627,31 +610,31 @@ export default function SettingsPage() {
                     This is the &quot;brain&quot; - handles all your conversations, code generation, and reasoning.
                   </p>
                   <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                    <p>• <strong>MoE (Mixture of Experts)</strong> - Only 3B of 30B parameters activate per request = faster + cheaper</p>
-                    <p>• <strong>1M token context</strong> - Can &quot;see&quot; ~750,000 words at once (your entire iOS codebase)</p>
-                    <p>• <strong>Rate Limit:</strong> 40 requests/min on free tier</p>
+                    <p>• <strong>30B MoE</strong> - Only ~3.5B parameters activate per request = faster + cheaper</p>
+                    <p>• <strong>{useLocalLLM ? "1M" : "262K"} token context</strong> - {useLocalLLM ? "Full 1M native limit" : "Free tier limit (1M native)"}</p>
+                    <p>• <strong>Reasoning ON/OFF</strong> - Can toggle deep thinking mode</p>
                   </div>
                 </div>
 
                 {/* Embeddings */}
                 <div className="border-l-2 border-blue-500 pl-3 space-y-1">
                   <div className="font-medium flex items-center gap-2">
-                    Embeddings: NV-EmbedQA 1B v2
+                    Embeddings: NV EmbedQA 1B
                     <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">RAG</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Converts your code/docs into numbers (vectors) so the AI can search them semantically.
+                    Converts your code/docs into vectors so the AI can search them semantically.
                   </p>
                   <div className="text-xs text-muted-foreground mt-2">
-                    <p>• When you use <code className="bg-muted px-1 rounded">rag_ingest</code>, this model reads your files and creates searchable embeddings</p>
-                    <p>• 2048-dimensional vectors - high accuracy for code search</p>
+                    <p>• <code className="bg-muted px-1 rounded">rag_ingest</code> uses this to create searchable embeddings</p>
+                    <p>• 2048-dimensional vectors, 8K token context per chunk</p>
                   </div>
                 </div>
 
                 {/* Reranker */}
                 <div className="border-l-2 border-purple-500 pl-3 space-y-1">
                   <div className="font-medium flex items-center gap-2">
-                    Reranker: NV-RerankQA 1B v2
+                    Reranker: NV RerankQA 1B
                     <span className="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400">RAG</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -659,28 +642,31 @@ export default function SettingsPage() {
                   </p>
                   <div className="text-xs text-muted-foreground mt-2">
                     <p>• Embeddings find 100 candidates → Reranker picks the best 10</p>
-                    <p>• Much more accurate than embeddings alone</p>
+                    <p>• Rate limited to 1 req/sec to avoid 429 errors</p>
                   </div>
                 </div>
 
                 {/* Vision */}
                 <div className="border-l-2 border-orange-500 pl-3 space-y-1">
                   <div className="font-medium flex items-center gap-2">
-                    Vision: Nemotron Nano VL 12B v2
+                    Vision: Nemotron Nano VL 12B
                     <span className="text-xs px-2 py-0.5 rounded bg-orange-500/20 text-orange-400">UI Analysis</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Analyzes screenshots and images - finds UI bugs, compares mockups to implementations.
                   </p>
                   <div className="text-xs text-muted-foreground mt-2">
-                    <p>• Use <code className="bg-muted px-1 rounded">ios_ui_review</code> to check button alignment, spacing issues</p>
-                    <p>• Use <code className="bg-muted px-1 rounded">compare_mockup</code> to compare Figma designs to your app</p>
+                    <p>• <code className="bg-muted px-1 rounded">ios_ui_review</code> - check alignment, spacing issues</p>
+                    <p>• <code className="bg-muted px-1 rounded">compare_mockup</code> - compare designs to your app</p>
+                    <p>• 128K context, multi-image reasoning</p>
                   </div>
                 </div>
 
                 {/* How it all works together */}
                 <div className="mt-4 p-3 rounded bg-muted/30 text-sm">
-                  <div className="font-medium mb-2">🔄 How They Work Together</div>
+                  <div className="font-medium mb-2 flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4" /> How They Work Together
+                  </div>
                   <ol className="text-muted-foreground space-y-1 list-decimal list-inside">
                     <li>You ask a question about your code</li>
                     <li><strong>Embeddings</strong> search your indexed codebase for relevant files</li>
@@ -691,8 +677,8 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Single API Key note */}
-                <div className="text-xs text-muted-foreground border-t pt-3 mt-3">
-                  <strong>💡 One API Key:</strong> Your NVIDIA_API_KEY above powers ALL of these models. No separate keys needed.
+                <div className="text-xs text-muted-foreground border-t pt-3 mt-3 flex items-center gap-1">
+                  <Lightbulb className="h-3 w-3" /> <strong>One API Key:</strong> Your NVIDIA_API_KEY powers ALL of these models. No separate keys needed.
                 </div>
               </div>
 
@@ -725,7 +711,7 @@ export default function SettingsPage() {
                       </Button>
                     </div>
                     <Button onClick={handleSaveApiKey} disabled={saveStatus === "saving"}>
-                      {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved ✓" : "Save"}
+                      {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved" : "Save"}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -904,7 +890,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="flex justify-between p-2 bg-muted/30 rounded">
                   <span>Open Settings</span>
-                  <kbd className="bg-background px-2 py-0.5 rounded text-xs">⌘ ,</kbd>
+                  <kbd className="bg-background px-2 py-0.5 rounded text-xs">Cmd + ,</kbd>
                 </div>
                 <div className="flex justify-between p-2 bg-muted/30 rounded">
                   <span>Send Message</span>
@@ -913,6 +899,10 @@ export default function SettingsPage() {
                 <div className="flex justify-between p-2 bg-muted/30 rounded">
                   <span>New Line in Input</span>
                   <kbd className="bg-background px-2 py-0.5 rounded text-xs">Shift + Enter</kbd>
+                </div>
+                <div className="flex justify-between p-2 bg-muted/30 rounded">
+                  <span>New Line in Input</span>
+                  <kbd className="bg-background px-2 py-0.5 rounded text-xs">Ctrl + J</kbd>
                 </div>
                 <div className="flex justify-between p-2 bg-muted/30 rounded">
                   <span>Clear Input</span>
@@ -941,8 +931,8 @@ export default function SettingsPage() {
                   <h3 className="font-medium">How does it work?</h3>
                   <p className="text-sm text-muted-foreground">
                     When you send a message, it goes to NVIDIA&apos;s servers where a powerful language model 
-                    (Nemotron 3 Nano - think of it as a very sophisticated autocomplete that understands context) 
-                    figures out what you need. Then Dory uses its 38 tools — like reading files, running terminal 
+                    (Nemotron 3 Nano - a 30B MoE model with ~3.5B active parameters) 
+                    figures out what you need. Then Dory uses its 36 tools — like reading files, running terminal 
                     commands, or searching Google — to actually do the work. It&apos;s not just giving you answers; 
                     it&apos;s taking action.
                   </p>
@@ -954,7 +944,7 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground">
                     Tools are Dory&apos;s hands. Without tools, Dory could only talk. With tools, Dory can actually 
                     do things on your computer: create files, run programs, search the web, remember things you told it, 
-                    analyze images, and more. Each of the 38 tools listed above is a specific capability — like giving 
+                    analyze images, and more. Each of the 36 tools listed above is a specific capability — like giving 
                     someone access to your keyboard, your browser, or your file system.
                   </p>
                 </div>
@@ -964,9 +954,8 @@ export default function SettingsPage() {
                   <h3 className="font-medium">What are &quot;Tokens&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
                     Tokens are how the system measures text. Roughly, 1 token ≈ 4 characters or about ¾ of a word. 
-                    When you see &quot;238 tokens&quot;, that&apos;s roughly 180 words. Nemotron 3 Nano can handle up to 1 million 
-                    tokens at once — that&apos;s roughly 750,000 words or about 1,500 pages. The &quot;context&quot; percentage 
-                    shows how much of that capacity you&apos;ve used in the current conversation.
+                    When you see &quot;238 tokens&quot;, that&apos;s roughly 180 words. On the free cloud tier, context is limited to 
+                    262K tokens (~200K words). Self-hosted can use the full 1M token native limit.
                   </p>
                 </div>
 
@@ -1028,12 +1017,12 @@ export default function SettingsPage() {
                   </p>
                 </div>
 
-                {/* What is Vision Analysis */}
+                {/* Vision */}
                 <div className="p-4 rounded-lg bg-muted/30 space-y-2">
                   <h3 className="font-medium">What is &quot;Vision Analysis&quot;?</h3>
                   <p className="text-sm text-muted-foreground">
-                    Dory can &quot;see&quot; images using NVIDIA&apos;s Nemotron Nano VL 12B vision model. Send screenshots 
-                    of your iOS app and Dory can identify UI issues, check alignment, compare to mockups, 
+                    Dory can &quot;see&quot; images using NVIDIA&apos;s Nemotron Nano VL 12B vision model (128K context, multi-image). 
+                    Send screenshots of your iOS app and Dory can identify UI issues, check alignment, compare to mockups, 
                     and suggest improvements. It&apos;s like having a design reviewer who can actually look at 
                     your screens.
                   </p>
