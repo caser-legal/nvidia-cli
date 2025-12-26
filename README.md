@@ -10,13 +10,20 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Status-✅%20Operational-brightgreen" alt="Status" />
+  <img src="https://img.shields.io/badge/MCP%20Server-v2.0.0-blue" alt="MCP Version" />
+  <img src="https://img.shields.io/badge/Tools-44-orange" alt="Tools" />
+  <img src="https://img.shields.io/badge/Last%20Updated-Dec%2025%2C%202025-lightgrey" alt="Updated" />
+</p>
+
+<p align="center">
   <a href="#-what-is-dory">What is Dory?</a> •
   <a href="#-the-complete-system">Complete System</a> •
   <a href="#-how-it-all-works">How It Works</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#nvidia-model-stack">Models</a> •
   <a href="#rag-system-v2">RAG</a> •
-  <a href="#tools-36">Tools</a> •
+  <a href="#tools-44">Tools</a> •
   <a href="#mcp-integration-model-context-protocol">MCP</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#data-flywheel">Flywheel</a>
@@ -224,7 +231,7 @@ Now both **Codex CLI** and **Dory web app** use the exact same tools:
 
 ```
 ┌─────────────┐     ┌─────────────────┐     ┌──────────────┐
-│  Codex CLI  │────▶│   MCP Server    │────▶│  35 Tools    │
+│  Codex CLI  │────▶│   MCP Server    │────▶│  44 Tools    │
 └─────────────┘     │ (mcp-server.ts) │     │              │
                     │                 │     │ • file_read  │
 ┌─────────────┐     │   JSON-RPC      │     │ • bash       │
@@ -976,7 +983,7 @@ sequenceDiagram
     participant U as User
     participant A as Agent Core
     participant L as LLM (Nemotron)
-    participant T as Tools (38)
+    participant T as Tools (44)
     participant F as Flywheel
 
     U->>A: Query
@@ -1435,7 +1442,7 @@ flowchart TB
     end
 
     subgraph MCP["🔌 MCP Protocol"]
-        SERVER["mcp-server.ts<br/>35 Tools Exposed"]
+        SERVER["mcp-server.ts<br/>44 Tools Exposed"]
     end
 
     subgraph Tools[" Tool Implementations"]
@@ -1570,7 +1577,7 @@ flowchart TB
     end
 
     subgraph MCP_Servers["🔌 MCP Servers"]
-        NVIDIA[nvidia-cli<br/>36 Tools]
+        NVIDIA[nvidia-cli<br/>44 Tools]
         CTX7[Context7<br/>Live Docs Lookup]
     end
 
