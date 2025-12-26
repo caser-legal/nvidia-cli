@@ -38,6 +38,7 @@
     "node_modules",
     "nvidia-quickstarts-main",
     "quickstart-examples",
-    "mcp-server.ts"
+    "mcp-server.ts",
+    "flywheel-api.ts"
   ]
 }

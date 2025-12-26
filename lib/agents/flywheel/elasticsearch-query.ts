@@ -10,11 +10,11 @@ const esClient = new Client({
 export async function getFlywheelStats(): Promise<any> {
   try {
     const result = await esClient.count({
-      index: "nvidia-cli-flywheel"
+      index: "nvidia-cli-traces"
     });
     
     const recent = await esClient.search({
-      index: "nvidia-cli-flywheel",
+      index: "nvidia-cli-traces",
       body: {
         query: { match_all: {} },
         sort: [{ timestamp: { order: "desc" } }],
@@ -27,19 +27,20 @@ export async function getFlywheelStats(): Promise<any> {
       recent_records: recent.hits.hits.map((hit: any) => ({
         id: hit._source.id,
         timestamp: hit._source.timestamp,
-        user_message: hit._source.user_message?.substring(0, 100) + "...",
-        model: hit._source.model
+        user_message: hit._source._original?.userMessage?.substring(0, 100) + "...",
+        model: hit._source._original?.model
       }))
     };
   } catch (error) {
-    return { error: error.message, total_records: 0, recent_records: [] };
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: message, total_records: 0, recent_records: [] };
   }
 }
 
 export async function exportFlywheelData(): Promise<string[]> {
   try {
     const result = await esClient.search({
-      index: "nvidia-cli-flywheel",
+      index: "nvidia-cli-traces",
       body: {
         query: { match_all: {} },
         size: 1000

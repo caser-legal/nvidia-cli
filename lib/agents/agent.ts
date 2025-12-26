@@ -623,7 +623,7 @@ export class Agent {
         try {
           const scores = await this.evaluator.evaluateRecord(lastRecord);
           lastRecord.qualitySignals = {
-            overallScore: scores.overall || 5,
+            overallScore: scores.overallScore || 5,
             helpfulness: scores.helpfulness,
             accuracy: scores.accuracy,
             reasoning: String(scores.reasoning || ""),

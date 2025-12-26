@@ -1,31 +1,42 @@
-// Data Flywheel Logger
-// Captures agent interactions for continuous model improvement
-// Based on NVIDIA Data Flywheel Blueprint
+/**
+ * Data Flywheel Logger
+ * Captures agent interactions for continuous model improvement
+ * Based on NVIDIA Data Flywheel Blueprint
+ */
 
-import { 
-  FlywheelRecord, 
-  ToolCallRecord, 
+import {
+  FlywheelRecord,
+  ToolCallRecord,
   QualitySignals,
-  WorkloadClassification 
+  WorkloadClassification,
+  QUALITY_THRESHOLD,
 } from "./types";
-import { ingestFlywheelRecord } from "./elasticsearch-sink";
+import { ingestToElasticsearch } from "./elasticsearch-sink";
+import { routeToTrainingDir } from "./quality-filter";
+import { createLogger } from "../../logger";
 
-// In-memory store (replace with database in production)
+const log = createLogger("Flywheel");
+
+// In-memory store for current session
 const recordStore: Map<string, FlywheelRecord[]> = new Map();
 
-// Generate unique ID
+/**
+ * Generate unique ID for records
+ */
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Identify workload type from tool calls
+/**
+ * Identify workload type from tool calls
+ */
 function identifyWorkloadType(toolCalls: ToolCallRecord[]): WorkloadClassification {
-  const toolNames = toolCalls.map(t => t.toolName);
-  
-  if (toolNames.some(n => n.includes("search") || n.includes("research") || n === "search_specialist")) {
+  const toolNames = toolCalls.map((t) => t.toolName);
+
+  if (toolNames.some((n) => n.includes("search") || n.includes("research") || n === "search_specialist")) {
     return WorkloadClassification.RESEARCH;
   }
-  if (toolNames.some(n => n === "file_write" || n === "bash" || n.includes("code"))) {
+  if (toolNames.some((n) => n === "file_write" || n === "bash" || n.includes("code"))) {
     return WorkloadClassification.CODING;
   }
   if (toolCalls.length > 0) {
@@ -34,39 +45,49 @@ function identifyWorkloadType(toolCalls: ToolCallRecord[]): WorkloadClassificati
   return WorkloadClassification.GENERIC;
 }
 
-// Calculate quality signals from a record
+/**
+ * Calculate initial quality signals from response and tool calls
+ */
 function calculateQualitySignals(response: string, toolCalls: ToolCallRecord[]): QualitySignals {
   return {
     responseLength: response.length,
     toolCallCount: toolCalls.length,
-    errorCount: toolCalls.filter(t => !t.success).length,
+    errorCount: toolCalls.filter((t) => !t.success).length,
   };
+}
+
+export interface LogInteractionParams {
+  userMessage: string;
+  assistantResponse: string;
+  systemPrompt: string;
+  conversationHistory: Array<{ role: string; content: string }>;
+  toolCalls: ToolCallRecord[];
+  model: string;
+  mode: string;
+  tokenUsage: { promptTokens: number; completionTokens: number; totalTokens: number };
+  latencyMs: number;
 }
 
 export class FlywheelLogger {
   private clientId: string;
   private workloadId: string;
   private enabled: boolean;
-  
+
   constructor(options: { clientId?: string; workloadId?: string; enabled?: boolean } = {}) {
-    this.clientId = options.clientId || "default";
+    this.clientId = options.clientId || "nvidia-cli";
     this.workloadId = options.workloadId || `workload-${Date.now()}`;
     this.enabled = options.enabled ?? true;
   }
-  
-  async logInteraction(params: {
-    userMessage: string;
-    assistantResponse: string;
-    systemPrompt: string;
-    conversationHistory: Array<{ role: string; content: string }>;
-    toolCalls: ToolCallRecord[];
-    model: string;
-    mode: string;
-    tokenUsage: { promptTokens: number; completionTokens: number; totalTokens: number };
-    latencyMs: number;
-  }): Promise<FlywheelRecord | null> {
+
+  /**
+   * Log an interaction to the flywheel
+   * - Stores in memory
+   * - Persists to Elasticsearch
+   * - Routes to SFT/DPO directories based on quality
+   */
+  async logInteraction(params: LogInteractionParams): Promise<FlywheelRecord | null> {
     if (!this.enabled) return null;
-    
+
     const record: FlywheelRecord = {
       id: generateId(),
       timestamp: new Date().toISOString(),
@@ -82,49 +103,128 @@ export class FlywheelLogger {
       tokenUsage: params.tokenUsage,
       latencyMs: params.latencyMs,
       qualitySignals: calculateQualitySignals(params.assistantResponse, params.toolCalls),
+      workloadType: identifyWorkloadType(params.toolCalls),
     };
-    
+
+    // Store in memory
     const key = `${this.clientId}:${this.workloadId}`;
     if (!recordStore.has(key)) recordStore.set(key, []);
     recordStore.get(key)!.push(record);
-    
-    // Save to Elasticsearch for persistence
-    try {
-      await ingestFlywheelRecord(record);
-      console.log(`[Flywheel] Successfully saved to Elasticsearch: ${record.id}`);
-    } catch (err) {
-      console.error(`[Flywheel] Failed to save to Elasticsearch:`, err.message);
-      // Don't let Elasticsearch errors crash the logger
-    }
-    
-    console.log(`[Flywheel] Logged interaction ${record.id} for ${key} (saved to ES)`);
+
+    // Persist to Elasticsearch (async, don't block)
+    ingestToElasticsearch(record).catch((err) => {
+      log.error("Failed to persist to Elasticsearch", { error: err.message, recordId: record.id });
+    });
+
+    log.info(`Logged interaction ${record.id}`, {
+      workloadType: record.workloadType,
+      toolCalls: record.toolCalls.length,
+      latencyMs: record.latencyMs,
+    });
+
     return record;
   }
-  
+
+  /**
+   * Add LLM-as-Judge evaluation scores to a record
+   */
+  async addEvaluationScores(recordId: string, scores: Partial<QualitySignals>): Promise<boolean> {
+    const key = `${this.clientId}:${this.workloadId}`;
+    const records = recordStore.get(key);
+    if (!records) return false;
+
+    const record = records.find((r) => r.id === recordId);
+    if (!record) return false;
+
+    record.qualitySignals = {
+      ...record.qualitySignals!,
+      ...scores,
+      evaluatedAt: new Date().toISOString(),
+    };
+
+    // Route to training directory based on quality
+    try {
+      await routeToTrainingDir(record);
+    } catch (err) {
+      log.error("Failed to route to training dir", { error: String(err), recordId });
+    }
+
+    // Update in Elasticsearch
+    ingestToElasticsearch(record).catch((err) => {
+      log.error("Failed to update in Elasticsearch", { error: err.message, recordId });
+    });
+
+    log.info(`Added evaluation scores to ${recordId}`, { overallScore: scores.overallScore });
+    return true;
+  }
+
+  /**
+   * Add user feedback to a record
+   */
   addUserFeedback(recordId: string, rating: number, feedback?: string): boolean {
     const key = `${this.clientId}:${this.workloadId}`;
     const records = recordStore.get(key);
     if (!records) return false;
-    
-    const record = records.find(r => r.id === recordId);
+
+    const record = records.find((r) => r.id === recordId);
     if (!record) return false;
-    
-    record.qualitySignals = { ...record.qualitySignals!, userRating: rating, userFeedback: feedback };
-    console.log(`[Flywheel] Added feedback to ${recordId}: ${rating}/5`);
+
+    record.qualitySignals = {
+      ...record.qualitySignals!,
+      userRating: rating,
+      userFeedback: feedback,
+    };
+
+    // Route to training directory if we have enough signal
+    if (record.qualitySignals.overallScore !== undefined || rating >= 4) {
+      routeToTrainingDir(record).catch((err) => {
+        log.error("Failed to route to training dir", { error: String(err), recordId });
+      });
+    }
+
+    log.info(`Added user feedback to ${recordId}`, { rating });
     return true;
   }
-  
+
+  /**
+   * Get all records for current workload
+   */
   getRecords(): FlywheelRecord[] {
     const key = `${this.clientId}:${this.workloadId}`;
     return recordStore.get(key) || [];
   }
-  
-  getHighQualityRecords(minRating: number = 4): FlywheelRecord[] {
-    return this.getRecords().filter(r => r.qualitySignals?.userRating && r.qualitySignals.userRating >= minRating);
+
+  /**
+   * Get high-quality records suitable for training
+   */
+  getHighQualityRecords(minScore: number = QUALITY_THRESHOLD): FlywheelRecord[] {
+    return this.getRecords().filter((r) => {
+      // Check LLM-as-Judge score
+      if (r.qualitySignals?.overallScore !== undefined) {
+        return r.qualitySignals.overallScore >= minScore;
+      }
+      // Fall back to user rating (convert 1-5 to 0-10 scale)
+      if (r.qualitySignals?.userRating !== undefined) {
+        return r.qualitySignals.userRating * 2 >= minScore;
+      }
+      return false;
+    });
   }
-  
+
+  /**
+   * Get records that need evaluation
+   */
+  getUnevaluatedRecords(): FlywheelRecord[] {
+    return this.getRecords().filter(
+      (r) => r.qualitySignals?.overallScore === undefined && r.qualitySignals?.userRating === undefined
+    );
+  }
+
+  /**
+   * Export records in OpenAI fine-tuning format
+   */
   exportForTraining(): string[] {
-    return this.getRecords().map(r => {
+    return this.getRecords().map((r) => {
       const messages = [
         { role: "system", content: r.systemPrompt },
         ...r.conversationHistory,
@@ -134,57 +234,104 @@ export class FlywheelLogger {
       return JSON.stringify({ messages });
     });
   }
-  
+
+  /**
+   * Export records with tool calls in OpenAI format
+   */
   exportWithToolCalls(): string[] {
-    return this.getRecords().filter(r => r.toolCalls.length > 0).map(r => {
-      const toolCallsFormatted = r.toolCalls.map(tc => ({ name: tc.toolName, arguments: tc.arguments }));
-      return JSON.stringify({
-        messages: [
-          { role: "system", content: r.systemPrompt },
-          ...r.conversationHistory,
-          { role: "user", content: r.userMessage },
-        ],
-        tools: toolCallsFormatted,
-        assistant_response: r.assistantResponse,
+    return this.getRecords()
+      .filter((r) => r.toolCalls.length > 0)
+      .map((r) => {
+        const toolCallsFormatted = r.toolCalls.map((tc) => ({
+          type: "function",
+          function: { name: tc.toolName, arguments: JSON.stringify(tc.arguments) },
+        }));
+        return JSON.stringify({
+          messages: [
+            { role: "system", content: r.systemPrompt },
+            ...r.conversationHistory,
+            { role: "user", content: r.userMessage },
+            {
+              role: "assistant",
+              content: r.assistantResponse,
+              tool_calls: toolCallsFormatted.length > 0 ? toolCallsFormatted : undefined,
+            },
+          ],
+        });
       });
-    });
   }
-  
+
+  /**
+   * Get statistics for current workload
+   */
   getStats() {
     const records = this.getRecords();
-    if (records.length === 0) return { totalRecords: 0, byWorkloadType: {}, avgLatencyMs: 0, avgToolCalls: 0, errorRate: 0 };
-    
+    if (records.length === 0) {
+      return {
+        totalRecords: 0,
+        evaluatedRecords: 0,
+        highQualityRecords: 0,
+        byWorkloadType: {},
+        avgLatencyMs: 0,
+        avgToolCalls: 0,
+        errorRate: 0,
+        avgScore: 0,
+      };
+    }
+
     const byWorkloadType: Record<string, number> = {};
-    let totalLatency = 0, totalToolCalls = 0, totalErrors = 0;
-    
+    let totalLatency = 0;
+    let totalToolCalls = 0;
+    let totalErrors = 0;
+    let totalScore = 0;
+    let scoredCount = 0;
+
     for (const r of records) {
-      const type = identifyWorkloadType(r.toolCalls);
+      const type = r.workloadType || WorkloadClassification.GENERIC;
       byWorkloadType[type] = (byWorkloadType[type] || 0) + 1;
       totalLatency += r.latencyMs;
       totalToolCalls += r.toolCalls.length;
-      totalErrors += r.toolCalls.filter(t => !t.success).length;
+      totalErrors += r.toolCalls.filter((t) => !t.success).length;
+      if (r.qualitySignals?.overallScore !== undefined) {
+        totalScore += r.qualitySignals.overallScore;
+        scoredCount++;
+      }
     }
-    
+
     return {
       totalRecords: records.length,
+      evaluatedRecords: scoredCount,
+      highQualityRecords: this.getHighQualityRecords().length,
       byWorkloadType,
-      avgLatencyMs: totalLatency / records.length,
-      avgToolCalls: totalToolCalls / records.length,
-      errorRate: totalToolCalls > 0 ? totalErrors / totalToolCalls : 0,
+      avgLatencyMs: Math.round(totalLatency / records.length),
+      avgToolCalls: Math.round((totalToolCalls / records.length) * 10) / 10,
+      errorRate: totalToolCalls > 0 ? Math.round((totalErrors / totalToolCalls) * 100) / 100 : 0,
+      avgScore: scoredCount > 0 ? Math.round((totalScore / scoredCount) * 10) / 10 : 0,
     };
   }
-  
+
+  /**
+   * Clear records for current workload
+   */
   clear(): void {
     const key = `${this.clientId}:${this.workloadId}`;
     recordStore.delete(key);
+    log.info("Cleared flywheel records", { key });
   }
 }
 
-// Singleton instance
+// ============================================================================
+// SINGLETON MANAGEMENT
+// ============================================================================
+
 let globalLogger: FlywheelLogger | null = null;
 
-export function getFlywheelLogger(options?: { clientId?: string; workloadId?: string; enabled?: boolean }): FlywheelLogger {
-  if (!globalLogger) globalLogger = new FlywheelLogger(options);
+export function getFlywheelLogger(
+  options?: { clientId?: string; workloadId?: string; enabled?: boolean }
+): FlywheelLogger {
+  if (!globalLogger) {
+    globalLogger = new FlywheelLogger(options);
+  }
   return globalLogger;
 }
 
@@ -192,6 +339,6 @@ export function resetFlywheelLogger(): void {
   globalLogger = null;
 }
 
-
-// Quality threshold for filtering records
-export const QUALITY_THRESHOLD = 0.8;
+// Re-export types and constants
+export type { FlywheelRecord, ToolCallRecord, QualitySignals } from "./types";
+export { QUALITY_THRESHOLD } from "./types";

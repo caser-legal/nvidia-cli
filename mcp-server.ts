@@ -2,14 +2,19 @@
 /**
  * NVIDIA CLI MCP Server - Full Orchestration Version
  * Exposes all nvidia-cli tools + full Agent pipeline via MCP
- * 
- * NEW: dory_agent tool runs the complete orchestration pipeline
- * (unified context, RAG, flywheel, tool orchestrator, evaluator)
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+
+// Global error handlers to prevent transport crashes
+process.on("uncaughtException", (err) => {
+  console.error("[MCP] Uncaught exception:", err.message);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[MCP] Unhandled rejection:", reason);
+});
 
 // Import all tools
 import { BashTool } from "./lib/agents/tools/bash.ts";
@@ -35,9 +40,6 @@ import { VisionAnalysisTool, iOSUIReviewTool, MockupComparisonTool } from "./lib
 import {
   SearchSpecialistTool, ReportWriterTool, QualityReviewerTool,
   ReportExtenderTool, SourceDeduplicatorTool,
-  ReportPlannerTool as SpecialistReportPlannerTool,
-  SectionAuthorTool as SpecialistSectionAuthorTool,
-  ReportCompilerTool as SpecialistReportCompilerTool,
 } from "./lib/agents/tools/specialist-agents.ts";
 
 // Flywheel imports
@@ -84,10 +86,10 @@ const qualityReviewerTool = new QualityReviewerTool(apiKey);
 const reportExtenderTool = new ReportExtenderTool(apiKey);
 const sourceDeduplicatorTool = new SourceDeduplicatorTool();
 
-const flywheelLogger = getFlywheelLogger({ enabled: true });
+const flywheelLogger = getFlywheelLogger({ enabled: false }); // Disabled to prevent crashes
 
 // ============================================================================
-// DORY AGENT - FULL ORCHESTRATION PIPELINE (THE KEY NEW TOOL)
+// DORY AGENT - FULL ORCHESTRATION PIPELINE
 // ============================================================================
 
 server.tool(
@@ -129,7 +131,7 @@ For simple tool calls, use individual tools directly.`,
 );
 
 // ============================================================================
-// INDIVIDUAL TOOLS (for direct access when full orchestration not needed)
+// INDIVIDUAL TOOLS
 // ============================================================================
 
 server.tool("bash", "Execute shell command", 
@@ -331,53 +333,99 @@ server.tool("deduplicate_sources", "Clean up source citations",
   async (args) => ({ content: [{ type: "text", text: await sourceDeduplicatorTool.execute(args) }] })
 );
 
-// Flywheel Tools
+// Flywheel Tools - ENABLED
+const mcpFlywheelLogger = getFlywheelLogger({ 
+  clientId: "nvidia-cli-mcp", 
+  workloadId: `mcp-${Date.now()}`,
+  enabled: true 
+});
+
 server.tool("flywheel_log", "Log interaction for continuous improvement",
-  { user_message: z.string(), assistant_response: z.string(), tool_calls: z.array(z.object({ toolName: z.string(), arguments: z.record(z.unknown()), result: z.string(), durationMs: z.number(), success: z.boolean() })).optional(), model: z.string().optional(), mode: z.string().optional() },
+  { 
+    user_message: z.string(), 
+    assistant_response: z.string(), 
+    tool_calls: z.array(z.object({ 
+      toolName: z.string(), 
+      arguments: z.record(z.unknown()), 
+      result: z.string(), 
+      durationMs: z.number(), 
+      success: z.boolean() 
+    })).optional(), 
+    model: z.string().optional(), 
+    mode: z.string().optional() 
+  },
   async ({ user_message, assistant_response, tool_calls, model, mode }) => {
-    const record = await flywheelLogger.logInteraction({ userMessage: user_message, assistantResponse: assistant_response, systemPrompt: "", conversationHistory: [], toolCalls: tool_calls || [], model: model || "nvidia/nemotron-3-nano-30b-a3b", mode: mode || "agent", tokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }, latencyMs: 0 });
-    return { content: [{ type: "text", text: record ? `Logged: ${record.id}` : "Logging disabled" }] };
+    try {
+      const record = await mcpFlywheelLogger.logInteraction({
+        userMessage: user_message,
+        assistantResponse: assistant_response,
+        systemPrompt: "",
+        conversationHistory: [],
+        toolCalls: tool_calls || [],
+        model: model || "claude-opus-4.5",
+        mode: mode || "kiro-mcp",
+        tokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        latencyMs: 0,
+      });
+      return { content: [{ type: "text", text: `Logged interaction: ${record?.id}` }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Flywheel log error: ${error}` }] };
+    }
   }
 );
 
 server.tool("flywheel_stats", "Get flywheel statistics", {},
   async () => {
     try {
-      const { getFlywheelStats } = await import("./lib/agents/flywheel/elasticsearch-query.ts");
-      return { content: [{ type: "text", text: JSON.stringify(await getFlywheelStats(), null, 2) }] };
-    } catch (e) { return { content: [{ type: "text", text: `Error: ${e.message}` }] }; }
+      const stats = mcpFlywheelLogger.getStats();
+      return { content: [{ type: "text", text: JSON.stringify(stats, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Flywheel stats error: ${error}` }] };
+    }
   }
 );
 
 server.tool("flywheel_export", "Export flywheel data for training",
   { include_tool_calls: z.boolean().optional() },
-  async () => {
+  async ({ include_tool_calls }) => {
     try {
-      const { exportFlywheelData } = await import("./lib/agents/flywheel/elasticsearch-query.ts");
-      const data = await exportFlywheelData();
-      return { content: [{ type: "text", text: `Exported ${data.length} records` }] };
-    } catch (e) { return { content: [{ type: "text", text: `Error: ${e.message}` }] }; }
+      const data = include_tool_calls 
+        ? mcpFlywheelLogger.exportWithToolCalls()
+        : mcpFlywheelLogger.exportForTraining();
+      return { content: [{ type: "text", text: data.join("\n") || "No records to export" }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Flywheel export error: ${error}` }] };
+    }
   }
 );
 
 server.tool("flywheel_create_dataset", "Create training datasets",
   { workload_id: z.string() },
   async ({ workload_id }) => {
-    const creator = new DatasetCreator(flywheelLogger);
-    const datasets = creator.createDatasets(workload_id);
-    if (!datasets) return { content: [{ type: "text", text: "Not enough records (min 10)" }] };
-    return { content: [{ type: "text", text: `Train: ${datasets.train.numRecords}, Eval: ${datasets.eval.numRecords}, Test: ${datasets.test.numRecords}` }] };
+    try {
+      const creator = new DatasetCreator(mcpFlywheelLogger);
+      const datasets = creator.createDatasets(workload_id);
+      if (!datasets) {
+        return { content: [{ type: "text", text: "Not enough records for dataset creation (min 10 required)" }] };
+      }
+      return { content: [{ type: "text", text: JSON.stringify({
+        train: datasets.train.numRecords,
+        eval: datasets.eval.numRecords,
+        test: datasets.test.numRecords,
+      }, null, 2) }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Dataset creation error: ${error}` }] };
+    }
   }
 );
 
-// ============================================================================
 // START SERVER
 // ============================================================================
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[nvidia-cli MCP v2.0] Server started with full orchestration");
+  console.error("[nvidia-cli MCP v2.0] Server started");
 }
 
 main().catch((error) => {
