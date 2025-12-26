@@ -8,6 +8,9 @@ import { getCurrentProjectDir } from "./project";
 
 const execAsync = promisify(exec);
 
+// Default 5 minutes, allows override per-command
+const DEFAULT_TIMEOUT_MS = 300000;
+
 const schema = z.object({
   command: z.string().min(1, "command is required"),
   timeout: z.number().int().positive().optional(),
@@ -17,7 +20,8 @@ export class BashTool extends BaseTool {
   name = "bash";
   description = `Execute ANY shell command. No restrictions.
 Use for: curl, wget, open, python, node, git, npm, or any other command.
-Commands run in the current project directory (use set_project to change it).`;
+Commands run in the current project directory (use set_project to change it).
+Default timeout: 5 minutes. For long operations, pass a higher timeout value.`;
 
   parameters = {
     command: {
@@ -26,7 +30,7 @@ Commands run in the current project directory (use set_project to change it).`;
     },
     timeout: {
       type: "integer",
-      description: "Timeout in milliseconds (default: 120000)",
+      description: "Timeout in seconds (default: 300 = 5 minutes). Use higher values for downloads/builds.",
       optional: true,
     },
   };
@@ -38,7 +42,9 @@ Commands run in the current project directory (use set_project to change it).`;
     if (!v.success) return `Error: ${v.error}`;
     
     let command = v.data.command as string;
-    const timeout = (v.data.timeout as number) || 120000;
+    // Accept timeout in seconds for easier use, convert to ms
+    const timeoutInput = v.data.timeout as number | undefined;
+    const timeout = timeoutInput ? timeoutInput * 1000 : DEFAULT_TIMEOUT_MS;
     const cwd = getCurrentProjectDir();
     
     // Auto-exclude build folders from grep
@@ -75,7 +81,13 @@ Commands run in the current project directory (use set_project to change it).`;
       return result || "[Command completed with no output]";
     } catch (error) {
       if (error instanceof Error) {
-        const execError = error as Error & { stdout?: string; stderr?: string; code?: number };
+        const execError = error as Error & { stdout?: string; stderr?: string; code?: number; killed?: boolean };
+        
+        // Better timeout error message
+        if (execError.killed || error.message.includes('TIMEOUT')) {
+          return `Error: Command timed out after ${timeout / 1000} seconds. For long operations (downloads, builds), pass a higher timeout value.`;
+        }
+        
         let msg = `Error (exit code ${execError.code || "unknown"}): ${error.message}`;
         if (execError.stdout) msg += `\n[stdout] ${execError.stdout}`;
         if (execError.stderr) msg += `\n[stderr] ${execError.stderr}`;

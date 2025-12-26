@@ -9,6 +9,11 @@ import * as path from "path";
 
 const execAsync = promisify(exec);
 
+// Timeouts in ms
+const CLONE_TIMEOUT = 300000;  // 5 min for large repos
+const PULL_TIMEOUT = 120000;   // 2 min for updates
+const FIND_TIMEOUT = 60000;    // 1 min for file operations
+
 export class GitHubAnalyzerTool extends BaseTool {
   name = "github_analyzer";
   description = `Analyze a GitHub repository structure and code.
@@ -87,11 +92,11 @@ Operations:
     try {
       await fs.access(repoPath);
       // Already exists, pull latest
-      await execAsync(`cd "${repoPath}" && git pull`, { timeout: 60000 });
+      await execAsync(`cd "${repoPath}" && git pull`, { timeout: PULL_TIMEOUT });
       return `Repository updated at ${repoPath}`;
     } catch {
       // Clone fresh
-      await execAsync(`git clone --depth 1 "${repoUrl}" "${repoPath}"`, { timeout: 120000 });
+      await execAsync(`git clone --depth 1 "${repoUrl}" "${repoPath}"`, { timeout: CLONE_TIMEOUT });
       return `Repository cloned to ${repoPath}`;
     }
   }
@@ -102,7 +107,7 @@ Operations:
     
     const { stdout } = await execAsync(
       `find "${repoPath}" -maxdepth ${maxDepth} -type f -o -type d | grep -v ".git" | head -200`,
-      { timeout: 30000 }
+      { timeout: FIND_TIMEOUT }
     );
     
     const lines = stdout.trim().split("\n").map(l => l.replace(repoPath, "."));
@@ -133,7 +138,7 @@ Operations:
     const pattern = ext === "*" ? "*" : `*.${ext}`;
     const { stdout } = await execAsync(
       `find "${repoPath}" -name "${pattern}" -type f | grep -v ".git" | head -100`,
-      { timeout: 30000 }
+      { timeout: FIND_TIMEOUT }
     );
     
     const files = stdout.trim().split("\n").filter(Boolean).map(f => f.replace(repoPath, "."));
@@ -215,7 +220,7 @@ Operations:
     try {
       const { stdout } = await execAsync(
         `find "${repoPath}" -type f | grep -v ".git" | sed 's/.*\\.//' | sort | uniq -c | sort -rn | head -15`,
-        { timeout: 30000 }
+        { timeout: FIND_TIMEOUT }
       );
       results.push("\n---\n## File Types\n```");
       results.push(stdout.trim());

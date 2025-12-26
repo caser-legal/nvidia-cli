@@ -245,7 +245,7 @@ export class Agent {
         
         log.debug("Sending to LLM", { tools: toolDefs?.length || 0, tokens: contextCheck.stats.finalTokens });
         
-        const LLM_TIMEOUT_MS = 120000;
+        const LLM_TIMEOUT_MS = 300000;
         const timeoutController = new AbortController();
         const timeoutId = setTimeout(() => timeoutController.abort(), LLM_TIMEOUT_MS);
         
