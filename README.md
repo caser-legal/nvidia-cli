@@ -860,6 +860,8 @@ flowchart TB
         L5[🟣 Agent Core]
         L6[🟡 Tools]
         L7[🟠 Learning]
+        L8[🔶 Storage]
+        L9[🟦 APIs]
     end
 
     %% ===== USER INPUT =====
@@ -921,10 +923,11 @@ flowchart TB
     TOOL_TYPE -->|"File operations"| FS_TOOLS[" File System<br/>file_read, file_write"]
     TOOL_TYPE -->|"Run command"| SYS_TOOLS["💻 System<br/>bash"]
     TOOL_TYPE -->|"Search docs"| RAG_TOOLS[" RAG Tools<br/>rag_search, rag_query"]
-    TOOL_TYPE -->|"Analyze image"| VIS_TOOLS["👁️ Vision<br/>ios_ui_review"]
+    TOOL_TYPE -->|"Analyze image"| VIS_TOOLS["👁️ Vision<br/>ios_ui_review, vision_analyze"]
     TOOL_TYPE -->|"Web search"| SRCH_TOOLS[" Search<br/>google_search"]
-    TOOL_TYPE -->|"Complex task"| SPEC_TOOLS[" Specialists<br/>8 sub-agents"]
+    TOOL_TYPE -->|"Complex task"| SPEC_TOOLS[" Specialists<br/>9 sub-agents"]
     TOOL_TYPE -->|"Remember"| MEM_TOOLS[" Memory<br/>memory, entity_memory"]
+    TOOL_TYPE -->|"Full pipeline"| DORY_TOOL[" Dory Agent<br/>Complete orchestration"]
     
     FS_TOOLS --> TOOL_RESULT["📤 Tool Result"]
     SYS_TOOLS --> TOOL_RESULT
@@ -933,15 +936,34 @@ flowchart TB
     SRCH_TOOLS --> TOOL_RESULT
     SPEC_TOOLS --> TOOL_RESULT
     MEM_TOOLS --> TOOL_RESULT
+    DORY_TOOL --> TOOL_RESULT
     
     TOOL_RESULT -->|"Add to messages"| LLM
     
     %% ===== FINAL RESPONSE =====
     RESPONSE_CHECK -->|"Final answer ready"| FINAL["💬 Final Response"]
     
-    %% ===== LEARNING =====
+    %% ===== LEARNING & STORAGE =====
     FINAL --> LOG[" Flywheel Logger<br/>Record interaction"]
-    LOG --> METRICS["Calculate metrics:<br/>Tokens, latency, tool count"]
+    LOG --> ES_SINK[" Elasticsearch Sink<br/>Retry + DLQ"]
+    LOG --> QUALITY[" Quality Scorer<br/>Binary reward"]
+    
+    ES_SINK --> ES_DB[("🔶 Elasticsearch<br/>nvidia-cli-traces")]
+    ES_SINK -->|"Failed writes"| DLQ_DIR[("🔶 dlq/<br/>Dead letter queue")]
+    
+    QUALITY --> FILTER[" Quality Filter"]
+    FILTER -->|"reward=1"| SFT_DIR[("🔶 sft_traces/<br/>High quality")]
+    FILTER -->|"reward=0"| DPO_DIR[("🔶 dpo_traces/<br/>Low quality")]
+    
+    %% ===== MONITORING =====
+    ES_DB --> DASHBOARD[" Live Dashboard<br/>Metrics & alerts"]
+    ES_DB --> ERROR_MON[" Error Monitor<br/>5-min checks"]
+    
+    ERROR_MON -->|">5% error rate"| ALERT[" Slack Alert<br/>Webhook"]
+    
+    %% ===== APIs =====
+    DASHBOARD --> DASH_API[" Dashboard API<br/>/api/dashboard"]
+    LOG --> FLY_API[" Flywheel API<br/>:3001"]
     
     %% ===== OUTPUT =====
     FINAL --> OUTPUT[/"📱 Response to User<br/>'Your AppDelegate.swift sets up...'"/]
@@ -972,8 +994,18 @@ flowchart TB
     style SRCH_TOOLS fill:#fdcb6e,color:#000
     style SPEC_TOOLS fill:#fdcb6e,color:#000
     style MEM_TOOLS fill:#fdcb6e,color:#000
+    style DORY_TOOL fill:#fdcb6e,color:#000
     style LOG fill:#e17055
-    style METRICS fill:#e17055
+    style ES_SINK fill:#e17055
+    style QUALITY fill:#e17055
+    style FILTER fill:#e17055
+    style ES_DB fill:#ff7675
+    style DLQ_DIR fill:#ff7675
+    style SFT_DIR fill:#ff7675
+    style DPO_DIR fill:#ff7675
+    style DASHBOARD fill:#74b9ff
+    style DASH_API fill:#74b9ff
+    style FLY_API fill:#74b9ff
 ```
 
 ### Agent Tool Execution Loop
@@ -1312,58 +1344,211 @@ nvidia-cli/
 │   ├── layout.tsx                  # Root layout with ErrorBoundary
 │   ├── page.tsx                    # Main interface
 │   ├── settings/page.tsx           # Settings
+│   ├── dashboard/page.tsx          # Live flywheel dashboard
 │   └── api/
 │       ├── agent-chat/route.ts     # Main endpoint (44 tools)
+│       ├── mcp-chat/route.ts       # MCP agent endpoint
+│       ├── chat/route.ts           # Alternative endpoint
 │       ├── health/route.ts         # Health check endpoint
-│       └── chat/route.ts           # Alternative endpoint
+│       ├── dashboard/route.ts      # Metrics API endpoint
+│       ├── flywheel/route.ts       # Flywheel API endpoint
+│       ├── webhook/route.ts        # Error alert webhook
+│       ├── terminal/route.ts       # Terminal server endpoint
+│       ├── shutdown/route.ts       # Graceful shutdown
+│       └── settings/
+│           └── api-key/route.ts    # API key management
 │
 ├── lib/
 │   ├── config.ts                   # Centralized configuration
 │   ├── logger.ts                   # Structured logging with levels
 │   ├── context-manager.ts          # Token tracking + safety margins
 │   ├── mcp-client.ts               # MCP client with retry logic
+│   ├── nvidia.ts                   # NVIDIA model configurations
+│   ├── utils.ts                    # Utility functions
+│   ├── nat-client.ts               # NAT client integration
+│   ├── terminal-server.ts          # Terminal server
 │   │
 │   ├── agents/
 │   │   ├── agent.ts                # Core agent loop with timeout
+│   │   ├── mcp-agent.ts            # MCP-based agent
+│   │   ├── mcp-agent-runner.ts     # MCP agent runner
 │   │   ├── unified-context.ts      # Context aggregation
 │   │   ├── retrieval-router.ts     # Query routing with fast path
 │   │   ├── feedback-optimizer.ts   # Failure analysis with Nemotron
+│   │   ├── tool-orchestrator.ts    # Smart tool selection
+│   │   ├── retry-mixin.ts          # NAT-style retry wrapper
+│   │   ├── tracing.ts              # Request ID correlation
+│   │   ├── base-tool.ts            # Base tool class
+│   │   ├── types.ts                # Agent type definitions
+│   │   ├── index.ts                # Agent exports
 │   │   │
 │   │   ├── tools/                  # 44 tools with zod validation
 │   │   │   ├── registry.ts         # Single source of truth
-│   │   │   ├── file-read.ts        # With zod schema
-│   │   │   ├── file-write.ts       # With zod schema
-│   │   │   ├── bash.ts             # With zod schema
-│   │   │   ├── google-search.ts    # With zod schema
-│   │   │   └── ...
+│   │   │   ├── file-read.ts        # File operations
+│   │   │   ├── file-write.ts       # File operations
+│   │   │   ├── bash.ts             # Shell commands
+│   │   │   ├── project.ts          # Project management
+│   │   │   ├── google-search.ts    # Web search
+│   │   │   ├── parallel-search.ts  # Multi-query search
+│   │   │   ├── local-docs-search.ts # Local documentation
+│   │   │   ├── memory.ts           # Vector memory
+│   │   │   ├── unified-memory.ts   # Unified memory interface
+│   │   │   ├── github-analyzer.ts  # GitHub analysis
+│   │   │   ├── vision-analysis.ts  # Image/video analysis
+│   │   │   ├── code-documentation.ts # Code docs generation
+│   │   │   ├── mermaid-generator.ts # Diagram creation
+│   │   │   ├── specialist-agents.ts # 9 specialist agents
+│   │   │   ├── reflection.ts       # Self-critique
+│   │   │   ├── report-planner.ts   # Report planning
+│   │   │   ├── rag-tools.ts        # RAG operations
+│   │   │   ├── think.ts            # Internal reasoning
+│   │   │   └── ...                 # 44 total tools
 │   │   │
 │   │   ├── rag/                    # RAG V2 system
 │   │   │   ├── pipeline-v2.ts      # Main pipeline
-│   │   │   ├── config.ts           # Profiles
+│   │   │   ├── config.ts           # Profiles (iOS, Research, Chatbot)
+│   │   │   ├── hybrid-retriever.ts # BM25 + Vector with RRF
+│   │   │   ├── contextual-retriever.ts # Wide net → Rerank → Narrow
+│   │   │   ├── text-splitter.ts    # Swift-aware chunking
+│   │   │   ├── embeddings.ts       # NVIDIA embeddings + reranking
+│   │   │   ├── reflection.ts       # Relevance checking
+│   │   │   ├── query-decomposition.ts # Complex query breakdown
+│   │   │   ├── query-rewriter.ts   # Self-corrective loop
+│   │   │   ├── research-workflow.ts # Multi-step research
 │   │   │   ├── auto-updater.ts     # Flywheel → RAG sync
-│   │   │   └── ...
+│   │   │   ├── types.ts            # RAG type definitions
+│   │   │   └── index.ts            # RAG exports
 │   │   │
-│   │   ├── memory/                 # Vector memory
-│   │   │   └── vector-memory.ts    # Semantic storage
+│   │   ├── memory/                 # Vector memory system
+│   │   │   ├── vector-memory.ts    # Semantic storage
+│   │   │   └── index.ts            # Memory exports
 │   │   │
-│   │   ├── flywheel/               # Data logging
-│   │   │   ├── logger.ts           # QUALITY_THRESHOLD = 7
-│   │   │   ├── evaluator.ts        # LLM-as-Judge
-│   │   │   └── dataset-creator.ts  # Train/eval/test splits
+│   │   ├── flywheel/               # Production data flywheel
+│   │   │   ├── logger.ts           # Central flywheel logger
+│   │   │   ├── elasticsearch-sink.ts # ES ingest with retry + DLQ
+│   │   │   ├── trajectory-scorer.ts # Binary reward scoring
+│   │   │   ├── quality-filter.ts   # Route to sft_traces/ or dpo_traces/
+│   │   │   ├── evaluator.ts        # LLM-as-Judge scoring
+│   │   │   ├── dataset-creator.ts  # Train/eval/test splits
+│   │   │   ├── error-monitor.ts    # 5-min error rate checker
+│   │   │   ├── types.ts            # Flywheel schemas
+│   │   │   └── index.ts            # Flywheel exports
 │   │   │
 │   │   └── observability/
 │   │       └── tracer.ts           # Span export (console + OTLP)
 │   │
-│   └── security/
-│       └── pii-guard.ts            # Extended PII patterns
+│   ├── security/
+│   │   ├── pii-guard.ts            # Extended PII patterns
+│   │   └── tool-guard.ts           # Tool security (deprecated)
+│   │
+│   └── store/                      # State management
+│       ├── index.ts                # Main store
+│       ├── conversations.ts        # Conversation state
+│       └── agent-sessions.ts       # Agent session state
 │
-├── components/
+├── components/                     # React components
 │   ├── error-boundary.tsx          # React error boundary
-│   └── ...
+│   ├── live-logs.tsx               # Live log viewer
+│   ├── model-comparison.tsx        # Model comparison
+│   ├── usage-dashboard.tsx         # Usage metrics
+│   ├── project-settings.tsx        # Project configuration
+│   ├── nvidia-background.tsx       # NVIDIA branding
+│   ├── command-palette.tsx         # Command palette
+│   ├── onboarding-tour.tsx         # User onboarding
+│   ├── share-dialog.tsx            # Share functionality
+│   ├── templates-dialog.tsx        # Template selection
+│   │
+│   ├── layout/
+│   │   └── header.tsx              # App header
+│   │
+│   ├── chat/
+│   │   ├── chat-input.tsx          # Chat input component
+│   │   ├── chat-message.tsx        # Message display
+│   │   └── welcome-screen.tsx      # Welcome screen
+│   │
+│   ├── agents/
+│   │   ├── agent-chat.tsx          # Agent chat interface
+│   │   ├── cli-chat.tsx            # CLI chat interface
+│   │   ├── agent-mode-selector.tsx # Mode selection
+│   │   ├── coder-panel.tsx         # Coder agent panel
+│   │   ├── coder-setup.tsx         # Coder setup
+│   │   ├── terminal.tsx            # Terminal component
+│   │   ├── terminal-inner.tsx      # Terminal implementation
+│   │   └── index.ts                # Agent component exports
+│   │
+│   ├── sidebar/
+│   │   └── sidebar.tsx             # App sidebar
+│   │
+│   ├── settings/
+│   │   ├── settings-modal.tsx      # Settings modal
+│   │   └── keyboard-shortcuts.tsx  # Keyboard shortcuts
+│   │
+│   ├── artifacts/
+│   │   └── artifact-panel.tsx      # Artifact display
+│   │
+│   ├── providers/
+│   │   └── theme-provider.tsx      # Theme provider
+│   │
+│   └── ui/                         # UI components
+│       ├── button.tsx              # Button component
+│       ├── input.tsx               # Input component
+│       ├── textarea.tsx            # Textarea component
+│       ├── dialog.tsx              # Dialog component
+│       ├── tabs.tsx                # Tabs component
+│       ├── tooltip.tsx             # Tooltip component
+│       ├── dropdown-menu.tsx       # Dropdown menu
+│       ├── scroll-area.tsx         # Scroll area
+│       ├── sonner.tsx              # Toast notifications
+│       └── progress.tsx            # Progress bar
+│
+├── public/                         # Static assets
+│   ├── nvidia-logo.webp           # NVIDIA logo
+│   ├── avatar.png                  # User avatar
+│   └── manifest.json              # PWA manifest
+│
+├── bin/                            # Executable scripts
+│   ├── dory                        # Dory CLI script
+│   ├── start-all                   # Start all services
+│   └── setup-nat                   # NAT setup script
+│
+├── nat/                            # NVIDIA Agent Toolkit config
+│   ├── pyproject.toml              # Python project config
+│   ├── configs/
+│   │   ├── dory_workflow.yml       # Production NAT config
+│   │   ├── eval_config.yml         # Evaluation config
+│   │   ├── mcp_server.yml          # MCP server config
+│   │   └── profiling_config.yml    # Profiling config
+│   ├── data/
+│   │   └── eval_dataset.jsonl      # Evaluation dataset
+│   └── src/
+│       └── nvidia_cli_nat/
+│           ├── __init__.py         # Package init
+│           └── register.py         # NAT registration
+│
+├── notebooks/                      # Jupyter notebooks
+│   ├── builder.ipynb               # System builder notebook
+│   └── key.md                      # API key notes
+│
+├── sft_traces/                     # High-quality traces (reward=1)
+├── dpo_traces/                     # Low-quality traces (reward=0)
+├── dlq/                            # Dead-letter queue for failed ES writes
 │
 ├── mcp-server.ts                   # MCP server (npx tsx)
+├── flywheel-api.ts                 # Flywheel API server
 ├── start.sh                        # Dev startup script
-└── .env.local                      # NVIDIA_API_KEY here
+├── package.json                    # Node.js dependencies
+├── tsconfig.json                   # TypeScript config
+├── tailwind.config.ts              # Tailwind CSS config
+├── next.config.js                  # Next.js config
+├── postcss.config.js               # PostCSS config
+├── .eslintrc.json                  # ESLint config
+├── .gitignore                      # Git ignore rules
+├── .env.local                      # Environment variables
+├── .env.example                    # Environment template
+├── .project-context                # Project context
+├── FLYWHEEL-VERIFICATION.md        # Flywheel verification status
+├── FLYWHEEL-FIX-TODO.md           # Flywheel implementation checklist
+└── README.md                       # This file
 ```
 
 ---
@@ -1430,7 +1615,7 @@ MCP (Model Context Protocol) is an open standard by Anthropic that lets AI tools
 
 **After MCP:** One MCP server exposes all tools, any client can use them.
 
-### Architecture
+### MCP Integration Architecture
 
 ```mermaid
 flowchart TB
@@ -1441,36 +1626,110 @@ flowchart TB
         FUTURE["Future Clients<br/>(Claude, etc.)"]
     end
 
-    subgraph MCP["🔌 MCP Protocol"]
-        SERVER["mcp-server.ts<br/>44 Tools Exposed"]
+    subgraph MCP_Layer["🔌 MCP Protocol Layer"]
+        SERVER["mcp-server.ts<br/>JSON-RPC over stdio"]
+        DISCOVERY["Tool Discovery<br/>listTools()"]
+        EXECUTION["Tool Execution<br/>callTool(name, args)"]
     end
 
-    subgraph Tools[" Tool Implementations"]
-        BASH["bash"]
-        FILE["file_read/write"]
-        RAG["rag_* (8 tools)"]
-        SEARCH["google_search"]
-        MEMORY["memory"]
-        FLYWHEEL["flywheel_*"]
-        MORE["...30 more"]
+    subgraph Tool_Categories[" Tool Categories (44 Total)"]
+        ORCHESTRATION["🎯 Orchestration (1)<br/>dory_agent"]
+        
+        CORE["⚙️ Core (5)<br/>file_read, file_write<br/>bash, set_project<br/>get_project"]
+        
+        VISION["👁️ Vision (3)<br/>vision_analyze<br/>ios_ui_review<br/>compare_mockup"]
+        
+        RAG_TOOLS["📚 RAG (8)<br/>rag_ingest, rag_search<br/>rag_query, rag_research<br/>rag_stats, rag_clear<br/>rag_validate, rag_update"]
+        
+        SEARCH_TOOLS[" Search (3)<br/>google_search<br/>parallel_search<br/>local_docs_search"]
+        
+        MEMORY_TOOLS["🧠 Memory (3)<br/>memory<br/>entity_memory<br/>unified_memory"]
+        
+        CODE_TOOLS["💻 Code & Docs (4)<br/>github_analyzer<br/>github_file_reader<br/>code_documentation<br/>documentation_specialist"]
+        
+        DIAGRAM_TOOLS["📊 Diagrams (2)<br/>mermaid_generator<br/>quick_diagram"]
+        
+        SPECIALIST_TOOLS[" Specialists (9)<br/>search_specialist<br/>report_planner<br/>section_author<br/>report_writer<br/>report_compiler<br/>report_extender<br/>quality_reviewer<br/>deduplicate_sources<br/>reflection"]
+        
+        FLYWHEEL_TOOLS[" Flywheel (4)<br/>flywheel_log<br/>flywheel_stats<br/>flywheel_export<br/>flywheel_create_dataset"]
+        
+        REASONING["🤔 Reasoning (1)<br/>think"]
     end
 
+    subgraph Infrastructure[" Infrastructure"]
+        NVIDIA_API["NVIDIA NIM API<br/>4 Models"]
+        GOOGLE_API["Google Custom Search<br/>Web search"]
+        ES_DB[("Elasticsearch<br/>Data storage")]
+        VECTOR_MEM[("Vector Memory<br/>~/.nvidia-cli/memory")]
+        RAG_STORE[("RAG Store<br/>.rag-store.json")]
+        TRAINING_DIRS[("Training Dirs<br/>sft_traces/, dpo_traces/")]
+    end
+
+    %% Client connections
     CODEX -->|"stdio/JSON-RPC"| SERVER
     KIRO -->|"stdio/JSON-RPC"| SERVER
     DORY -->|"stdio/JSON-RPC"| SERVER
     FUTURE -->|"stdio/JSON-RPC"| SERVER
 
-    SERVER --> BASH
-    SERVER --> FILE
-    SERVER --> RAG
-    SERVER --> SEARCH
-    SERVER --> MEMORY
-    SERVER --> FLYWHEEL
-    SERVER --> MORE
+    %% MCP Layer
+    SERVER --> DISCOVERY
+    SERVER --> EXECUTION
+    
+    %% Tool routing
+    DISCOVERY --> ORCHESTRATION
+    DISCOVERY --> CORE
+    DISCOVERY --> VISION
+    DISCOVERY --> RAG_TOOLS
+    DISCOVERY --> SEARCH_TOOLS
+    DISCOVERY --> MEMORY_TOOLS
+    DISCOVERY --> CODE_TOOLS
+    DISCOVERY --> DIAGRAM_TOOLS
+    DISCOVERY --> SPECIALIST_TOOLS
+    DISCOVERY --> FLYWHEEL_TOOLS
+    DISCOVERY --> REASONING
+    
+    EXECUTION --> ORCHESTRATION
+    EXECUTION --> CORE
+    EXECUTION --> VISION
+    EXECUTION --> RAG_TOOLS
+    EXECUTION --> SEARCH_TOOLS
+    EXECUTION --> MEMORY_TOOLS
+    EXECUTION --> CODE_TOOLS
+    EXECUTION --> DIAGRAM_TOOLS
+    EXECUTION --> SPECIALIST_TOOLS
+    EXECUTION --> FLYWHEEL_TOOLS
+    EXECUTION --> REASONING
 
+    %% Infrastructure connections
+    ORCHESTRATION --> NVIDIA_API
+    VISION --> NVIDIA_API
+    RAG_TOOLS --> NVIDIA_API
+    MEMORY_TOOLS --> NVIDIA_API
+    SPECIALIST_TOOLS --> NVIDIA_API
+    
+    SEARCH_TOOLS --> GOOGLE_API
+    
+    FLYWHEEL_TOOLS --> ES_DB
+    RAG_TOOLS --> RAG_STORE
+    MEMORY_TOOLS --> VECTOR_MEM
+    FLYWHEEL_TOOLS --> TRAINING_DIRS
+
+    %% Styling
     style Clients fill:#76b900
-    style MCP fill:#0984e3
-    style Tools fill:#fdcb6e,color:#000
+    style MCP_Layer fill:#0984e3
+    style Tool_Categories fill:#fdcb6e,color:#000
+    style Infrastructure fill:#ff7675
+    style ORCHESTRATION fill:#e17055
+    style CORE fill:#00b894
+    style VISION fill:#6c5ce7
+    style RAG_TOOLS fill:#a29bfe
+    style SEARCH_TOOLS fill:#fd79a8
+    style MEMORY_TOOLS fill:#fdcb6e,color:#000
+    style CODE_TOOLS fill:#55a3ff
+    style DIAGRAM_TOOLS fill:#00cec9
+    style SPECIALIST_TOOLS fill:#fab1a0
+    style FLYWHEEL_TOOLS fill:#e84393
+    style REASONING fill:#2d3436,color:#fff
 ```
 
 ### How It Works
@@ -2077,6 +2336,69 @@ After adding, run `source ~/.zshrc` or open a new terminal.
 - All MCP server processes
 - Elasticsearch (via PID file for nvquit)
 - Clean shutdown with confirmation message
+
+---
+
+## Additional Files & Documentation
+
+### Development Files
+
+| File | Purpose |
+|------|---------|
+| `FLYWHEEL-VERIFICATION.md` | Complete verification status of flywheel system components |
+| `FLYWHEEL-FIX-TODO.md` | Implementation checklist for flywheel system (completed) |
+| `flywheel-api.ts` | Standalone flywheel API server (port 3001) |
+| `mcp-server.ts.backup` | Backup of MCP server implementation |
+| `tsconfig.tsbuildinfo` | TypeScript build cache |
+| `.project-context` | Project context for AI assistants |
+
+### Training Data Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `sft_traces/` | High-quality interactions (reward=1) for Supervised Fine-Tuning |
+| `dpo_traces/` | Low-quality interactions (reward=0) for Direct Preference Optimization |
+| `dlq/` | Dead Letter Queue for failed Elasticsearch writes |
+
+### Notebooks & Experiments
+
+| File | Purpose |
+|------|---------|
+| `notebooks/builder.ipynb` | System builder and experimentation notebook |
+| `notebooks/key.md` | API key management notes |
+
+### NAT Integration
+
+| Directory/File | Purpose |
+|----------------|---------|
+| `nat/` | NVIDIA Agent Toolkit integration |
+| `nat/configs/dory_workflow.yml` | Production NAT workflow configuration |
+| `nat/configs/eval_config.yml` | Evaluation configuration |
+| `nat/configs/mcp_server.yml` | MCP server configuration |
+| `nat/configs/profiling_config.yml` | Performance profiling configuration |
+| `nat/data/eval_dataset.jsonl` | Evaluation dataset |
+| `nat/src/nvidia_cli_nat/` | NAT registration and integration code |
+
+### Executable Scripts
+
+| File | Purpose |
+|------|---------|
+| `bin/dory` | Dory CLI script |
+| `bin/start-all` | Start all services script |
+| `bin/setup-nat` | NAT setup and configuration script |
+| `start.sh` | Development startup script (creates directories, starts services) |
+
+### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `tsconfig.json` | TypeScript compiler configuration |
+| `tailwind.config.ts` | Tailwind CSS configuration |
+| `next.config.js` | Next.js configuration |
+| `postcss.config.js` | PostCSS configuration |
+| `.eslintrc.json` | ESLint linting rules |
+| `.env.example` | Environment variables template |
+| `.gitignore` | Git ignore patterns |
 
 ---
 
