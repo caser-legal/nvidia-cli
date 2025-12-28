@@ -29,3 +29,4 @@ build/
 
 # Memory store (user data)
 # Note: ~/.nvidia-cli/memory.json is outside repo
+elasticsearch-8.11.0/

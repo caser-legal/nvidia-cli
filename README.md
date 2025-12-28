@@ -484,6 +484,9 @@ git clone https://github.com/caser-legal/nvidia-cli.git
 cd nvidia-cli
 npm install
 
+# Setup Elasticsearch (required for RAG - downloads ~500MB)
+./scripts/setup-elasticsearch.sh
+
 # Add your NVIDIA API key (single key for everything)
 echo "NVIDIA_API_KEY=nvapi-xxx" > .env.local
 
