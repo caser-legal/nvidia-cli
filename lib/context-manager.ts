@@ -118,7 +118,7 @@ export function getContextLimits(useLocalLLM: boolean): ContextLimits {
 // Context truncation strategies
 export type TruncationStrategy = 
   | "sliding_window"      // Keep most recent messages
-  | "smart_summarize"     // Summarize older messages
+  | "smart_summarize"     // Summarize older messages into compressed context
   | "tool_results_first"  // Truncate tool results first
   | "preserve_system";    // Always keep system prompt
 
@@ -129,6 +129,42 @@ export interface TruncationResult {
   finalTokens: number;
   removedCount: number;
   strategy: TruncationStrategy;
+  summary?: string; // Summary of removed content (for smart_summarize)
+}
+
+/**
+ * Summarize messages into compressed context
+ */
+function summarizeMessages(messages: OpenAI.ChatCompletionMessageParam[]): string {
+  const summaryParts: string[] = [];
+  
+  for (const msg of messages) {
+    const content = typeof msg.content === "string" ? msg.content : 
+      Array.isArray(msg.content) ? msg.content.filter(p => p.type === "text").map(p => (p as {text: string}).text).join(" ") : "";
+    
+    if (!content) continue;
+    
+    if (msg.role === "user") {
+      // Extract key request from user message
+      const firstLine = content.split("\n")[0].slice(0, 200);
+      summaryParts.push(`User asked: ${firstLine}`);
+    } else if (msg.role === "assistant") {
+      // Extract key action/response
+      if (content.includes("tool_call") || content.includes("<function")) {
+        summaryParts.push("Assistant used tools");
+      } else {
+        const firstLine = content.split("\n")[0].slice(0, 150);
+        summaryParts.push(`Assistant: ${firstLine}`);
+      }
+    } else if (msg.role === "tool") {
+      // Summarize tool result
+      const toolName = "name" in msg ? msg.name : "tool";
+      const success = !content.toLowerCase().includes("error");
+      summaryParts.push(`Tool ${toolName}: ${success ? "succeeded" : "failed"}`);
+    }
+  }
+  
+  return summaryParts.join("\n");
 }
 
 /**
@@ -156,9 +192,46 @@ export function truncateMessages(
   
   let truncatedMessages = [...messages];
   let removedCount = 0;
+  let summary: string | undefined;
   
   switch (strategy) {
-    case "tool_results_first":
+    case "smart_summarize": {
+      // Summarize older messages instead of deleting them
+      const systemMsg = truncatedMessages[0];
+      const otherMsgs = truncatedMessages.slice(1);
+      
+      // Keep last 3 messages verbatim (NVIDIA RAG best practice)
+      const recentCount = Math.min(3, otherMsgs.length);
+      const recentMsgs = otherMsgs.slice(-recentCount);
+      const olderMsgs = otherMsgs.slice(0, -recentCount);
+      
+      if (olderMsgs.length > 0) {
+        // Summarize older messages
+        summary = summarizeMessages(olderMsgs);
+        removedCount = olderMsgs.length;
+        
+        // Create summary message
+        const summaryMsg: OpenAI.ChatCompletionMessageParam = {
+          role: "system",
+          content: `[Previous conversation summary]\n${summary}`,
+        };
+        
+        // Reconstruct: system + summary + recent
+        truncatedMessages = [systemMsg, summaryMsg, ...recentMsgs];
+        
+        // If still too large, fall back to sliding_window on recent
+        let currentTokens = estimateMessagesTokens(truncatedMessages);
+        while (currentTokens > availableTokens && recentMsgs.length > 1) {
+          recentMsgs.shift();
+          removedCount++;
+          truncatedMessages = [systemMsg, summaryMsg, ...recentMsgs];
+          currentTokens = estimateMessagesTokens(truncatedMessages);
+        }
+      }
+      break;
+    }
+    
+    case "tool_results_first": {
       // Enterprise mode: NO tool result truncation
       // Models have 128K-1M context windows - truncating tool output breaks error detection
       // Only remove old messages if context is truly exceeded
@@ -202,8 +275,9 @@ export function truncateMessages(
         ? [systemMsg, firstUserMsg, ...middleMsgs]
         : [systemMsg, ...middleMsgs];
       break;
+    }
       
-    case "sliding_window":
+    case "sliding_window": {
       // Keep system prompt and most recent N messages
       const system = truncatedMessages[0];
       const recent = truncatedMessages.slice(1);
@@ -215,8 +289,9 @@ export function truncateMessages(
       
       truncatedMessages = [system, ...recent];
       break;
+    }
       
-    case "preserve_system":
+    case "preserve_system": {
       // Only keep system prompt and last user message
       const sysPrompt = truncatedMessages[0];
       const lastUser = truncatedMessages.filter(m => m.role === "user").pop();
@@ -226,6 +301,7 @@ export function truncateMessages(
         removedCount = messages.length - 2;
       }
       break;
+    }
   }
   
   const finalTokens = estimateMessagesTokens(truncatedMessages);
@@ -237,6 +313,7 @@ export function truncateMessages(
     finalTokens,
     removedCount,
     strategy,
+    summary,
   };
 }
 
@@ -301,7 +378,7 @@ export class ContextManager {
   prepareForAPI(
     messages: OpenAI.ChatCompletionMessageParam[],
     tools?: OpenAI.ChatCompletionTool[],
-    strategy: TruncationStrategy = "tool_results_first"
+    strategy: TruncationStrategy = "smart_summarize" // Default to smart_summarize
   ): {
     messages: OpenAI.ChatCompletionMessageParam[];
     truncated: boolean;
@@ -310,6 +387,7 @@ export class ContextManager {
       originalTokens: number;
       finalTokens: number;
       removedMessages: number;
+      summary?: string;
     };
   } {
     const toolsTokens = estimateToolsTokens(tools);
@@ -320,6 +398,9 @@ export class ContextManager {
     let warning: string | null = null;
     if (result.truncated) {
       warning = `Context truncated: ${result.originalTokens.toLocaleString()} → ${result.finalTokens.toLocaleString()} tokens (removed ${result.removedCount} messages)`;
+      if (result.summary) {
+        warning += ` [summarized]`;
+      }
     }
     
     const check = this.checkFit(result.messages, tools);
@@ -335,6 +416,7 @@ export class ContextManager {
         originalTokens: result.originalTokens,
         finalTokens: result.finalTokens,
         removedMessages: result.removedCount,
+        summary: result.summary,
       },
     };
   }

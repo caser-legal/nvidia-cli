@@ -19,12 +19,20 @@ export class Tracer {
   private spans: Map<string, Span> = new Map();
   private activeSpans: string[] = [];
   private static readonly MAX_SPANS = 1000;
-  private exportEnabled: boolean;
   private traceId: string;
 
-  constructor(exportEnabled: boolean = process.env.TRACE_EXPORT === "true") {
-    this.exportEnabled = exportEnabled;
+  constructor() {
     this.traceId = uuidv4();
+    // Ensure trace directory exists on startup
+    this.ensureTraceDir();
+  }
+  
+  private async ensureTraceDir(): Promise<void> {
+    try {
+      await fs.mkdir(TRACE_DIR, { recursive: true });
+    } catch {
+      // Ignore - will retry on export
+    }
   }
 
   startSpan(name: string, attributes: Record<string, unknown> = {}): string {
@@ -65,6 +73,7 @@ export class Tracer {
       this.activeSpans.splice(index, 1);
     }
     
+    // ALWAYS export - not optional
     this.exportSpan(span);
   }
 
@@ -82,12 +91,11 @@ export class Tracer {
       this.activeSpans.splice(index, 1);
     }
     
+    // ALWAYS export - not optional
     this.exportSpan(span);
   }
 
   private async exportSpan(span: Span): Promise<void> {
-    if (!this.exportEnabled) return;
-    
     const duration = span.endTime ? span.endTime - span.startTime : 0;
     const logEntry = {
       trace_id: this.traceId,
@@ -99,12 +107,10 @@ export class Tracer {
       duration_ms: duration,
       status: span.status,
       attributes: span.attributes,
+      timestamp: new Date().toISOString(),
     };
     
-    // Export to stderr for real-time monitoring
-    console.error(`[TRACE] ${JSON.stringify(logEntry)}`);
-    
-    // Also persist to file for later analysis
+    // Persist to file - ALWAYS (not optional)
     try {
       await fs.mkdir(TRACE_DIR, { recursive: true });
       const filename = `${this.traceId}.jsonl`;
@@ -113,7 +119,7 @@ export class Tracer {
         JSON.stringify(logEntry) + "\n"
       );
     } catch {
-      // Silent failure for trace persistence
+      // Silent failure for trace persistence - don't break main flow
     }
   }
 

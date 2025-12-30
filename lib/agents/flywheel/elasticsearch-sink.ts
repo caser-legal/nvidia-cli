@@ -1,11 +1,12 @@
 /**
  * Elasticsearch Sink
  * Persists flywheel records to Elasticsearch with retry logic and DLQ
+ * Falls back to file-based storage when ES is unavailable
  */
 
 import { Client } from "@elastic/elasticsearch";
 import { FlywheelRecord, DLQRecord, toNATFormat } from "./types";
-import { writeFile, mkdir, readdir, readFile, unlink } from "node:fs/promises";
+import { writeFile, mkdir, readdir, readFile, unlink, appendFile } from "node:fs/promises";
 import * as path from "node:path";
 import { createLogger } from "../../logger";
 
@@ -14,9 +15,16 @@ const log = createLogger("ES-Sink");
 // Configuration
 const ES_ENDPOINT = process.env.ELASTICSEARCH_ENDPOINT ?? "http://localhost:9200";
 const ES_INDEX = "nvidia-cli-traces";
-const MAX_RETRIES = 5;
-const INITIAL_BACKOFF_MS = 1000;
-const DLQ_DIR = path.resolve(process.cwd(), "dlq");
+const MAX_RETRIES = 3; // Reduced for faster fallback
+const INITIAL_BACKOFF_MS = 500;
+const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const DLQ_DIR = path.join(HOME_DIR, ".nvidia-cli", "flywheel", "dlq");
+const FALLBACK_DIR = path.join(HOME_DIR, ".nvidia-cli", "flywheel", "records");
+
+// Track ES availability to avoid repeated connection attempts
+let esAvailable: boolean | null = null;
+let lastEsCheck = 0;
+const ES_CHECK_INTERVAL_MS = 60000; // Re-check ES availability every 60s
 
 // Lazy client initialization
 let client: Client | null = null;
@@ -29,12 +37,38 @@ function getClient(): Client {
 }
 
 /**
+ * Check if Elasticsearch is available
+ */
+async function checkEsAvailability(): Promise<boolean> {
+  const now = Date.now();
+  
+  // Use cached result if recent
+  if (esAvailable !== null && (now - lastEsCheck) < ES_CHECK_INTERVAL_MS) {
+    return esAvailable;
+  }
+  
+  try {
+    const esClient = getClient();
+    await esClient.ping();
+    esAvailable = true;
+    lastEsCheck = now;
+    log.info("Elasticsearch is available");
+    return true;
+  } catch {
+    esAvailable = false;
+    lastEsCheck = now;
+    log.warn("Elasticsearch unavailable - using file-based fallback");
+    return false;
+  }
+}
+
+/**
  * Exponential backoff with jitter
  */
 function getBackoffMs(attempt: number): number {
   const base = INITIAL_BACKOFF_MS * Math.pow(2, attempt);
   const jitter = Math.random() * 0.3 * base;
-  return Math.min(base + jitter, 30000); // Cap at 30s
+  return Math.min(base + jitter, 10000); // Cap at 10s
 }
 
 /**
@@ -43,17 +77,32 @@ function getBackoffMs(attempt: number): number {
 function isRetryable(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
-    // Retry on network errors, 429, 5xx
     if (message.includes("econnrefused") || message.includes("timeout") || message.includes("network")) {
       return true;
     }
   }
-  // Check for HTTP status codes
   const statusCode = (error as { statusCode?: number })?.statusCode;
   if (statusCode === 429 || (statusCode && statusCode >= 500)) {
     return true;
   }
   return false;
+}
+
+/**
+ * Write record to file-based fallback storage
+ */
+async function writeToFallback(record: FlywheelRecord): Promise<void> {
+  try {
+    await mkdir(FALLBACK_DIR, { recursive: true });
+    const filename = `records-${new Date().toISOString().split("T")[0]}.jsonl`;
+    await appendFile(
+      path.join(FALLBACK_DIR, filename),
+      JSON.stringify(record) + "\n"
+    );
+    log.debug(`Record ${record.id} written to fallback storage`);
+  } catch (error) {
+    log.error("Failed to write to fallback storage", { error: String(error), recordId: record.id });
+  }
 }
 
 /**
@@ -80,13 +129,22 @@ async function writeToDLQ(record: FlywheelRecord, error: string, retryCount: num
 
 /**
  * Ingest a flywheel record to Elasticsearch with retry logic
+ * Falls back to file storage when ES is unavailable
  */
 export async function ingestToElasticsearch(record: FlywheelRecord): Promise<boolean> {
+  // Check ES availability first
+  const esUp = await checkEsAvailability();
+  
+  if (!esUp) {
+    // Use file-based fallback
+    await writeToFallback(record);
+    return true; // Return true because record is persisted (just not to ES)
+  }
+  
   const esClient = getClient();
   
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      // Convert to NAT format for ES storage
       const natRecord = toNATFormat(record);
       
       await esClient.index({
@@ -94,7 +152,6 @@ export async function ingestToElasticsearch(record: FlywheelRecord): Promise<boo
         id: record.id,
         document: {
           ...natRecord,
-          // Also store original format for dashboard queries
           _original: {
             userMessage: record.userMessage,
             assistantResponse: record.assistantResponse,
@@ -112,6 +169,13 @@ export async function ingestToElasticsearch(record: FlywheelRecord): Promise<boo
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
+      // Mark ES as unavailable on connection errors
+      if (errorMessage.toLowerCase().includes("econnrefused")) {
+        esAvailable = false;
+        await writeToFallback(record);
+        return true;
+      }
+      
       if (isRetryable(error) && attempt < MAX_RETRIES - 1) {
         const backoff = getBackoffMs(attempt);
         log.warn(`ES indexing failed, retrying in ${backoff}ms`, {
@@ -123,9 +187,9 @@ export async function ingestToElasticsearch(record: FlywheelRecord): Promise<boo
         continue;
       }
       
-      // Non-retryable or max retries exceeded
-      await writeToDLQ(record, errorMessage, attempt + 1);
-      return false;
+      // Non-retryable or max retries exceeded - use fallback
+      await writeToFallback(record);
+      return true;
     }
   }
   
@@ -136,11 +200,20 @@ export async function ingestToElasticsearch(record: FlywheelRecord): Promise<boo
  * Bulk ingest multiple records
  */
 export async function bulkIngest(records: FlywheelRecord[]): Promise<{ success: number; failed: number }> {
+  const esUp = await checkEsAvailability();
+  
+  if (!esUp) {
+    // Write all to fallback
+    for (const record of records) {
+      await writeToFallback(record);
+    }
+    return { success: records.length, failed: 0 };
+  }
+  
   const esClient = getClient();
   let success = 0;
   let failed = 0;
   
-  // Process in batches of 100
   const batchSize = 100;
   for (let i = 0; i < records.length; i += batchSize) {
     const batch = records.slice(i, i + batchSize);
@@ -174,7 +247,7 @@ export async function bulkIngest(records: FlywheelRecord[]): Promise<{ success: 
             const recordId = item.index._id;
             const record = batch.find((r) => r.id === recordId);
             if (record) {
-              await writeToDLQ(record, JSON.stringify(item.index.error), 1);
+              await writeToFallback(record);
             }
           } else {
             success++;
@@ -184,12 +257,12 @@ export async function bulkIngest(records: FlywheelRecord[]): Promise<{ success: 
         success += batch.length;
       }
     } catch (error) {
-      log.error("Bulk ingest failed", { error: String(error), batchStart: i });
-      failed += batch.length;
-      // Write all to DLQ
+      log.error("Bulk ingest failed, using fallback", { error: String(error), batchStart: i });
+      // Write all to fallback
       for (const record of batch) {
-        await writeToDLQ(record, String(error), 1);
+        await writeToFallback(record);
       }
+      success += batch.length; // Count as success since persisted to fallback
     }
   }
   
@@ -245,7 +318,6 @@ export async function getDLQStats(): Promise<{ count: number; oldestFailure?: st
       return { count: 0 };
     }
     
-    // Find oldest
     let oldestFailure: string | undefined;
     for (const file of jsonFiles.slice(0, 1)) {
       const content = await readFile(path.join(DLQ_DIR, file), "utf-8");
@@ -260,9 +332,33 @@ export async function getDLQStats(): Promise<{ count: number; oldestFailure?: st
 }
 
 /**
+ * Get fallback storage statistics
+ */
+export async function getFallbackStats(): Promise<{ fileCount: number; totalRecords: number }> {
+  try {
+    await mkdir(FALLBACK_DIR, { recursive: true });
+    const files = await readdir(FALLBACK_DIR);
+    const jsonlFiles = files.filter((f) => f.endsWith(".jsonl"));
+    
+    let totalRecords = 0;
+    for (const file of jsonlFiles) {
+      const content = await readFile(path.join(FALLBACK_DIR, file), "utf-8");
+      totalRecords += content.split("\n").filter(Boolean).length;
+    }
+    
+    return { fileCount: jsonlFiles.length, totalRecords };
+  } catch {
+    return { fileCount: 0, totalRecords: 0 };
+  }
+}
+
+/**
  * Ensure ES index exists with proper mapping
  */
 export async function ensureIndex(): Promise<void> {
+  const esUp = await checkEsAvailability();
+  if (!esUp) return;
+  
   const esClient = getClient();
   
   try {
@@ -296,9 +392,23 @@ export async function ensureIndex(): Promise<void> {
     
     log.info(`Created ES index: ${ES_INDEX}`);
   } catch (error) {
-    // Index might already exist or ES not available
     log.debug("Index creation skipped", { error: String(error) });
   }
+}
+
+/**
+ * Check if ES is currently available (cached result)
+ */
+export function isElasticsearchAvailable(): boolean {
+  return esAvailable === true;
+}
+
+/**
+ * Force re-check of ES availability
+ */
+export async function recheckElasticsearch(): Promise<boolean> {
+  lastEsCheck = 0; // Reset cache
+  return checkEsAvailability();
 }
 
 // Legacy export for backward compatibility

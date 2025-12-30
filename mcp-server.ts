@@ -439,6 +439,8 @@ server.tool("health_check", "Check MCP server health and component status", {},
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       flywheel: flywheelLogger.getStats(),
+      elasticsearch: await (async () => { try { const { isElasticsearchAvailable, getFallbackStats } = await import("./lib/agents/flywheel/elasticsearch-sink.ts"); return { available: isElasticsearchAvailable(), fallback: await getFallbackStats() }; } catch { return { available: false }; } })(),
+      tracer: (await import("./lib/agents/observability/tracer.ts")).globalTracer.getStats(),
       runner: getRunnerStats(),
       timestamp: new Date().toISOString(),
     };
