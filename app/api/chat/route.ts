@@ -2,7 +2,7 @@
 // Purpose: Main entry point for Dory agent modes (full autonomy + supervised research), supercharged for iOS development
 // Last updated: December 23, 2025 — Ultra-comprehensive prompt with ALL reference sections, iOS optimizations
 import { NextRequest } from "next/server";
-import { Agent } from "@/lib/agents/agent";
+import { SimpleAgent as Agent } from "@/lib/agents/simple-agent";
 import { FileReadTool } from "@/lib/agents/tools/file-read";
 import { FileWriteTool } from "@/lib/agents/tools/file-write";
 import { BashTool } from "@/lib/agents/tools/bash";
@@ -435,7 +435,6 @@ export async function POST(request: NextRequest) {
             if (abortSignal.aborted) return;
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
           },
-          flywheelLogger,
           abortSignal,
         });
 

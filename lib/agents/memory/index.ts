@@ -1,6 +1,12 @@
 /**
  * Memory Module Index
- * Exports unified vector-based memory system
+ * Exports unified memory system - SINGLE source of truth
  */
 
-export { VectorMemoryStore, getVectorMemory, type MemoryEntry } from './vector-memory';
+export { 
+  getUnifiedMemory, 
+  resetUnifiedMemory,
+  VectorMemoryStore,
+  getVectorMemory,
+  type MemoryEntry 
+} from './unified-store';

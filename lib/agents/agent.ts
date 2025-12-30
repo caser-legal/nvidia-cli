@@ -1,9 +1,7 @@
-// Agent Core
-import { NVIDIA_API_KEY } from "../api-key";
-// Main agent loop using NVIDIA NIM API with tool execution
-// Integrated with Data Flywheel for continuous model improvement
-// Context management for handling API token limits
+// Agent Core - FULLY WIRED VERSION
+// All orchestration components are MANDATORY and ACTUALLY USED
 
+import { NVIDIA_API_KEY } from "../api-key";
 import OpenAI from "openai";
 import type {
   Tool,
@@ -22,15 +20,14 @@ import { FeedbackOptimizer } from "./feedback-optimizer";
 import { AutoRAGUpdater } from "./rag/auto-updater";
 import { FlywheelEvaluator } from "./flywheel/evaluator";
 import { ContextManager, getContextLimits } from "../context-manager";
+import { executeAgentSpawnHooks, executePostToolUseHooks, executeStopHooks } from "./hooks";
 import { createLogger } from "../logger";
 
 const log = createLogger("Agent");
 
-// Check if using local LLM
 const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
 const CONTEXT_LIMITS = getContextLimits(USE_LOCAL_LLM);
 
-// Default to Nano-30B with NVIDIA recommended settings for tool calling
 const DEFAULT_CONFIG: AgentConfig = {
   model: "nvidia/nemotron-3-nano-30b-a3b",
   maxTokens: 16384,
@@ -45,19 +42,22 @@ export class Agent {
   private tools: Map<string, Tool>;
   private messages: AgentMessage[];
   private systemPrompt: string;
+  private baseSystemPrompt: string; // Original prompt before optimizations
   private onEvent?: (event: AgentEvent) => void;
-  private flywheelLogger?: FlywheelLogger;
+  private flywheelLogger: FlywheelLogger;
   private toolCallRecords: ToolCallRecord[] = [];
   private mode: string = "chat";
-  private unifiedContext?: UnifiedContext;
+  private unifiedContext: UnifiedContext;
   private piiGuard: PIIGuard;
+  private piiMap: Map<string, string> = new Map(); // For bidirectional PII handling
   private tracer: Tracer;
-  private toolOrchestrator?: ToolOrchestrator;
-  private feedbackOptimizer?: FeedbackOptimizer;
-  private autoRAGUpdater?: AutoRAGUpdater;
-  private evaluator?: FlywheelEvaluator;
+  private toolOrchestrator: ToolOrchestrator;
+  private feedbackOptimizer: FeedbackOptimizer;
+  private autoRAGUpdater: AutoRAGUpdater;
+  private evaluator: FlywheelEvaluator;
   private abortSignal?: AbortSignal;
   private contextManager: ContextManager;
+  private hooksExecuted = false;
 
   constructor(options: {
     apiKey?: string;
@@ -66,13 +66,13 @@ export class Agent {
     tools?: Tool[];
     config?: Partial<AgentConfig>;
     onEvent?: (event: AgentEvent) => void;
-    flywheelLogger?: FlywheelLogger;
+    flywheelLogger: FlywheelLogger; // MANDATORY
     mode?: string;
-    unifiedContext?: UnifiedContext;
-    toolOrchestrator?: ToolOrchestrator;
-    feedbackOptimizer?: FeedbackOptimizer;
-    autoRAGUpdater?: AutoRAGUpdater;
-    evaluator?: FlywheelEvaluator;
+    unifiedContext: UnifiedContext; // MANDATORY
+    toolOrchestrator: ToolOrchestrator; // MANDATORY
+    feedbackOptimizer: FeedbackOptimizer; // MANDATORY
+    autoRAGUpdater: AutoRAGUpdater; // MANDATORY
+    evaluator: FlywheelEvaluator; // MANDATORY
     abortSignal?: AbortSignal;
   }) {
     const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
@@ -80,7 +80,7 @@ export class Agent {
     const apiKey = useLocalLLM ? "ollama" : (options.apiKey || NVIDIA_API_KEY);
     
     if (!useLocalLLM && !apiKey) {
-      throw new Error("NVIDIA_API_KEY is required. Set it in .env.local or pass it to the Agent constructor.");
+      throw new Error("NVIDIA_API_KEY is required");
     }
     
     this.client = new OpenAI({
@@ -89,36 +89,31 @@ export class Agent {
     });
 
     this.config = { ...DEFAULT_CONFIG, ...options.config };
-    if (useLocalLLM && this.config.model === "nvidia/nemotron-3-nano-30b-a3b") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.config.model = "nemotron-3-nano" as any;
-    }
     this.systemPrompt = options.systemPrompt;
     this.tools = new Map();
+    this.baseSystemPrompt = options.systemPrompt;
     this.messages = [];
     this.onEvent = options.onEvent;
+    this.abortSignal = options.abortSignal;
+    
+    // ALL orchestration components are MANDATORY
     this.unifiedContext = options.unifiedContext;
     this.toolOrchestrator = options.toolOrchestrator;
     this.feedbackOptimizer = options.feedbackOptimizer;
     this.autoRAGUpdater = options.autoRAGUpdater;
     this.evaluator = options.evaluator;
-    this.abortSignal = options.abortSignal;
+    this.flywheelLogger = options.flywheelLogger;
     
     this.contextManager = new ContextManager(useLocalLLM);
-    const limits = this.contextManager.getLimits();
-    log.info(`Context limits: ${limits.maxInputTokens.toLocaleString()} tokens`, { backend: useLocalLLM ? "local" : "hosted" });
-    
     this.piiGuard = new PIIGuard();
     this.tracer = globalTracer;
+    this.mode = options.mode || "chat";
 
     for (const tool of options.tools || []) {
       this.tools.set(tool.name, tool);
     }
     
-    log.info(`Registered ${this.tools.size} tools`, { tools: Array.from(this.tools.keys()) });
-    
-    this.flywheelLogger = options.flywheelLogger;
-    this.mode = options.mode || "chat";
+    log.info(`Agent initialized with ${this.tools.size} tools`);
   }
 
   private emit(event: AgentEvent) {
@@ -127,7 +122,7 @@ export class Agent {
 
   private getToolDefinitions(allowedNames?: string[]) {
     const tools = Array.from(this.tools.values());
-    if (allowedNames) {
+    if (allowedNames && allowedNames.length > 0) {
       return tools.filter(t => allowedNames.includes(t.name)).map(t => t.toDefinition());
     }
     return tools.map((t) => t.toDefinition());
@@ -139,8 +134,6 @@ export class Agent {
     
     const toolCallRegex = /<tool_call>([\s\S]*?)<\/tool_call>/g;
     let match;
-
-    log.debug("Parsing content for tool calls", { length: content.length });
 
     while ((match = toolCallRegex.exec(content)) !== null) {
       const inner = match[1];
@@ -162,33 +155,98 @@ export class Agent {
       });
     }
     
-    log.debug("Parsed tool calls", { count: toolCalls.length });
     return toolCalls;
+  }
+
+  // Bidirectional PII handling
+  private redactPII(text: string): string {
+    let redacted = text;
+    let counter = 0;
+    
+    // Email
+    redacted = redacted.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, (match) => {
+      const placeholder = `[EMAIL_${++counter}]`;
+      this.piiMap.set(placeholder, match);
+      return placeholder;
+    });
+    
+    // Phone
+    redacted = redacted.replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, (match) => {
+      const placeholder = `[PHONE_${++counter}]`;
+      this.piiMap.set(placeholder, match);
+      return placeholder;
+    });
+    
+    // API keys
+    redacted = redacted.replace(/\b(?:sk-[a-zA-Z0-9]{20,}|nvapi-[a-zA-Z0-9_-]{20,})\b/g, (match) => {
+      const placeholder = `[API_KEY_${++counter}]`;
+      this.piiMap.set(placeholder, match);
+      return placeholder;
+    });
+    
+    return redacted;
+  }
+
+  private restorePII(text: string): string {
+    let restored = text;
+    for (const [placeholder, original] of this.piiMap) {
+      restored = restored.replace(new RegExp(placeholder.replace(/[[\]]/g, "\\$&"), "g"), original);
+    }
+    return restored;
   }
 
   async run(userMessage: string, conversationHistory?: AgentMessage[]): Promise<string> {
     const runSpanId = this.tracer.startSpan("agent_run", { mode: this.mode });
     const startTime = Date.now();
     this.toolCallRecords = [];
+    this.piiMap.clear();
     
-    const sanitizedUserMessage = this.piiGuard.redact(userMessage);
+    // EXECUTE HOOKS - Load user rules BEFORE anything else
+    if (!this.hooksExecuted) {
+      const hookOutput = await executeAgentSpawnHooks();
+      if (hookOutput) {
+        this.systemPrompt = `${hookOutput}\n\n${this.systemPrompt}`;
+        log.info("Injected agentSpawn hook output into system prompt");
+      }
+      this.hooksExecuted = true;
+    }
+    
+    // Bidirectional PII handling
+    const sanitizedUserMessage = this.redactPII(userMessage);
     
     this.emit({ type: "status", status: "running" });
     this.emit({ type: "message", role: "user", content: sanitizedUserMessage });
 
+    // UNIFIED CONTEXT - Always retrieve context before processing
     let contextPrompt = "";
-    if (this.unifiedContext) {
-      try {
-        const contextSpanId = this.tracer.startSpan("context_retrieval");
-        const contextResult = await this.unifiedContext.retrieve({ query: sanitizedUserMessage });
-        this.tracer.endSpan(contextSpanId);
-        
-        if (contextResult.formattedContext) {
-          contextPrompt = `\n\n### Additional Context\n${contextResult.formattedContext}`;
-        }
-      } catch (error) {
-        log.error("Failed to retrieve unified context", { error: String(error) });
+    try {
+      const contextSpanId = this.tracer.startSpan("context_retrieval");
+      const contextResult = await this.unifiedContext.retrieve({ query: sanitizedUserMessage });
+      this.tracer.endSpan(contextSpanId);
+      
+      if (contextResult.formattedContext) {
+        contextPrompt = `\n\n### Retrieved Context\n${contextResult.formattedContext}`;
+        log.debug("Retrieved unified context", { 
+          ragDocs: contextResult.ragDocuments.length,
+          memories: contextResult.memories.length,
+        });
       }
+    } catch (error) {
+      log.error("Failed to retrieve unified context", { error: String(error) });
+    }
+
+    // TOOL ORCHESTRATOR - Select relevant tools for this task
+    let activeToolNames: string[] | undefined;
+    try {
+      const orchSpanId = this.tracer.startSpan("tool_selection");
+      activeToolNames = await this.toolOrchestrator.selectTools(sanitizedUserMessage, contextPrompt);
+      this.tracer.endSpan(orchSpanId, { selected: activeToolNames });
+      
+      if (activeToolNames.length > 0) {
+        log.debug("Tool orchestrator selected tools", { tools: activeToolNames });
+      }
+    } catch (e) {
+      log.error("Tool selection failed, using all tools", { error: String(e) });
     }
 
     if (conversationHistory && conversationHistory.length > 0) {
@@ -198,17 +256,18 @@ export class Agent {
     this.messages.push({ role: "user", content: sanitizedUserMessage });
 
     let iterations = 0;
-    const maxIterations = 1000;
+    const maxIterations = 100;
     let finalResponse = "";
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
     let nudgeCount = 0;
     const MAX_NUDGES = 3;
+    let lastRecordId: string | null = null;
 
     while (iterations < maxIterations) {
       if (this.abortSignal?.aborted) {
         this.emit({ type: "status", status: "completed" });
-        return finalResponse || "Request cancelled";
+        return this.restorePII(finalResponse) || "Request cancelled";
       }
       
       iterations++;
@@ -228,7 +287,10 @@ export class Agent {
       ];
 
       try {
-        const toolDefs = this.tools.size > 0 ? this.getToolDefinitions() : undefined;
+        // Use orchestrator's tool selection
+        const toolDefs = this.tools.size > 0 
+          ? this.getToolDefinitions(activeToolNames) 
+          : undefined;
         
         const contextCheck = this.contextManager.prepareForAPI(
           apiMessages,
@@ -238,12 +300,9 @@ export class Agent {
         
         if (contextCheck.warning) {
           log.warn(contextCheck.warning);
-          this.emit({ type: "status", status: "thinking", message: contextCheck.warning });
         }
         
         const finalMessages = contextCheck.truncated ? contextCheck.messages : apiMessages;
-        
-        log.debug("Sending to LLM", { tools: toolDefs?.length || 0, tokens: contextCheck.stats.finalTokens });
         
         const LLM_TIMEOUT_MS = 300000;
         const timeoutController = new AbortController();
@@ -271,8 +330,6 @@ export class Agent {
 
         const choice = response.choices[0];
         const message = choice.message;
-        
-        log.debug("LLM response", { toolCalls: message.tool_calls?.length || 0, contentLen: message.content?.length || 0 });
 
         if (!message.tool_calls && message.content) {
           const parsedTools = this.parseToolCallsFromContent(message.content);
@@ -294,14 +351,20 @@ export class Agent {
         }
 
         if (message.tool_calls && message.tool_calls.length > 0) {
-          log.debug(`Executing ${message.tool_calls.length} tool(s)`);
-          
           const results: ToolResult[] = [];
           for (const tc of message.tool_calls as ToolCall[]) {
             this.emit({ type: "tool_call", name: tc.function.name, args: tc.function.arguments });
             const result = await this.executeToolCall(tc);
             this.emit({ type: "tool_result", name: tc.function.name, result: result.content, is_error: result.is_error });
             results.push(result);
+            
+            // Execute postToolUse hooks
+            try {
+              const args = JSON.parse(tc.function.arguments);
+              await executePostToolUseHooks(tc.function.name, args, result.content);
+            } catch {
+              // Silent failure for hooks
+            }
           }
 
           for (const result of results) {
@@ -314,26 +377,20 @@ export class Agent {
 
         const hasContent = message.content && message.content.trim().length > 50;
         const madeEdits = this.toolCallRecords.some(r => r.toolName === 'file_write' && r.success);
-        
-        // Detect if user requested code changes (edit, fix, implement, create, build, redesign, etc.)
         const userRequestedEdits = /\b(edit|fix|implement|create|build|redesign|update|change|modify|add|remove|refactor|install)\b/i.test(sanitizedUserMessage);
         
-        // If user requested edits but none were made, nudge regardless of content
         if (userRequestedEdits && !madeEdits && nudgeCount < MAX_NUDGES) {
           nudgeCount++;
-          log.debug(`Nudging LLM - user requested edits but none made (${nudgeCount}/${MAX_NUDGES})`);
           this.messages.push({
             role: "user",
-            content: "You have not made any code changes yet. The user requested edits/changes. Use file_write(path='...', content='COMPLETE FILE CONTENT') to implement the requested changes NOW. Read the file first, modify it, then write the entire file back.",
+            content: "You have not made any code changes yet. The user requested edits/changes. Use file_write to implement the requested changes NOW.",
           });
           this.tracer.endSpan(iterSpanId);
           continue;
         }
         
-        // For non-edit requests, original logic: nudge if no content and no edits
-        if (!userRequestedEdits && !hasContent && !madeEdits && nudgeCount < MAX_NUDGES) {
+        if (!hasContent && !madeEdits && nudgeCount < MAX_NUDGES) {
           nudgeCount++;
-          log.debug(`Nudging LLM (${nudgeCount}/${MAX_NUDGES})`);
           this.messages.push({
             role: "user",
             content: "Please provide a substantive response or use tools to complete the task.",
@@ -342,45 +399,42 @@ export class Agent {
           continue;
         }
         
-        if (userRequestedEdits && !madeEdits && nudgeCount >= MAX_NUDGES) {
-          log.warn("Max nudges reached - user requested edits but none made");
-          this.emit({ type: "status", status: "completed" });
-          return "I was unable to complete the requested edits after multiple attempts. Please provide more specific instructions about what changes you'd like me to make, including the exact file paths and the specific code sections to modify.";
-        }
-        
-        if (!hasContent && !madeEdits && nudgeCount >= MAX_NUDGES) {
-          log.warn("Max nudges reached without edits");
-          this.emit({ type: "status", status: "completed" });
-          return "I was unable to complete the requested task after multiple attempts. Please provide more specific instructions.";
-        }
-        
+        // TASK COMPLETE - Run all learning/logging
         log.info("Task completed");
         this.emit({ type: "status", status: "completed" });
         
-        if (this.flywheelLogger) {
-          const historyForLog = (conversationHistory || []).map(m => ({ role: m.role, content: m.content || "" }));
-          
-          this.flywheelLogger.logInteraction({
-            userMessage: sanitizedUserMessage,
-            assistantResponse: finalResponse,
-            systemPrompt: this.systemPrompt,
-            conversationHistory: historyForLog,
-            toolCalls: this.toolCallRecords,
-            model: this.config.model,
-            mode: this.mode,
-            tokenUsage: {
-              promptTokens: totalPromptTokens,
-              completionTokens: totalCompletionTokens,
-              totalTokens: totalPromptTokens + totalCompletionTokens,
-            },
-            latencyMs: Date.now() - startTime,
-          });
+        // Log to flywheel
+        const historyForLog = (conversationHistory || []).map(m => ({ role: m.role, content: m.content || "" }));
+        const record = await this.flywheelLogger.logInteraction({
+          userMessage: sanitizedUserMessage,
+          assistantResponse: finalResponse,
+          systemPrompt: this.systemPrompt,
+          conversationHistory: historyForLog,
+          toolCalls: this.toolCallRecords,
+          model: this.config.model,
+          mode: this.mode,
+          tokenUsage: {
+            promptTokens: totalPromptTokens,
+            completionTokens: totalCompletionTokens,
+            totalTokens: totalPromptTokens + totalCompletionTokens,
+          },
+          latencyMs: Date.now() - startTime,
+        });
+        
+        if (record) {
+          lastRecordId = record.id;
         }
         
-        await this.learn();
+        // Run learning pipeline
+        await this.learn(lastRecordId);
+        
+        // Execute stop hooks
+        await executeStopHooks();
 
         this.tracer.endSpan(runSpanId, { status: "completed" });
-        return message.content || "";
+        
+        // Restore PII before returning
+        return this.restorePII(message.content || "");
 
       } catch (error) {
         this.tracer.failSpan(iterSpanId, error instanceof Error ? error : new Error(String(error)));
@@ -395,50 +449,48 @@ export class Agent {
   }
 
   async *runStream(userMessage: string): AsyncGenerator<AgentEvent> {
-    const runSpanId = this.tracer.startSpan("agent_run_stream", { mode: this.mode });
+    // Execute hooks first
+    if (!this.hooksExecuted) {
+      const hookOutput = await executeAgentSpawnHooks();
+      if (hookOutput) {
+        this.systemPrompt = `${hookOutput}\n\n${this.systemPrompt}`;
+      }
+      this.hooksExecuted = true;
+    }
     
-    const sanitizedUserMessage = this.piiGuard.redact(userMessage);
+    const sanitizedUserMessage = this.redactPII(userMessage);
 
-    this.emit({ type: "status", status: "running" });
     yield { type: "status", status: "running" };
     yield { type: "message", role: "user", content: sanitizedUserMessage };
 
+    // Get unified context
     let contextPrompt = "";
-    if (this.unifiedContext) {
-      try {
-        const contextSpanId = this.tracer.startSpan("context_retrieval");
-        const contextResult = await this.unifiedContext.retrieve({ query: sanitizedUserMessage });
-        this.tracer.endSpan(contextSpanId);
-
-        if (contextResult.formattedContext) {
-          contextPrompt = `\n\n### Additional Context\n${contextResult.formattedContext}`;
-        }
-      } catch (error) {
-        log.error("Failed to retrieve unified context", { error: String(error) });
+    try {
+      const contextResult = await this.unifiedContext.retrieve({ query: sanitizedUserMessage });
+      if (contextResult.formattedContext) {
+        contextPrompt = `\n\n### Retrieved Context\n${contextResult.formattedContext}`;
       }
+    } catch (error) {
+      log.error("Failed to retrieve unified context", { error: String(error) });
     }
 
+    // Get tool selection
     let activeToolNames: string[] | undefined;
-    if (this.toolOrchestrator) {
-      try {
-        const spanId = this.tracer.startSpan("tool_selection");
-        activeToolNames = await this.toolOrchestrator.selectTools(sanitizedUserMessage);
-        this.tracer.endSpan(spanId, { selected: activeToolNames });
-      } catch (e) {
-        log.error("Tool selection failed", { error: String(e) });
-      }
+    try {
+      activeToolNames = await this.toolOrchestrator.selectTools(sanitizedUserMessage, contextPrompt);
+    } catch {
+      // Use all tools on failure
     }
 
     this.messages.push({ role: "user", content: sanitizedUserMessage });
 
     let iterations = 0;
-    const maxIterations = 1000;
+    const maxIterations = 100;
 
     while (iterations < maxIterations) {
       if (this.abortSignal?.aborted) return;
       
       iterations++;
-      const iterSpanId = this.tracer.startSpan(`iteration_${iterations}`);
 
       const apiMessages: OpenAI.ChatCompletionMessageParam[] = [
         { role: "system", content: this.systemPrompt + contextPrompt },
@@ -454,18 +506,15 @@ export class Agent {
       ];
 
       try {
-        const toolDefs = this.tools.size > 0 ? this.getToolDefinitions() : undefined;
+        const toolDefs = this.tools.size > 0 
+          ? this.getToolDefinitions(activeToolNames) 
+          : undefined;
         
         const contextCheck = this.contextManager.prepareForAPI(
           apiMessages,
           toolDefs as OpenAI.ChatCompletionTool[] | undefined,
           "tool_results_first"
         );
-        
-        if (contextCheck.warning) {
-          log.warn(contextCheck.warning);
-          yield { type: "status", status: "thinking", message: contextCheck.warning };
-        }
         
         const finalMessages = contextCheck.truncated ? contextCheck.messages : apiMessages;
         
@@ -510,42 +559,40 @@ export class Agent {
           if (parsedTools.length > 0) toolCalls = parsedTools;
         }
 
-        const assistantMessage: AgentMessage = {
+        this.messages.push({
           role: "assistant",
           content: content || null,
           tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-        };
-        this.messages.push(assistantMessage);
+        });
 
         if (toolCalls.length > 0) {
           for (const tc of toolCalls) {
             yield { type: "tool_call", name: tc.function.name, args: tc.function.arguments };
-            
             const result = await this.executeToolCall(tc);
             yield { type: "tool_result", name: tc.function.name, result: result.content, is_error: result.is_error };
-            
             this.messages.push({ role: "tool", content: result.content, tool_call_id: result.tool_call_id });
+            
+            // Execute postToolUse hooks
+            try {
+              const args = JSON.parse(tc.function.arguments);
+              await executePostToolUseHooks(tc.function.name, args, result.content);
+            } catch {
+              // Silent
+            }
           }
-          this.tracer.endSpan(iterSpanId);
           continue;
         }
 
-        await this.learn();
-
-        this.tracer.endSpan(iterSpanId);
-        this.tracer.endSpan(runSpanId);
+        await executeStopHooks();
         yield { type: "status", status: "completed" };
-        yield { type: "complete", summary: content };
+        yield { type: "complete", summary: this.restorePII(content) };
         return;
         
       } catch (error) {
-        this.tracer.failSpan(iterSpanId, error instanceof Error ? error : new Error(String(error)));
-        this.tracer.failSpan(runSpanId, error instanceof Error ? error : new Error(String(error)));
         throw error;
       }
     }
 
-    this.tracer.failSpan(runSpanId, new Error("Max iterations reached"));
     yield { type: "error", message: "Max iterations reached" };
     yield { type: "status", status: "error" };
   }
@@ -569,9 +616,6 @@ export class Agent {
     
     const { resolveToolAlias } = await import("./tools/registry");
     const resolved = resolveToolAlias(name, args);
-    if (resolved.name !== name) {
-      log.debug(`Redirecting "${name}" to "${resolved.name}"`);
-    }
     name = resolved.name;
     args = resolved.args;
     
@@ -615,33 +659,56 @@ export class Agent {
     }
   }
 
-  private async learn(): Promise<void> {
-    if (this.evaluator && this.flywheelLogger) {
-      const records = this.flywheelLogger.getRecords();
-      const lastRecord = records[records.length - 1];
-      if (lastRecord && !lastRecord.qualitySignals?.overallScore) {
-        try {
-          const scores = await this.evaluator.evaluateRecord(lastRecord);
-          lastRecord.qualitySignals = {
-            overallScore: scores.overallScore || 5,
-            helpfulness: scores.helpfulness,
-            accuracy: scores.accuracy,
-            reasoning: String(scores.reasoning || ""),
-            responseLength: lastRecord.qualitySignals?.responseLength || 0,
-            toolCallCount: lastRecord.qualitySignals?.toolCallCount || 0,
-            errorCount: lastRecord.qualitySignals?.errorCount || 0,
-          };
-        } catch (e) {
-          log.error("Auto-evaluation failed", { error: String(e) });
+  private async learn(recordId: string | null): Promise<void> {
+    // EVALUATOR - Score the interaction and PERSIST the scores
+    if (recordId) {
+      try {
+        const records = this.flywheelLogger.getRecords();
+        const record = records.find(r => r.id === recordId);
+        
+        if (record) {
+          const scores = await this.evaluator.evaluateRecord(record);
+          
+          // ACTUALLY PERSIST THE SCORES (this was missing!)
+          await this.flywheelLogger.addEvaluationScores(recordId, scores);
+          
+          log.info("Evaluation scores persisted", { 
+            recordId, 
+            score: scores.overallScore,
+          });
         }
+      } catch (e) {
+        log.error("Evaluation failed", { error: String(e) });
       }
     }
 
-    await Promise.all([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.feedbackOptimizer as any)?.generateOptimizations?.(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.autoRAGUpdater as any)?.sync?.(),
-    ].filter(Boolean));
+    // FEEDBACK OPTIMIZER - Generate AND APPLY optimizations
+    try {
+      const optimizations = await this.feedbackOptimizer.generateOptimizations();
+      if (optimizations.failurePatterns.length > 0) {
+        log.info("Feedback optimizer found patterns", {
+          patterns: optimizations.failurePatterns.length,
+          insights: optimizations.insights,
+        });
+        
+        // ACTUALLY APPLY the improved system prompt for next run
+        if (optimizations.improvedSystemPrompt) {
+          this.systemPrompt = this.baseSystemPrompt + "\n\n## LEARNED IMPROVEMENTS\n" + optimizations.improvedSystemPrompt;
+          log.info("Applied feedback optimizer improvements to system prompt");
+        }
+      }
+    } catch (e) {
+      log.error("Feedback optimization failed", { error: String(e) });
+    }
+
+    // AUTO-RAG UPDATER - Sync high-quality records to RAG
+    try {
+      const ingestedCount = await this.autoRAGUpdater.sync();
+      if (ingestedCount > 0) {
+        log.info("Auto-RAG sync completed", { ingestedCount });
+      }
+    } catch (e) {
+      log.error("Auto-RAG sync failed", { error: String(e) });
+    }
   }
 }

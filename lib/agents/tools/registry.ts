@@ -1,6 +1,6 @@
 /**
  * Tool Registry - Single source of truth for all tools
- * Eliminates duplicate tool definitions between mcp-server.ts and route.ts
+ * FIXED: Includes ALL tools
  */
 
 import { Tool } from "../types";
@@ -20,21 +20,36 @@ import { MermaidGeneratorTool, QuickDiagramTool } from "./mermaid-generator";
 import { CodeDocumentationTool, DocumentationSpecialistTool } from "./code-documentation";
 import { ReflectionTool, ExtendReportTool } from "./reflection";
 import { ReportPlannerTool, SectionAuthorTool, ReportCompilerTool } from "./report-planner";
+import { VisionAnalysisTool, iOSUIReviewTool, MockupComparisonTool } from "./vision-analysis";
+import {
+  RAGIngestTool,
+  RAGSearchTool,
+  RAGQueryTool,
+  RAGResearchTool,
+  RAGStatsTool,
+  RAGClearTool,
+  RAGValidateTool,
+  RAGUpdateTool,
+} from "./rag-tools";
+import {
+  SearchSpecialistTool,
+  ReportWriterTool,
+  QualityReviewerTool,
+  ReportExtenderTool,
+  SourceDeduplicatorTool,
+} from "./specialist-agents";
 
 export interface ToolRegistryConfig {
   apiKey?: string;
-  enableVision?: boolean;
-  enableReports?: boolean;
 }
 
 /**
- * Create all tools with consistent configuration
- * Use this instead of instantiating tools directly
+ * Create ALL tools with consistent configuration
  */
 export function createToolRegistry(config: ToolRegistryConfig = {}): Tool[] {
   const apiKey = config.apiKey || NVIDIA_API_KEY || "";
   
-  const tools: Tool[] = [
+  return [
     // Core file operations
     new SetProjectTool(),
     new GetProjectTool(),
@@ -43,7 +58,7 @@ export function createToolRegistry(config: ToolRegistryConfig = {}): Tool[] {
     new BashTool(),
     new ThinkTool(),
     
-    // Memory
+    // Memory - ALL memory tools
     new MemoryTool(),
     new EntityMemoryTool(),
     new UnifiedMemoryTool(),
@@ -63,21 +78,35 @@ export function createToolRegistry(config: ToolRegistryConfig = {}): Tool[] {
     new MermaidGeneratorTool(apiKey),
     new QuickDiagramTool(),
     
-    // Reflection
+    // Reflection & Reports
     new ReflectionTool(apiKey),
+    new ExtendReportTool(apiKey),
+    new ReportPlannerTool(apiKey),
+    new SectionAuthorTool(apiKey),
+    new ReportCompilerTool(),
+    
+    // Vision - ALL vision tools
+    new VisionAnalysisTool(),
+    new iOSUIReviewTool(),
+    new MockupComparisonTool(),
+    
+    // RAG - ALL RAG tools (these are static instances)
+    RAGIngestTool,
+    RAGSearchTool,
+    RAGQueryTool,
+    RAGResearchTool,
+    RAGStatsTool,
+    RAGClearTool,
+    RAGValidateTool,
+    RAGUpdateTool,
+    
+    // Specialist agents
+    new SearchSpecialistTool(apiKey),
+    new ReportWriterTool(apiKey),
+    new QualityReviewerTool(apiKey),
+    new ReportExtenderTool(apiKey),
+    new SourceDeduplicatorTool(),
   ];
-  
-  // Optional report tools
-  if (config.enableReports !== false) {
-    tools.push(
-      new ExtendReportTool(apiKey),
-      new ReportPlannerTool(apiKey),
-      new SectionAuthorTool(apiKey),
-      new ReportCompilerTool(),
-    );
-  }
-  
-  return tools;
 }
 
 /**
@@ -88,7 +117,7 @@ export function getToolByName(tools: Tool[], name: string): Tool | undefined {
 }
 
 /**
- * Tool alias mapping - empty, no aliases needed
+ * Tool alias mapping
  */
 export const TOOL_ALIASES: Record<string, { 
   name: string | ((args: Record<string, unknown>) => string); 
@@ -109,4 +138,11 @@ export function resolveToolAlias(
   const resolvedArgs = alias.transform ? alias.transform(args) : args;
   
   return { name: resolvedName, args: resolvedArgs };
+}
+
+/**
+ * Get all tool names
+ */
+export function getAllToolNames(config: ToolRegistryConfig = {}): string[] {
+  return createToolRegistry(config).map(t => t.name);
 }

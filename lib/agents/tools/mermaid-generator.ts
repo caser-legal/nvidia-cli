@@ -2,7 +2,7 @@
 // Auto-generate architecture and flow diagrams from code analysis
 
 import { BaseTool } from "../base-tool";
-import { Agent } from "../agent";
+import { SimpleAgent as Agent } from "../simple-agent";
 
 // Specialist prompt for diagram generation
 const DIAGRAM_GENERATOR_PROMPT = `You are a Mermaid Diagram Specialist.

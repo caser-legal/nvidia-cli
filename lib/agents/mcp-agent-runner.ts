@@ -1,7 +1,7 @@
 /**
- * MCP Agent Runner
- * Provides the full Agent orchestration pipeline for MCP tool calls
- * Mirrors the /api/agent-chat functionality
+ * MCP Agent Runner - PROPERLY WIRED VERSION
+ * Uses singletons for state persistence between calls
+ * All orchestration components are mandatory and actually used
  */
 
 import { Agent } from "./agent";
@@ -16,12 +16,13 @@ import { SetProjectTool, GetProjectTool } from "./tools/project";
 import { GoogleSearchTool } from "./tools/google-search";
 import { ParallelSearchTool } from "./tools/parallel-search";
 import { LocalDocsSearchTool } from "./tools/local-docs-search";
-import { EntityMemoryTool } from "./tools/memory";
+import { EntityMemoryTool, MemoryTool } from "./tools/memory";
 import { UnifiedMemoryTool } from "./tools/unified-memory";
 import { GitHubAnalyzerTool, GitHubFileReaderTool } from "./tools/github-analyzer";
 import { MermaidGeneratorTool, QuickDiagramTool } from "./tools/mermaid-generator";
 import { CodeDocumentationTool, DocumentationSpecialistTool } from "./tools/code-documentation";
 import { VisionAnalysisTool, iOSUIReviewTool, MockupComparisonTool } from "./tools/vision-analysis";
+import { ReflectionTool, ExtendReportTool } from "./tools/reflection";
 import {
   RAGIngestTool,
   RAGSearchTool,
@@ -34,12 +35,12 @@ import {
 } from "./tools/rag-tools";
 import {
   SearchSpecialistTool,
-  ReportPlannerTool as SpecialistReportPlannerTool,
-  SectionAuthorTool as SpecialistSectionAuthorTool,
+  ReportPlannerTool,
+  SectionAuthorTool,
   ReportWriterTool,
   QualityReviewerTool,
   ReportExtenderTool,
-  ReportCompilerTool as SpecialistReportCompilerTool,
+  ReportCompilerTool,
   SourceDeduplicatorTool,
 } from "./tools/specialist-agents";
 
@@ -52,14 +53,25 @@ import { ToolOrchestrator } from "./tool-orchestrator";
 import { FeedbackOptimizer } from "./feedback-optimizer";
 import { AutoRAGUpdater } from "./rag/auto-updater";
 import { FlywheelEvaluator } from "./flywheel/evaluator";
+import { createLogger } from "../logger";
 
-// System prompt - the full Dory prompt
-const DORY_SYSTEM_PROMPT = `You are Dory — senior iOS enterprise developer (SwiftUI specialist), legal/administrative document analyst, automation engineer, and full-system-access co-worker running locally via NVIDIA Nemotron-3-Nano-30B-A3B.
+const log = createLogger("AgentRunner");
+
+// SINGLETONS - Persist state between calls
+let toolsInstance: Tool[] | null = null;
+let flywheelLoggerInstance: ReturnType<typeof getFlywheelLogger> | null = null;
+let ragPipelineInstance: ReturnType<typeof getRAGPipeline> | null = null;
+let retrievalRouterInstance: RetrievalRouter | null = null;
+let toolOrchestratorInstance: ToolOrchestrator | null = null;
+let feedbackOptimizerInstance: FeedbackOptimizer | null = null;
+let autoRAGUpdaterInstance: AutoRAGUpdater | null = null;
+let evaluatorInstance: FlywheelEvaluator | null = null;
+let unifiedContextInstance: ReturnType<typeof createUnifiedContext> | null = null;
+
+const DORY_SYSTEM_PROMPT = `You are Dory — senior iOS enterprise developer (SwiftUI specialist), legal/administrative document analyst, automation engineer, and full-system-access co-worker.
 
 Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 Time zone: America/Los_Angeles (Pacific)   OS: macOS   Home: /Users/home
-
-You are a probabilistic token prediction system. The following protocols are mandatory.
 
 ================================================================================
 CASCADE PREVENTION PROTOCOL — MANDATORY 4-STAGE PROCESS
@@ -87,48 +99,13 @@ NEVER guess file paths, names, code structure, or API responses.
 Before claiming "doesn't exist" — perform 3-5 targeted searches.
 
 ================================================================================
-AVAILABLE TOOLS
+FILE WRITE PATTERN (MANDATORY)
 ================================================================================
 
-Project: set_project, get_project
-File System: file_read, file_write, bash
-Reasoning: think
-Memory: unified_memory, entity_memory
-Search: google_search, parallel_search, local_docs_search
-GitHub: github_analyzer, github_file_reader
-Documentation: code_documentation, documentation_specialist
-Diagrams: mermaid_generator, quick_diagram
-RAG: rag_ingest, rag_search, rag_query, rag_research, rag_stats, rag_clear, rag_validate, rag_update
-Vision: vision_analyze, ios_ui_review, compare_mockup
-Specialists: search_specialist, report_planner, section_author, report_writer, quality_reviewer, report_extender, report_compiler, deduplicate_sources
-
-File write pattern (MANDATORY):
 1. file_read the target file first
 2. think → plan changes
 3. file_write(path, COMPLETE FILE CONTENT)
 4. file_read to verify
-
-================================================================================
-APP DEVELOPMENT WORKFLOW
-================================================================================
-
-PHASE 1: UNDERSTAND
-- set_project to app directory
-- rag_ingest(path: ".", recursive: true)
-- rag_search for architecture patterns
-- file_read main files
-
-PHASE 2: RESEARCH
-- google_search for current best practices
-- rag_research for existing patterns
-
-PHASE 3: IMPLEMENT
-- For EACH file: file_read → think → file_write → file_read verify
-- Do NOT stop after reading — you must WRITE
-
-PHASE 4: BUILD (only after all writes)
-- xcodebuild -project *.xcodeproj -scheme <SCHEME> -destination 'generic/platform=iOS' build
-- xcrun devicectl device install app --device <ID> <path-to-.app>
 
 ================================================================================
 REFERENCE PATHS
@@ -147,6 +124,98 @@ RESPONSE STYLE
 - Be concise, direct, professional
 - Neutral acknowledgments only: "Understood.", "Noted."
 - Prioritize accuracy over agreeableness`;
+
+function initializeSingletons(apiKey: string): void {
+  if (toolsInstance) return; // Already initialized
+  
+  log.info("Initializing agent singletons (first call)");
+  
+  // Tools - created once
+  toolsInstance = [
+    new SetProjectTool(),
+    new GetProjectTool(),
+    new FileReadTool(),
+    new FileWriteTool(),
+    new BashTool(),
+    new ThinkTool(),
+    new MemoryTool(),
+    new VisionAnalysisTool(),
+    new iOSUIReviewTool(),
+    new MockupComparisonTool(),
+    new UnifiedMemoryTool(),
+    new EntityMemoryTool(),
+    new GoogleSearchTool(),
+    new ParallelSearchTool(),
+    new LocalDocsSearchTool(),
+    new GitHubAnalyzerTool(),
+    new GitHubFileReaderTool(),
+    new CodeDocumentationTool(apiKey),
+    new DocumentationSpecialistTool(apiKey),
+    new MermaidGeneratorTool(apiKey),
+    new QuickDiagramTool(),
+    new ReflectionTool(apiKey),
+    new ExtendReportTool(apiKey),
+    RAGIngestTool,
+    RAGSearchTool,
+    RAGQueryTool,
+    RAGResearchTool,
+    RAGStatsTool,
+    RAGClearTool,
+    RAGValidateTool,
+    RAGUpdateTool,
+    new SearchSpecialistTool(apiKey),
+    new ReportPlannerTool(apiKey),
+    new SectionAuthorTool(apiKey),
+    new ReportWriterTool(apiKey),
+    new QualityReviewerTool(apiKey),
+    new ReportExtenderTool(apiKey),
+    new ReportCompilerTool(),
+    new SourceDeduplicatorTool(),
+  ];
+  
+  // Flywheel - single logger for all calls
+  flywheelLoggerInstance = getFlywheelLogger({
+    clientId: "nvidia-cli-mcp",
+    workloadId: `session-${Date.now()}`,
+    enabled: true,
+  });
+  
+  // RAG Pipeline - persists indexed documents
+  ragPipelineInstance = getRAGPipeline({ profile: IOS_DEVELOPMENT_PROFILE });
+  
+  // Retrieval Router
+  retrievalRouterInstance = new RetrievalRouter(apiKey);
+  
+  // Tool Orchestrator
+  toolOrchestratorInstance = new ToolOrchestrator(
+    toolsInstance, 
+    apiKey, 
+    "nvidia/nemotron-3-nano-30b-a3b", 
+    flywheelLoggerInstance
+  );
+  
+  // Feedback Optimizer
+  feedbackOptimizerInstance = new FeedbackOptimizer(flywheelLoggerInstance, apiKey);
+  
+  // Auto RAG Updater
+  autoRAGUpdaterInstance = new AutoRAGUpdater(ragPipelineInstance, flywheelLoggerInstance);
+  
+  // Evaluator
+  evaluatorInstance = new FlywheelEvaluator({
+    apiKey,
+    model: "nvidia/nemotron-3-nano-30b-a3b",
+    baseUrl: "https://integrate.api.nvidia.com/v1",
+  });
+  
+  // Unified Context
+  unifiedContextInstance = createUnifiedContext(
+    ragPipelineInstance, 
+    flywheelLoggerInstance, 
+    retrievalRouterInstance
+  );
+  
+  log.info("Agent singletons initialized", { tools: toolsInstance.length });
+}
 
 export interface AgentRunnerConfig {
   apiKey: string;
@@ -167,6 +236,7 @@ export interface AgentRunResult {
 
 /**
  * Run the full Dory agent pipeline with all orchestration
+ * Uses singletons for state persistence between calls
  */
 export async function runDoryAgent(
   message: string,
@@ -174,77 +244,20 @@ export async function runDoryAgent(
 ): Promise<AgentRunResult> {
   const { apiKey, conversationHistory = [] } = config;
 
-  // Initialize all tools
-  const tools: Tool[] = [
-    new SetProjectTool(),
-    new GetProjectTool(),
-    new FileReadTool(),
-    new FileWriteTool(),
-    new BashTool(),
-    new ThinkTool(),
-    new VisionAnalysisTool(),
-    new iOSUIReviewTool(),
-    new MockupComparisonTool(),
-    new UnifiedMemoryTool(),
-    new EntityMemoryTool(),
-    new GoogleSearchTool(),
-    new ParallelSearchTool(),
-    new LocalDocsSearchTool(),
-    new GitHubAnalyzerTool(),
-    new GitHubFileReaderTool(),
-    new CodeDocumentationTool(apiKey),
-    new DocumentationSpecialistTool(apiKey),
-    new MermaidGeneratorTool(apiKey),
-    new QuickDiagramTool(),
-    RAGIngestTool,
-    RAGSearchTool,
-    RAGQueryTool,
-    RAGResearchTool,
-    RAGStatsTool,
-    RAGClearTool,
-    RAGValidateTool,
-    RAGUpdateTool,
-    new SearchSpecialistTool(apiKey),
-    new SpecialistReportPlannerTool(apiKey),
-    new SpecialistSectionAuthorTool(apiKey),
-    new ReportWriterTool(apiKey),
-    new QualityReviewerTool(apiKey),
-    new ReportExtenderTool(apiKey),
-    new SpecialistReportCompilerTool(),
-    new SourceDeduplicatorTool(),
-  ];
-
-  // Initialize orchestration components
-  const sessionId = `mcp-${Date.now()}`;
-  const flywheelLogger = getFlywheelLogger({
-    clientId: "nvidia-cli-mcp",
-    workloadId: sessionId,
-    enabled: true,
-  });
-
-  const ragPipeline = getRAGPipeline({ profile: IOS_DEVELOPMENT_PROFILE });
-  const retrievalRouter = new RetrievalRouter(apiKey);
-  const toolOrchestrator = new ToolOrchestrator(tools, apiKey, "nvidia/nemotron-3-nano-30b-a3b", flywheelLogger);
-  const feedbackOptimizer = new FeedbackOptimizer(flywheelLogger, apiKey);
-  const autoRAGUpdater = new AutoRAGUpdater(ragPipeline, flywheelLogger);
-  const evaluator = new FlywheelEvaluator({
-    apiKey,
-    model: "nvidia/nemotron-3-nano-30b-a3b",
-    baseUrl: "https://integrate.api.nvidia.com/v1",
-  });
-  const unifiedContext = createUnifiedContext(ragPipeline, flywheelLogger, retrievalRouter);
+  // Initialize singletons on first call
+  initializeSingletons(apiKey);
 
   // Track tool calls
   const toolCallResults: AgentRunResult["toolCalls"] = [];
 
-  // Create agent with full orchestration
   const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
   const contextLimit = useLocalLLM ? 1000000 : 262144;
 
+  // Create agent with ALL mandatory orchestration components
   const agent = new Agent({
     apiKey,
     systemPrompt: DORY_SYSTEM_PROMPT,
-    tools,
+    tools: toolsInstance!,
     config: {
       model: "nvidia/nemotron-3-nano-30b-a3b",
       maxTokens: 32768,
@@ -269,12 +282,13 @@ export async function runDoryAgent(
         }
       }
     },
-    flywheelLogger,
-    unifiedContext,
-    toolOrchestrator,
-    feedbackOptimizer,
-    autoRAGUpdater,
-    evaluator,
+    // ALL MANDATORY - no more optional parameters
+    flywheelLogger: flywheelLoggerInstance!,
+    unifiedContext: unifiedContextInstance!,
+    toolOrchestrator: toolOrchestratorInstance!,
+    feedbackOptimizer: feedbackOptimizerInstance!,
+    autoRAGUpdater: autoRAGUpdaterInstance!,
+    evaluator: evaluatorInstance!,
   });
 
   // Convert conversation history
@@ -293,75 +307,29 @@ export async function runDoryAgent(
 }
 
 /**
- * Streaming version for real-time output
+ * Reset all singletons (for testing or session reset)
  */
-export async function* runDoryAgentStream(
-  message: string,
-  config: AgentRunnerConfig
-): AsyncGenerator<{ type: string; content?: string; name?: string; result?: string }> {
-  const { apiKey, conversationHistory = [] } = config;
+export function resetAgentRunner(): void {
+  toolsInstance = null;
+  flywheelLoggerInstance = null;
+  ragPipelineInstance = null;
+  retrievalRouterInstance = null;
+  toolOrchestratorInstance = null;
+  feedbackOptimizerInstance = null;
+  autoRAGUpdaterInstance = null;
+  evaluatorInstance = null;
+  unifiedContextInstance = null;
+  log.info("Agent runner reset");
+}
 
-  // Initialize tools (same as above)
-  const tools: Tool[] = [
-    new SetProjectTool(),
-    new GetProjectTool(),
-    new FileReadTool(),
-    new FileWriteTool(),
-    new BashTool(),
-    new ThinkTool(),
-    new UnifiedMemoryTool(),
-    new EntityMemoryTool(),
-    new GoogleSearchTool(),
-    new ParallelSearchTool(),
-    new LocalDocsSearchTool(),
-    new GitHubAnalyzerTool(),
-    new GitHubFileReaderTool(),
-    new CodeDocumentationTool(apiKey),
-    new MermaidGeneratorTool(apiKey),
-    new QuickDiagramTool(),
-    RAGIngestTool,
-    RAGSearchTool,
-    RAGQueryTool,
-    RAGResearchTool,
-    RAGStatsTool,
-    RAGClearTool,
-    RAGValidateTool,
-    RAGUpdateTool,
-    new SearchSpecialistTool(apiKey),
-    new ReportWriterTool(apiKey),
-    new QualityReviewerTool(apiKey),
-  ];
-
-  const sessionId = `mcp-stream-${Date.now()}`;
-  const flywheelLogger = getFlywheelLogger({ clientId: "nvidia-cli-mcp", workloadId: sessionId, enabled: true });
-  const ragPipeline = getRAGPipeline({ profile: IOS_DEVELOPMENT_PROFILE });
-  const retrievalRouter = new RetrievalRouter(apiKey);
-  const unifiedContext = createUnifiedContext(ragPipeline, flywheelLogger, retrievalRouter);
-
-  const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
-  const contextLimit = useLocalLLM ? 1000000 : 262144;
-
-  const agent = new Agent({
-    apiKey,
-    systemPrompt: DORY_SYSTEM_PROMPT,
-    tools,
-    config: {
-      model: "nvidia/nemotron-3-nano-30b-a3b",
-      maxTokens: 32768,
-      temperature: 0.6,
-      topP: 0.95,
-      contextWindowTokens: contextLimit,
-    },
-    flywheelLogger,
-    unifiedContext,
-  });
-
-  const history = conversationHistory.map((m) => ({
-    role: m.role as "user" | "assistant",
-    content: m.content,
-  }));
-
-  for await (const event of agent.runStream(message)) {
-    yield event;
-  }
+/**
+ * Get current flywheel stats
+ */
+export function getRunnerStats(): object {
+  if (!flywheelLoggerInstance) return { initialized: false };
+  return {
+    initialized: true,
+    flywheel: flywheelLoggerInstance.getStats(),
+    tools: toolsInstance?.length || 0,
+  };
 }

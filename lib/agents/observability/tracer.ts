@@ -1,5 +1,9 @@
-
 import { v4 as uuidv4 } from 'uuid';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const TRACE_DIR = path.join(HOME_DIR, ".nvidia-cli", "traces");
 
 export interface Span {
   id: string;
@@ -16,9 +20,11 @@ export class Tracer {
   private activeSpans: string[] = [];
   private static readonly MAX_SPANS = 1000;
   private exportEnabled: boolean;
+  private traceId: string;
 
   constructor(exportEnabled: boolean = process.env.TRACE_EXPORT === "true") {
     this.exportEnabled = exportEnabled;
+    this.traceId = uuidv4();
   }
 
   startSpan(name: string, attributes: Record<string, unknown> = {}): string {
@@ -54,7 +60,6 @@ export class Tracer {
     span.attributes = { ...span.attributes, ...attributes };
     span.status = "ok";
     
-    // Remove from active stack
     const index = this.activeSpans.indexOf(id);
     if (index > -1) {
       this.activeSpans.splice(index, 1);
@@ -69,6 +74,7 @@ export class Tracer {
 
     span.endTime = Date.now();
     span.attributes.error = error.message;
+    span.attributes.errorStack = error.stack;
     span.status = "error";
 
     const index = this.activeSpans.indexOf(id);
@@ -79,25 +85,44 @@ export class Tracer {
     this.exportSpan(span);
   }
 
-  private exportSpan(span: Span): void {
+  private async exportSpan(span: Span): Promise<void> {
     if (!this.exportEnabled) return;
     
     const duration = span.endTime ? span.endTime - span.startTime : 0;
     const logEntry = {
-      trace_id: span.parentId || span.id,
+      trace_id: this.traceId,
       span_id: span.id,
+      parent_span_id: span.parentId,
       name: span.name,
+      start_time: span.startTime,
+      end_time: span.endTime,
       duration_ms: duration,
       status: span.status,
-      ...span.attributes,
+      attributes: span.attributes,
     };
     
-    // Export to stderr (stdout reserved for MCP stdio transport)
+    // Export to stderr for real-time monitoring
     console.error(`[TRACE] ${JSON.stringify(logEntry)}`);
+    
+    // Also persist to file for later analysis
+    try {
+      await fs.mkdir(TRACE_DIR, { recursive: true });
+      const filename = `${this.traceId}.jsonl`;
+      await fs.appendFile(
+        path.join(TRACE_DIR, filename),
+        JSON.stringify(logEntry) + "\n"
+      );
+    } catch {
+      // Silent failure for trace persistence
+    }
   }
 
   getTrace(): Span[] {
     return Array.from(this.spans.values());
+  }
+  
+  getTraceId(): string {
+    return this.traceId;
   }
   
   // Export all completed spans as OTLP-compatible JSON
@@ -105,15 +130,46 @@ export class Tracer {
     return Array.from(this.spans.values())
       .filter(s => s.status !== "running")
       .map(s => ({
-        traceId: s.parentId || s.id,
+        traceId: this.traceId,
         spanId: s.id,
         parentSpanId: s.parentId,
         name: s.name,
         startTimeUnixNano: s.startTime * 1_000_000,
         endTimeUnixNano: (s.endTime || s.startTime) * 1_000_000,
         status: { code: s.status === "ok" ? 1 : 2 },
-        attributes: Object.entries(s.attributes).map(([k, v]) => ({ key: k, value: { stringValue: String(v) } })),
+        attributes: Object.entries(s.attributes).map(([k, v]) => ({ 
+          key: k, 
+          value: { stringValue: String(v) } 
+        })),
       }));
+  }
+  
+  // Get summary statistics
+  getStats(): { totalSpans: number; completedSpans: number; errorSpans: number; avgDurationMs: number } {
+    const spans = Array.from(this.spans.values());
+    const completed = spans.filter(s => s.status !== "running");
+    const errors = spans.filter(s => s.status === "error");
+    
+    let totalDuration = 0;
+    for (const s of completed) {
+      if (s.endTime) {
+        totalDuration += s.endTime - s.startTime;
+      }
+    }
+    
+    return {
+      totalSpans: spans.length,
+      completedSpans: completed.length,
+      errorSpans: errors.length,
+      avgDurationMs: completed.length > 0 ? Math.round(totalDuration / completed.length) : 0,
+    };
+  }
+  
+  // Reset for new trace
+  reset(): void {
+    this.spans.clear();
+    this.activeSpans = [];
+    this.traceId = uuidv4();
   }
 }
 

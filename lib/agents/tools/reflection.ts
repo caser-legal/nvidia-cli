@@ -2,7 +2,7 @@
 // Analyzes a report to identify knowledge gaps and generate follow-up queries
 
 import { BaseTool } from "../base-tool";
-import { Agent } from "../agent";
+import { SimpleAgent as Agent } from "../simple-agent";
 
 const REFLECTION_PROMPT = `You are a Critical Reviewer Agent.
 

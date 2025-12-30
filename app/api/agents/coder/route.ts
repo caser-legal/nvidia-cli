@@ -1,7 +1,8 @@
 // Coding Agent API Route
 // Autonomous coding agent with streaming updates
 
-import { Agent, FileReadTool, FileWriteTool, BashTool, ThinkTool } from "@/lib/agents";
+import { SimpleAgent as Agent } from "@/lib/agents/simple-agent";
+import { FileReadTool, FileWriteTool, BashTool, ThinkTool } from "@/lib/agents";
 import { SetProjectTool, GetProjectTool, setCurrentProjectDir } from "@/lib/agents/tools/project";
 import type { AgentEvent } from "@/lib/agents";
 

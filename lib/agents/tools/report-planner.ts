@@ -2,7 +2,7 @@
 // Creates structured outline before writing - from NVIDIA workshop pattern
 
 import { BaseTool } from "../base-tool";
-import { Agent } from "../agent";
+import { SimpleAgent as Agent } from "../simple-agent";
 
 const REPORT_PLANNER_PROMPT = `You are a Report Planner Specialist.
 

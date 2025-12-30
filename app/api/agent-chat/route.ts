@@ -3,7 +3,7 @@
 // Last updated: December 23, 2025 — Ultra-comprehensive prompt with ALL reference sections
 import { NextRequest } from "next/server";
 
-import { Agent } from "@/lib/agents/agent";
+import { SimpleAgent as Agent } from "@/lib/agents/simple-agent";
 import { FileReadTool } from "@/lib/agents/tools/file-read";
 import { FileWriteTool } from "@/lib/agents/tools/file-write";
 import { BashTool } from "@/lib/agents/tools/bash";
@@ -48,12 +48,6 @@ import {
 
 import { getRAGPipeline, IOS_DEVELOPMENT_PROFILE } from "@/lib/agents/rag";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
-import { UnifiedContext, createUnifiedContext } from "@/lib/agents/unified-context";
-import { RetrievalRouter } from "@/lib/agents/retrieval-router";
-import { ToolOrchestrator } from "@/lib/agents/tool-orchestrator";
-import { FeedbackOptimizer } from "@/lib/agents/feedback-optimizer";
-import { AutoRAGUpdater } from "@/lib/agents/rag/auto-updater";
-import { FlywheelEvaluator } from "@/lib/agents/flywheel"; // DatasetCreator removed (unused)
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1091,37 +1085,6 @@ export async function POST(request: NextRequest) {
     const systemPrompt = SYSTEM_PROMPTS.dory;
 
     const sessionId = `session-${Date.now()}`;
-    const flywheelLogger = getFlywheelLogger({
-      clientId: "nvidia-cli",
-      workloadId: sessionId,
-      enabled: true,
-    });
-
-    const ragPipeline = getRAGPipeline({ profile: IOS_DEVELOPMENT_PROFILE });
-    const retrievalRouter = new RetrievalRouter(apiKey);
-
-    const toolOrchestrator = new ToolOrchestrator(
-      tools,
-      apiKey,
-      "nvidia/nemotron-3-nano-30b-a3b",
-      flywheelLogger
-    );
-
-    const feedbackOptimizer = new FeedbackOptimizer(flywheelLogger);
-    const autoRAGUpdater = new AutoRAGUpdater(ragPipeline, flywheelLogger);
-
-    const evaluator = new FlywheelEvaluator({
-      apiKey,
-      model: "nvidia/nemotron-3-nano-30b-a3b",
-      baseUrl: "https://integrate.api.nvidia.com/v1",
-    });
-
-    const unifiedContext = createUnifiedContext(
-      ragPipeline,
-      flywheelLogger,
-      retrievalRouter
-    );
-
     const stream = new ReadableStream({
       async start(controller) {
         const abortSignal = request.signal;
@@ -1147,12 +1110,6 @@ export async function POST(request: NextRequest) {
               encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
             );
           },
-          flywheelLogger,
-          unifiedContext,
-          toolOrchestrator,
-          feedbackOptimizer,
-          autoRAGUpdater,
-          evaluator,
           abortSignal,
         });
 

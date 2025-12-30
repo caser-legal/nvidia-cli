@@ -1,6 +1,7 @@
 /**
  * RAG Pipeline v2
  * Full implementation based on NVIDIA RAG Blueprint (Dec 2025)
+ * FIXED: Proper async initialization
  */
 
 import { Document, SearchResult } from './types';
@@ -35,6 +36,7 @@ export class RAGPipelineV2 {
   private reflection: ReflectionSystem;
   private llmEndpoint: string;
   private initialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor(config: RAGPipelineV2Config = {}) {
     if (typeof config.profile === 'string') {
@@ -60,9 +62,13 @@ export class RAGPipelineV2 {
     this.decomposer = new QueryDecomposer(this.llmEndpoint, this.profile.models.llmModel);
     this.reflection = new ReflectionSystem(this.llmEndpoint, this.profile.models.llmModel, 1, 1);
 
-    this.init();
+    // Start initialization but don't block constructor
+    // All public methods will await this.ensureInitialized()
+    this.initPromise = this.init().catch(e => {
+      log.error("RAG pipeline initialization failed", { error: String(e) });
+    });
 
-    log.info(`Initialized with profile: ${this.profile.name}`, {
+    log.info(`Created RAG pipeline with profile: ${this.profile.name}`, {
       chunkSize: this.profile.chunking.chunkSize,
       chunkOverlap: this.profile.chunking.chunkOverlap,
       initialTopK: this.profile.retrieval.initialTopK,
@@ -74,10 +80,24 @@ export class RAGPipelineV2 {
     if (this.initialized) return;
     await this.vectorStore.loadFromDisk();
     this.initialized = true;
+    log.info("RAG pipeline initialized", { documentCount: this.vectorStore.getDocumentCount() });
+  }
+
+  /**
+   * Ensure initialization is complete before any operation
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) return;
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+    if (!this.initialized) {
+      await this.init();
+    }
   }
 
   async ingest(documents: { id: string; content: string; metadata?: Record<string, unknown> }[]): Promise<{ chunksCreated: number; documentsProcessed: number }> {
-    await this.init();
+    await this.ensureInitialized();
     log.info(`Ingesting ${documents.length} documents`);
 
     const chunkedDocs = this.textSplitter.splitDocuments(documents);
@@ -125,7 +145,7 @@ export class RAGPipelineV2 {
   }
 
   async search(query: string): Promise<SearchResult> {
-    await this.init();
+    await this.ensureInitialized();
 
     let queries = [query];
     if (this.profile.retrieval.enableDecomposition) {
@@ -251,8 +271,9 @@ export class RAGPipelineV2 {
   async update(sourcePath: string): Promise<{ updated: number; removed: number }> { return this.vectorStore.updateDocuments(sourcePath); }
   getSourceFiles(): string[] { return this.vectorStore.getSourceFiles(); }
   getProfile(): RAGProfile { return { ...this.profile }; }
+  isInitialized(): boolean { return this.initialized; }
 
-  getStats(): { profile: string; documentCount: number; chunkSize: number; chunkOverlap: number; initialTopK: number; rerankTopK: number } {
+  getStats(): { profile: string; documentCount: number; chunkSize: number; chunkOverlap: number; initialTopK: number; rerankTopK: number; initialized: boolean } {
     return {
       profile: this.profile.name,
       documentCount: this.vectorStore.getDocumentCount(),
@@ -260,17 +281,34 @@ export class RAGPipelineV2 {
       chunkOverlap: this.profile.chunking.chunkOverlap,
       initialTopK: this.profile.retrieval.initialTopK,
       rerankTopK: this.profile.retrieval.rerankTopK,
+      initialized: this.initialized,
     };
   }
 }
 
 let defaultPipeline: RAGPipelineV2 | null = null;
+let defaultPipelineConfig: RAGPipelineV2Config | null = null;
 
 export function getRAGPipeline(config?: RAGPipelineV2Config): RAGPipelineV2 {
-  if (!defaultPipeline) defaultPipeline = new RAGPipelineV2(config);
+  if (!defaultPipeline) {
+    defaultPipeline = new RAGPipelineV2(config);
+    defaultPipelineConfig = config || null;
+    log.info("Created RAG pipeline singleton");
+  } else if (config && defaultPipelineConfig) {
+    // Warn if config differs
+    const configProfile = typeof config.profile === 'string' ? config.profile : config.profile?.name;
+    const existingProfile = typeof defaultPipelineConfig.profile === 'string' ? defaultPipelineConfig.profile : defaultPipelineConfig.profile?.name;
+    if (configProfile && configProfile !== existingProfile) {
+      log.warn("getRAGPipeline called with different profile, using existing", {
+        existing: existingProfile,
+        requested: configProfile,
+      });
+    }
+  }
   return defaultPipeline;
 }
 
 export function resetRAGPipeline(): void {
   defaultPipeline = null;
+  defaultPipelineConfig = null;
 }

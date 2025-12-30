@@ -3,7 +3,7 @@
 // Enhanced with Google search, report planning, and parallel section writing
 
 import { BaseTool } from "../base-tool";
-import { Agent } from "../agent";
+import { SimpleAgent as Agent } from "../simple-agent";
 import { GoogleSearchTool } from "./google-search";
 import { ParallelSearchTool, deduplicateCitations } from "./parallel-search";
 import { LocalDocsSearchTool } from "./local-docs-search";

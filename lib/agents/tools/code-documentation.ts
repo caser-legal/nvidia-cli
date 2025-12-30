@@ -2,7 +2,7 @@
 // Multi-agent workflow for generating comprehensive documentation
 
 import { BaseTool } from "../base-tool";
-import { Agent } from "../agent";
+import { SimpleAgent as Agent } from "../simple-agent";
 import { GitHubAnalyzerTool, GitHubFileReaderTool } from "./github-analyzer";
 import { MermaidGeneratorTool } from "./mermaid-generator";
 

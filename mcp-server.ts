@@ -1,14 +1,14 @@
 #!/usr/bin/env npx tsx
 /**
- * NVIDIA CLI MCP Server - Full Orchestration Version
- * Exposes all nvidia-cli tools + full Agent pipeline via MCP
+ * NVIDIA CLI MCP Server - FULLY WIRED VERSION
+ * All orchestration components enabled and functional
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-// Global error handlers to prevent transport crashes
+// Global error handlers
 process.on("uncaughtException", (err) => {
   console.error("[MCP] Uncaught exception:", err.message);
 });
@@ -47,9 +47,12 @@ import { getFlywheelLogger } from "./lib/agents/flywheel/logger.ts";
 import { DatasetCreator } from "./lib/agents/flywheel/dataset-creator.ts";
 
 // Agent runner for full orchestration
-import { runDoryAgent } from "./lib/agents/mcp-agent-runner.ts";
+import { runDoryAgent, getRunnerStats, resetAgentRunner } from "./lib/agents/mcp-agent-runner.ts";
 
-const server = new McpServer({ name: "nvidia-cli", version: "2.0.0" });
+// Hooks
+import { executeAgentSpawnHooks, resetHooksCache } from "./lib/agents/hooks.ts";
+
+const server = new McpServer({ name: "nvidia-cli", version: "2.1.0" });
 
 const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY || "";
 
@@ -86,7 +89,19 @@ const qualityReviewerTool = new QualityReviewerTool(apiKey);
 const reportExtenderTool = new ReportExtenderTool(apiKey);
 const sourceDeduplicatorTool = new SourceDeduplicatorTool();
 
-const flywheelLogger = getFlywheelLogger({ enabled: false }); // Disabled to prevent crashes
+// FLYWHEEL ENABLED - single instance for all MCP calls
+const flywheelLogger = getFlywheelLogger({ 
+  clientId: "nvidia-cli-mcp",
+  workloadId: `mcp-session-${Date.now()}`,
+  enabled: true  // ENABLED!
+});
+
+// Execute agentSpawn hooks on server start
+executeAgentSpawnHooks().then(output => {
+  if (output) {
+    console.error("[MCP] Loaded user rules from agentSpawn hooks");
+  }
+}).catch(() => {});
 
 // ============================================================================
 // DORY AGENT - FULL ORCHESTRATION PIPELINE
@@ -155,7 +170,7 @@ server.tool("think", "Think through a problem",
 );
 
 server.tool("memory", "Store/retrieve from memory",
-  { operation: z.enum(["remember", "recall", "list", "summarize", "promote", "clear"]), content: z.string().optional(), type: z.enum(["fact", "context", "decision", "entity", "task"]).optional(), storage: z.enum(["short", "long"]).optional() },
+  { operation: z.enum(["remember", "recall", "list", "summarize", "promote", "delete", "clear"]), content: z.string().optional(), type: z.enum(["fact", "context", "decision", "entity", "task", "rule"]).optional(), storage: z.enum(["short", "long"]).optional() },
   async (args) => ({ content: [{ type: "text", text: await memoryTool.execute(args) }] })
 );
 
@@ -333,13 +348,7 @@ server.tool("deduplicate_sources", "Clean up source citations",
   async (args) => ({ content: [{ type: "text", text: await sourceDeduplicatorTool.execute(args) }] })
 );
 
-// Flywheel Tools - ENABLED
-const mcpFlywheelLogger = getFlywheelLogger({ 
-  clientId: "nvidia-cli-mcp", 
-  workloadId: `mcp-${Date.now()}`,
-  enabled: true 
-});
-
+// Flywheel Tools
 server.tool("flywheel_log", "Log interaction for continuous improvement",
   { 
     user_message: z.string(), 
@@ -356,13 +365,13 @@ server.tool("flywheel_log", "Log interaction for continuous improvement",
   },
   async ({ user_message, assistant_response, tool_calls, model, mode }) => {
     try {
-      const record = await mcpFlywheelLogger.logInteraction({
+      const record = await flywheelLogger.logInteraction({
         userMessage: user_message,
         assistantResponse: assistant_response,
         systemPrompt: "",
         conversationHistory: [],
         toolCalls: tool_calls || [],
-        model: model || "claude-opus-4.5",
+        model: model || "claude-sonnet-4-20250514",
         mode: mode || "kiro-mcp",
         tokenUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         latencyMs: 0,
@@ -377,8 +386,9 @@ server.tool("flywheel_log", "Log interaction for continuous improvement",
 server.tool("flywheel_stats", "Get flywheel statistics", {},
   async () => {
     try {
-      const stats = mcpFlywheelLogger.getStats();
-      return { content: [{ type: "text", text: JSON.stringify(stats, null, 2) }] };
+      const stats = flywheelLogger.getStats();
+      const runnerStats = getRunnerStats();
+      return { content: [{ type: "text", text: JSON.stringify({ flywheel: stats, runner: runnerStats }, null, 2) }] };
     } catch (error) {
       return { content: [{ type: "text", text: `Flywheel stats error: ${error}` }] };
     }
@@ -390,8 +400,8 @@ server.tool("flywheel_export", "Export flywheel data for training",
   async ({ include_tool_calls }) => {
     try {
       const data = include_tool_calls 
-        ? mcpFlywheelLogger.exportWithToolCalls()
-        : mcpFlywheelLogger.exportForTraining();
+        ? flywheelLogger.exportWithToolCalls()
+        : flywheelLogger.exportForTraining();
       return { content: [{ type: "text", text: data.join("\n") || "No records to export" }] };
     } catch (error) {
       return { content: [{ type: "text", text: `Flywheel export error: ${error}` }] };
@@ -403,7 +413,7 @@ server.tool("flywheel_create_dataset", "Create training datasets",
   { workload_id: z.string() },
   async ({ workload_id }) => {
     try {
-      const creator = new DatasetCreator(mcpFlywheelLogger);
+      const creator = new DatasetCreator(flywheelLogger);
       const datasets = creator.createDatasets(workload_id);
       if (!datasets) {
         return { content: [{ type: "text", text: "Not enough records for dataset creation (min 10 required)" }] };
@@ -419,13 +429,28 @@ server.tool("flywheel_create_dataset", "Create training datasets",
   }
 );
 
-// START SERVER
-// ============================================================================
 
+// Health Check Tool
+server.tool("health_check", "Check MCP server health and component status", {},
+  async () => {
+    const status = {
+      server: "healthy",
+      version: "2.1.0",
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      flywheel: flywheelLogger.getStats(),
+      runner: getRunnerStats(),
+      timestamp: new Date().toISOString(),
+    };
+    return { content: [{ type: "text", text: JSON.stringify(status, null, 2) }] };
+  }
+);
+
+// START SERVER
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[nvidia-cli MCP v2.0] Server started");
+  console.error("[nvidia-cli MCP v2.1] Server started - all systems wired");
 }
 
 main().catch((error) => {
