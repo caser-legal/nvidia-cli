@@ -53,9 +53,13 @@ import { runDoryAgent, getRunnerStats, resetAgentRunner } from "./lib/agents/mcp
 // Hooks
 import { executeAgentSpawnHooks, resetHooksCache } from "./lib/agents/hooks.ts";
 
+// Import hardcoded API key as fallback (private repo, easily swappable)
+import { NVIDIA_API_KEY as HARDCODED_KEY } from "./lib/api-key.ts";
+
 const server = new McpServer({ name: "nvidia-cli", version: "2.1.0" });
 
-const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY || "";
+// Use env var if set, otherwise fall back to hardcoded key
+const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY || HARDCODED_KEY;
 
 // Instantiate tools
 const bashTool = new BashTool();
@@ -441,6 +445,7 @@ server.tool("health_check", "Check MCP server health and component status", {},
       version: "2.1.0",
       uptime: process.uptime(),
       memory: process.memoryUsage(),
+      apiKey: apiKey ? `${apiKey.slice(0, 10)}...` : "NOT SET",
       flywheel: flywheelLogger.getStats(),
       training: { ...trainingStats, dirs: trainingDirs },
       elasticsearch: await (async () => { try { const { isElasticsearchAvailable, getFallbackStats } = await import("./lib/agents/flywheel/elasticsearch-sink.ts"); return { available: isElasticsearchAvailable(), fallback: await getFallbackStats() }; } catch { return { available: false }; } })(),
@@ -456,7 +461,7 @@ server.tool("health_check", "Check MCP server health and component status", {},
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[nvidia-cli MCP v2.1] Server started - all systems wired");
+  console.error(`[nvidia-cli MCP v2.1] Server started - API key: ${apiKey ? apiKey.slice(0, 10) + "..." : "NOT SET"}`);
 }
 
 main().catch((error) => {
