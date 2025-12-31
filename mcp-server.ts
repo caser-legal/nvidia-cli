@@ -45,6 +45,7 @@ import {
 // Flywheel imports
 import { getFlywheelLogger } from "./lib/agents/flywheel/logger.ts";
 import { DatasetCreator } from "./lib/agents/flywheel/dataset-creator.ts";
+import { getTrainingStats, getTrainingDirs } from "./lib/agents/flywheel/quality-filter.ts";
 
 // Agent runner for full orchestration
 import { runDoryAgent, getRunnerStats, resetAgentRunner } from "./lib/agents/mcp-agent-runner.ts";
@@ -388,7 +389,8 @@ server.tool("flywheel_stats", "Get flywheel statistics", {},
     try {
       const stats = flywheelLogger.getStats();
       const runnerStats = getRunnerStats();
-      return { content: [{ type: "text", text: JSON.stringify({ flywheel: stats, runner: runnerStats }, null, 2) }] };
+      const trainingStats = await getTrainingStats();
+      return { content: [{ type: "text", text: JSON.stringify({ flywheel: stats, runner: runnerStats, training: trainingStats }, null, 2) }] };
     } catch (error) {
       return { content: [{ type: "text", text: `Flywheel stats error: ${error}` }] };
     }
@@ -429,16 +431,18 @@ server.tool("flywheel_create_dataset", "Create training datasets",
   }
 );
 
-
 // Health Check Tool
 server.tool("health_check", "Check MCP server health and component status", {},
   async () => {
+    const trainingStats = await getTrainingStats();
+    const trainingDirs = getTrainingDirs();
     const status = {
       server: "healthy",
       version: "2.1.0",
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       flywheel: flywheelLogger.getStats(),
+      training: { ...trainingStats, dirs: trainingDirs },
       elasticsearch: await (async () => { try { const { isElasticsearchAvailable, getFallbackStats } = await import("./lib/agents/flywheel/elasticsearch-sink.ts"); return { available: isElasticsearchAvailable(), fallback: await getFallbackStats() }; } catch { return { available: false }; } })(),
       tracer: (await import("./lib/agents/observability/tracer.ts")).globalTracer.getStats(),
       runner: getRunnerStats(),
