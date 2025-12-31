@@ -69,10 +69,45 @@ let autoRAGUpdaterInstance: AutoRAGUpdater | null = null;
 let evaluatorInstance: FlywheelEvaluator | null = null;
 let unifiedContextInstance: ReturnType<typeof createUnifiedContext> | null = null;
 
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Load prompts from the prompts directory
+function loadPrompts(): string {
+  const promptsDir = path.join(__dirname, '../../prompts');
+  let combinedPrompts = '';
+  
+  try {
+    // Load prompts in order: 00.md, 0.md, 1.md, 2.md, etc.
+    const promptFiles = ['00.md', '0.md', '1.md', '2.md', '3.md', '4.md', '5.md', '6.md', '7.md', '8.md', '9.md'];
+    
+    for (const file of promptFiles) {
+      const filePath = path.join(promptsDir, file);
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        combinedPrompts += `\n\n=== PROMPT ${file} ===\n${content}`;
+      }
+    }
+    
+    if (combinedPrompts) {
+      log.info("Loaded prompts from prompts directory", { files: promptFiles.length });
+      return combinedPrompts;
+    }
+  } catch (error) {
+    log.warn("Failed to load prompts directory, using default", { error: String(error) });
+  }
+  
+  return '';
+}
+
+const LOADED_PROMPTS = loadPrompts();
+
 const DORY_SYSTEM_PROMPT = `You are Dory — senior iOS enterprise developer (SwiftUI specialist), legal/administrative document analyst, automation engineer, and full-system-access co-worker.
 
 Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 Time zone: America/Los_Angeles (Pacific)   OS: macOS   Home: /Users/home
+
+${LOADED_PROMPTS}
 
 ================================================================================
 CASCADE PREVENTION PROTOCOL — MANDATORY 4-STAGE PROCESS
