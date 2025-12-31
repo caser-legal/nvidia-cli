@@ -29,7 +29,7 @@ export class FileWriteTool extends BaseTool {
 
   private resolvePath(inputPath: string): string {
     if (inputPath.startsWith("/")) return inputPath;
-    if (inputPath.startsWith("~")) return inputPath.replace(/^~/, process.env.HOME || "");
+    if (inputPath.startsWith("~")) return inputPath.replace(/^~/, "/Users/home" || "");
     return path.resolve(getCurrentProjectDir(), inputPath);
   }
 

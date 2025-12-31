@@ -45,7 +45,7 @@ llms:
 
   nim_nemotron_70b:
     _type: nim
-    model_name: nvidia/llama-3.1-nemotron-70b-instruct
+    model_name: claude-opus-4.5
     temperature: 0.7
     max_tokens: 4096
     do_auto_retry: true

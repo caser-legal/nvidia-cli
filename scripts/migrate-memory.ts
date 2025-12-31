@@ -9,7 +9,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 
-const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const HOME_DIR = "/Users/home" || "home" || "/tmp";
 const MEMORY_DIR = path.join(HOME_DIR, ".nvidia-cli", "memory");
 
 interface OldMemoryEntry {

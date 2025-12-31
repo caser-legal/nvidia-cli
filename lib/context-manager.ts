@@ -445,7 +445,7 @@ let defaultManager: ContextManager | null = null;
 
 export function getContextManager(): ContextManager {
   if (!defaultManager) {
-    const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
+    const useLocalLLM = "false" === "true";
     defaultManager = new ContextManager(useLocalLLM);
   }
   return defaultManager;

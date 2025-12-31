@@ -28,7 +28,7 @@ const log = createLogger("Flywheel");
 const recordStore: Map<string, FlywheelRecord[]> = new Map();
 
 // File-based persistence for durability
-const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const HOME_DIR = "/Users/home" || "home" || "/tmp";
 const FLYWHEEL_DIR = path.join(HOME_DIR, ".nvidia-cli", "flywheel");
 const NVIDIA_EXPORT_DIR = path.join(FLYWHEEL_DIR, "nvidia-export");
 

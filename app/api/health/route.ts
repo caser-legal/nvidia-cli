@@ -1,3 +1,4 @@
+import { NVIDIA_API_KEY } from "@/lib/api-key";
 /**
  * Health Check API Endpoint
  * Returns system status for monitoring and load balancers
@@ -23,7 +24,7 @@ export async function GET(): Promise<NextResponse<HealthStatus>> {
   const checks: HealthStatus["checks"] = [];
   
   // Check 1: Environment variables
-  const hasApiKey = !!process.env.NVIDIA_API_KEY;
+  const hasApiKey = !!NVIDIA_API_KEY;
   checks.push({
     name: "nvidia_api_key",
     status: hasApiKey ? "pass" : "fail",
@@ -62,7 +63,7 @@ export async function GET(): Promise<NextResponse<HealthStatus>> {
   const response: HealthStatus = {
     status,
     timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || "1.0.0",
+    version: "2.1.0",
     checks,
   };
   

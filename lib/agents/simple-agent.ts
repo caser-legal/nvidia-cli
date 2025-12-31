@@ -34,8 +34,8 @@ export class SimpleAgent {
     onEvent?: (event: AgentEvent) => void;
     abortSignal?: AbortSignal;
   }) {
-    const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
-    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://192.168.50.50:11434/v1";
+    const useLocalLLM = "false" === "true";
+    const ollamaBaseUrl = "http://localhost:11434" || "http://192.168.50.50:11434/v1";
     const apiKey = useLocalLLM ? "ollama" : (options.apiKey || NVIDIA_API_KEY);
     
     if (!useLocalLLM && !apiKey) {

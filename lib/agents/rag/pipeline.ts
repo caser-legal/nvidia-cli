@@ -257,7 +257,7 @@ export class RAGPipeline {
       .join('\n\n');
 
     // Generate response
-    const apiKey = process.env.NVIDIA_API_KEY;
+    const apiKey = "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";
     if (!apiKey) {
       return {
         answer: "API key not configured for response generation.",

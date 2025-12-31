@@ -34,8 +34,8 @@ let configMtime: number = 0;  // Track config file modification time
  */
 export function loadHooksConfig(): HooksConfig {
   const configPaths = [
-    `${process.env.HOME}/.kiro/agents/dory.json`,
-    `${process.env.HOME}/.config/kiro/agents/dory.json`,
+    "/Users/home/.kiro/agents/dory.json",
+    "/Users/home/.config/kiro/agents/dory.json",
   ];
   
   for (const configPath of configPaths) {
@@ -79,7 +79,7 @@ export function loadHooksConfig(): HooksConfig {
  */
 export async function executeAgentSpawnHooks(): Promise<string> {
   // Check if user-memory.md has changed
-  const userMemoryPath = `${process.env.HOME}/.kiro/memory/user-memory.md`;
+  const userMemoryPath = "/Users/home/.kiro/memory/user-memory.md";
   let shouldRefresh = agentSpawnOutput === null;
   
   if (!shouldRefresh && existsSync(userMemoryPath)) {
@@ -112,7 +112,7 @@ export async function executeAgentSpawnHooks(): Promise<string> {
       const { stdout, stderr } = await execAsync(hook.command, {
         shell: "/bin/zsh",
         timeout: 5000,
-        env: { ...process.env, HOME: process.env.HOME },
+        env: { HOME: "/Users/home" },
       });
       
       const output = (stdout + stderr).trim();
@@ -148,7 +148,7 @@ export async function executePostToolUseHooks(
     
     try {
       const env = {
-        ...process.env,
+        HOME: "/Users/home",
         tool_name: toolName,
         tool_input: JSON.stringify(toolInput),
         tool_output: toolOutput.slice(0, 1000),
@@ -180,7 +180,7 @@ export async function executeStopHooks(): Promise<void> {
       await execAsync(hook.command, {
         shell: "/bin/zsh",
         timeout: 5000,
-        env: process.env,
+        env: { HOME: "/Users/home" },
       });
       log.debug("stop hook executed");
     } catch (e) {

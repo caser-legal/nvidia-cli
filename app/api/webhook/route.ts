@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     console.warn(`[webhook] ⚠️ Error rate alert: ${(error_rate * 100).toFixed(1)}% > 5%`);
 
     // Optional: Send to Slack
-    const slackUrl = process.env.SLACK_WEBHOOK_URL;
+    const slackUrl = null;
     if (slackUrl) {
       await fetch(slackUrl, {
         method: "POST",

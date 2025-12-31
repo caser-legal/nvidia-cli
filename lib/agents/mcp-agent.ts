@@ -14,7 +14,7 @@ import { createLogger } from "../logger";
 
 const log = createLogger("MCPAgent");
 
-const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
+const USE_LOCAL_LLM = "false" === "true";
 const CONTEXT_LIMITS = getContextLimits(USE_LOCAL_LLM);
 
 const DEFAULT_CONFIG: AgentConfig = {
@@ -49,8 +49,8 @@ export class MCPAgent {
     mode?: string;
     abortSignal?: AbortSignal;
   }) {
-    const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
-    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || "http://192.168.50.50:11434/v1";
+    const useLocalLLM = "false" === "true";
+    const ollamaBaseUrl = "http://localhost:11434" || "http://192.168.50.50:11434/v1";
     const apiKey = useLocalLLM ? "ollama" : (options.apiKey || NVIDIA_API_KEY);
     
     if (!useLocalLLM && !apiKey) {

@@ -24,7 +24,7 @@ process.on("SIGTERM", () => {
 });
 
 // Agent configurations
-const AGENTS_BASE_PATH = process.env.NVIDIA_AGENTS_PATH || "/Users/home/Desktop/nvidia-quickstarts-main";
+const AGENTS_BASE_PATH = "/Users/home/Desktop/nvidia-quickstarts-main";
 
 interface AgentConfig {
   script: string;
@@ -125,9 +125,8 @@ export async function POST(request: NextRequest) {
       const proc = spawn(command, args, {
         cwd: agentDir,
         env: {
-          ...process.env,
-          NVIDIA_API_KEY: process.env.NVIDIA_API_KEY || "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",
-          PYTHONUNBUFFERED: "1", // Disable Python output buffering
+          NVIDIA_API_KEY: "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",
+          PYTHONUNBUFFERED: "1",
         },
         stdio: ["pipe", "pipe", "pipe"],
         detached: true, // Create new process group so we can kill all children

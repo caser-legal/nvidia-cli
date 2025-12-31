@@ -1,3 +1,4 @@
+import { NVIDIA_API_KEY } from "@/lib/api-key";
 // API Route: /api/agent-chat
 // Purpose: Main entry point for Dory agent modes (full autonomy + supervised research)
 // Last updated: December 23, 2025 — Ultra-comprehensive prompt with ALL reference sections
@@ -1009,7 +1010,7 @@ export async function POST(request: NextRequest) {
     };
 
     const apiKey =
-      request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY || "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";
+      request.headers.get("X-NVIDIA-API-Key") || NVIDIA_API_KEY || "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";
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "API key required" }), {
@@ -1090,7 +1091,7 @@ export async function POST(request: NextRequest) {
         const abortSignal = request.signal;
         
         // Get correct context limits based on backend
-        const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
+        const useLocalLLM = false;
         const contextLimit = useLocalLLM ? 1000000 : 262144; // 1M local, 262K hosted
 
         const agent = new Agent({

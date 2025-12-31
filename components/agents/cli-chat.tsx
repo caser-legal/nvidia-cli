@@ -79,9 +79,7 @@ export function CLIChat({ projectDir = "/Users/home", onProjectDirChange, classN
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(process.env.NEXT_PUBLIC_NVIDIA_API_KEY && {
-            "X-NVIDIA-API-Key": process.env.NEXT_PUBLIC_NVIDIA_API_KEY,
-          }),
+          "X-NVIDIA-API-Key": "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",
         },
         body: JSON.stringify({
           messages: [{ role: "user", content: userMessage }],

@@ -20,8 +20,8 @@ LOG_FILE="/tmp/nvidia-cli-dev.log"
 # ============================================================================
 if ! curl -s http://localhost:9200 > /dev/null 2>&1; then
   echo "Starting Elasticsearch..."
-  if [ -d ~/Downloads/elasticsearch-8.11.0 ]; then
-    cd ~/Downloads/elasticsearch-8.11.0
+  if [ -d /Users/home/Documents/nvidia-cli/elasticsearch-8.11.0 ]; then
+    cd /Users/home/Documents/nvidia-cli/elasticsearch-8.11.0
     ./bin/elasticsearch -E xpack.security.enabled=false -d -p es.pid
     cd /Users/home/Documents/nvidia-cli
     echo "Waiting for Elasticsearch to start..."
@@ -35,7 +35,7 @@ if ! curl -s http://localhost:9200 > /dev/null 2>&1; then
       sleep 1
     done
   else
-    echo "⚠️  Elasticsearch not found at ~/Downloads/elasticsearch-8.11.0"
+    echo "⚠️  Elasticsearch not found at /Users/home/Documents/nvidia-cli/elasticsearch-8.11.0"
   fi
 else
   echo "Elasticsearch already running"

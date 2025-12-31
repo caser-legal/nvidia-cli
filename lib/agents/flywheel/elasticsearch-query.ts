@@ -4,7 +4,7 @@
 import { Client } from "@elastic/elasticsearch";
 
 const esClient = new Client({
-  node: process.env.ELASTICSEARCH_ENDPOINT ?? "http://localhost:9200",
+  node: "http://localhost:9200" ?? "http://localhost:9200",
 });
 
 export async function getFlywheelStats(): Promise<any> {

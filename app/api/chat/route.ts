@@ -47,6 +47,7 @@ import {
   MockupComparisonTool,
 } from "@/lib/agents/tools/vision-analysis";
 import { getFlywheelLogger } from "@/lib/agents/flywheel";
+import { NVIDIA_API_KEY } from "@/lib/api-key";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -387,7 +388,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Invalid or missing messages array");
     }
 
-    const apiKey = request.headers.get("X-NVIDIA-API-Key") || process.env.NVIDIA_API_KEY || "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";
+    const apiKey = request.headers.get("X-NVIDIA-API-Key") || NVIDIA_API_KEY;
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "API key required" }), { status: 401, headers: { "Content-Type": "application/json" } });
     }
@@ -413,8 +414,8 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = SYSTEM_PROMPTS.dory;
     
-    // Get correct context limits based on backend
-    const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
+    // Get correct context limits based on backend - hardcoded values
+    const useLocalLLM = false; // Hardcoded to false
     const contextLimit = useLocalLLM ? 1000000 : 262144;
 
     const stream = new ReadableStream({

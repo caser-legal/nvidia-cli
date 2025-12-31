@@ -10,7 +10,7 @@ import { createLogger } from "../../logger";
 
 const log = createLogger("UnifiedMemoryStore");
 
-const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const HOME_DIR = "/Users/home";
 const MEMORY_DIR = path.join(HOME_DIR, ".nvidia-cli", "memory");
 const MEMORY_FILE = path.join(MEMORY_DIR, "unified-memory.json");
 

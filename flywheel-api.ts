@@ -12,7 +12,7 @@ import { startErrorMonitor, stopErrorMonitor, isMonitorRunning } from "./lib/age
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
-const PORT = process.env.FLYWHEEL_PORT || 3001;
+const PORT = 3001;
 
 // Initialize
 const flywheelLogger = getFlywheelLogger({

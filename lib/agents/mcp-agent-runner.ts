@@ -6,6 +6,7 @@
 
 import { Agent } from "./agent";
 import { Tool } from "./types";
+import { NVIDIA_API_KEY } from "../api-key";
 
 // Import all tools
 import { FileReadTool } from "./tools/file-read";
@@ -217,11 +218,6 @@ function initializeSingletons(apiKey: string): void {
   log.info("Agent singletons initialized", { tools: toolsInstance.length });
 }
 
-export interface AgentRunnerConfig {
-  apiKey: string;
-  conversationHistory?: Array<{ role: string; content: string }>;
-}
-
 export interface AgentRunResult {
   response: string;
   toolCalls: Array<{
@@ -240,9 +236,9 @@ export interface AgentRunResult {
  */
 export async function runDoryAgent(
   message: string,
-  config: AgentRunnerConfig
+  conversationHistory: Array<{ role: string; content: string }> = []
 ): Promise<AgentRunResult> {
-  const { apiKey, conversationHistory = [] } = config;
+  const apiKey = NVIDIA_API_KEY;
 
   // Initialize singletons on first call
   initializeSingletons(apiKey);
@@ -250,7 +246,7 @@ export async function runDoryAgent(
   // Track tool calls
   const toolCallResults: AgentRunResult["toolCalls"] = [];
 
-  const useLocalLLM = process.env.USE_LOCAL_LLM === "true";
+  const useLocalLLM = false;
   const contextLimit = useLocalLLM ? 1000000 : 262144;
 
   // Create agent with ALL mandatory orchestration components

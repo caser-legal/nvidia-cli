@@ -8,7 +8,7 @@ import { createLogger } from "../../logger";
 
 const log = createLogger("ErrorMonitor");
 
-const ES_ENDPOINT = process.env.ELASTICSEARCH_ENDPOINT ?? "http://localhost:9200";
+const ES_ENDPOINT = "http://localhost:9200" ?? "http://localhost:9200";
 const ES_INDEX = "nvidia-cli-traces";
 const ERROR_THRESHOLD = 0.05; // 5%
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -81,7 +81,7 @@ async function checkErrorRate(): Promise<void> {
  * Send alert to configured webhook
  */
 async function sendAlert(rate: number, errors: number, total: number): Promise<void> {
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  const webhookUrl = null;
   if (!webhookUrl) return;
 
   try {

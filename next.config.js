@@ -7,7 +7,7 @@ const nextConfig = {
     },
   },
   // Enable static export for PWA
-  output: process.env.STATIC_EXPORT === 'true' ? 'export' : undefined,
+  output: undefined,
 };
 
 module.exports = nextConfig;

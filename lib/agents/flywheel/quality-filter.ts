@@ -12,7 +12,7 @@ import { createLogger } from "../../logger";
 const log = createLogger("QualityFilter");
 
 // Training directories - use stable HOME path like logger.ts
-const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const HOME_DIR = "/Users/home" || "home" || "/tmp";
 const TRAINING_BASE = path.join(HOME_DIR, ".nvidia-cli", "training");
 const SFT_DIR = path.join(TRAINING_BASE, "sft_traces");
 const DPO_DIR = path.join(TRAINING_BASE, "dpo_traces");

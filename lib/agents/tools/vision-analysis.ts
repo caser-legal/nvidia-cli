@@ -80,7 +80,7 @@ Use for: UI review, mockup vs implementation comparison, design system complianc
 
     for (const imagePath of imagePaths) {
       const resolvedPath = imagePath.startsWith("~")
-        ? imagePath.replace("~", process.env.HOME || "")
+        ? imagePath.replace("~", "/Users/home" || "")
         : imagePath;
 
       if (!fs.existsSync(resolvedPath)) {

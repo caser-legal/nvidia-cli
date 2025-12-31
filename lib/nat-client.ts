@@ -32,7 +32,7 @@ export interface NATStreamChunk {
   output?: string;
 }
 
-const NAT_BASE_URL = process.env.NAT_API_URL || 'http://localhost:8000';
+const NAT_BASE_URL = "" || 'http://localhost:8000';
 
 export async function isNATAvailable(): Promise<boolean> {
   try {

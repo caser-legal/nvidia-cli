@@ -29,13 +29,18 @@ function createTerminalServer() {
 
     log.info(`New terminal session: ${sessionId}`, { cwd });
 
-    const shell = os.platform() === "win32" ? "powershell.exe" : process.env.SHELL || "/bin/bash";
+    const shell = os.platform() === "win32" ? "powershell.exe" : "/bin/zsh";
     const ptyProcess = pty.spawn(shell, [], {
       name: "xterm-256color",
       cols: 80,
       rows: 24,
       cwd,
-      env: process.env as Record<string, string>,
+      env: {
+        PATH: "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin",
+        HOME: "/Users/home",
+        USER: "home",
+        TERM: "xterm-256color"
+      },
     });
 
     sessions.set(sessionId, { pty: ptyProcess, ws });

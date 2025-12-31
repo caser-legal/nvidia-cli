@@ -9,8 +9,8 @@ import { NVIDIA_API_KEY } from '../../api-key';
 
 const log = createLogger("RAGv2");
 
-const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
-const LOCAL_EMBED_URL = process.env.LOCAL_EMBED_URL || "http://192.168.50.50:8000";
+const USE_LOCAL_LLM = "false" === "true";
+const LOCAL_EMBED_URL = "" || "http://192.168.50.50:8000";
 
 const NVIDIA_EMBEDDING_MODELS = {
   'llama-3.2-nv-embedqa-1b-v2': { dimensions: 2048, maxTokens: 8192 },
@@ -149,7 +149,7 @@ export class NVIDIAReranker {
   private localUrl: string;
   private static lastCallTime = 0;
   private static readonly DEFAULT_RATE_LIMIT_MS = 1000;
-  private static readonly RATE_LIMIT_MS: number = Number(process.env.NVIDIA_RERANK_RATE_LIMIT_MS) || 1000;
+  private static readonly RATE_LIMIT_MS: number = Number("") || 1000;
 
   constructor(model: string = 'nvidia/llama-3.2-nv-rerankqa-1b-v2', topN: number = 5) {
     this.model = model;
@@ -413,7 +413,7 @@ export class SimpleVectorStore {
   }
 
   private getStorePath(): string {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "/tmp";
+    const homeDir = "/Users/home" || "home" || "/tmp";
     return `${homeDir}/.nvidia-cli/.rag-store.json`;
   }
 

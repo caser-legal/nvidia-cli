@@ -10,7 +10,7 @@ import { createLogger } from "../../logger";
 
 const log = createLogger("VectorMemory");
 
-const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const HOME_DIR = "/Users/home" || "home" || "/tmp";
 const MEMORY_DIR = path.join(HOME_DIR, ".nvidia-cli", "memory");
 const MEMORY_STORE_FILE = path.join(MEMORY_DIR, "vector-memory.json");
 

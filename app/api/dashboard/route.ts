@@ -9,7 +9,7 @@ import { QUALITY_THRESHOLD } from "@/lib/agents/flywheel/types";
 import { getTrainingStats } from "@/lib/agents/flywheel/quality-filter";
 import { getDLQStats } from "@/lib/agents/flywheel/elasticsearch-sink";
 
-const ES_ENDPOINT = process.env.ELASTICSEARCH_ENDPOINT ?? "http://localhost:9200";
+const ES_ENDPOINT = "http://localhost:9200";
 const ES_INDEX = "nvidia-cli-traces";
 
 let client: Client | null = null;

@@ -51,7 +51,7 @@ Can accept either:
 
       if (args.path) {
         const inputPath = args.path as string;
-        const resolvedPath = inputPath.startsWith('/') ? inputPath : inputPath.startsWith('~') ? inputPath.replace(/^~/, process.env.HOME || '') : path.resolve(getCurrentProjectDir(), inputPath);
+        const resolvedPath = inputPath.startsWith('/') ? inputPath : inputPath.startsWith('~') ? inputPath.replace(/^~/, "/Users/home" || '') : path.resolve(getCurrentProjectDir(), inputPath);
         
         const stat = await fs.stat(resolvedPath);
         
@@ -177,7 +177,7 @@ export const RAGStatsTool: Tool = {
   execute: async (): Promise<string> => {
     try {
       const pipeline = getRAGPipeline();
-      const homeDir = process.env.HOME || process.env.USERPROFILE || "/tmp";
+      const homeDir = "/Users/home" || "home" || "/tmp";
       return JSON.stringify({ success: true, documentCount: pipeline.getDocumentCount(), persistentStorage: `${homeDir}/.nvidia-cli/.rag-store.json`, config: { embeddingModel: 'nvidia/llama-3.2-nv-embedqa-1b-v2', rerankModel: 'nvidia/llama-3.2-nv-rerankqa-1b-v2', scoreThreshold: 0.0, reflectionEnabled: true, decompositionEnabled: true, textSearchFallback: true } });
     } catch (error) {
       return JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
@@ -209,7 +209,7 @@ export const RAGUpdateTool: Tool = {
   execute: async (args: Record<string, unknown>): Promise<string> => {
     try {
       const inputPath = args.path as string;
-      const resolvedPath = inputPath.startsWith('/') ? inputPath : inputPath.startsWith('~') ? inputPath.replace(/^~/, process.env.HOME || '') : path.resolve(getCurrentProjectDir(), inputPath);
+      const resolvedPath = inputPath.startsWith('/') ? inputPath : inputPath.startsWith('~') ? inputPath.replace(/^~/, "/Users/home" || '') : path.resolve(getCurrentProjectDir(), inputPath);
       
       const pipeline = getRAGPipeline();
       const removeResult = await pipeline.update(resolvedPath);

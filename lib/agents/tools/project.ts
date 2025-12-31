@@ -63,7 +63,7 @@ Example: set_project("/Users/home/Documents/iOS/MyApp")`;
 
   async execute(args: Record<string, unknown>): Promise<string> {
     const targetPath = args.path as string;
-    const expandedPath = targetPath.replace(/^~/, process.env.HOME || "");
+    const expandedPath = targetPath.replace(/^~/, "/Users/home");
     
     if (!fs.existsSync(expandedPath)) {
       return `Error: Directory does not exist: ${expandedPath}`;

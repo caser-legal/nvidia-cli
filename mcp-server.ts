@@ -58,8 +58,8 @@ import { NVIDIA_API_KEY as HARDCODED_KEY } from "./lib/api-key.ts";
 
 const server = new McpServer({ name: "nvidia-cli", version: "2.1.0" });
 
-// Use env var if set, otherwise fall back to hardcoded key
-const apiKey = process.env.NVIDIA_API_KEY || process.env.NGC_API_KEY || HARDCODED_KEY;
+// Use hardcoded API key
+const apiKey = "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";
 
 // Instantiate tools
 const bashTool = new BashTool();

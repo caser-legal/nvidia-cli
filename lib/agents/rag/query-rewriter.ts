@@ -1,7 +1,7 @@
 // Query Rewriter - Self-correction loop for RAG retrieval failures
 
-const REWRITER_ENDPOINT = process.env.APP_QUERYREWRITER_SERVERURL ?? "http://localhost:8000";
-const REWRITER_MODEL = process.env.APP_QUERYREWRITER_MODELNAME ?? "nvidia/nemotron-3-nano-30b-a3b";
+const REWRITER_ENDPOINT = "" ?? "http://localhost:8000";
+const REWRITER_MODEL = "" ?? "nvidia/nemotron-3-nano-30b-a3b";
 
 export async function rewriteQuery(originalQuery: string): Promise<string> {
   try {

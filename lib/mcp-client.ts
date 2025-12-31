@@ -4,7 +4,7 @@
  */
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { NVIDIA_API_KEY } from "./api-key";
+import { NVIDIA_API_KEY, GOOGLE_API_KEY, GOOGLE_CSE_ID } from "./api-key";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { Tool as MCPTool } from "@modelcontextprotocol/sdk/types.js";
 import config from "./config";
@@ -62,11 +62,10 @@ async function connectMCPClient(): Promise<Client> {
     args: ["tsx", MCP_SERVER_PATH],
     cwd: MCP_SERVER_CWD,
     env: {
-      ...process.env,
-      NVIDIA_API_KEY: NVIDIA_API_KEY || "",
-      NGC_API_KEY: NVIDIA_API_KEY || "",
-      GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || "AIzaSyAItqaim6u_IqbbPbRUvLddZEAgZo9OU8E",
-      GOOGLE_CSE_ID: process.env.GOOGLE_CSE_ID || "c793827e2e54f4511",
+      NVIDIA_API_KEY: NVIDIA_API_KEY,
+      NGC_API_KEY: NVIDIA_API_KEY,
+      GOOGLE_API_KEY: GOOGLE_API_KEY,
+      GOOGLE_CSE_ID: GOOGLE_CSE_ID,
     },
   });
 

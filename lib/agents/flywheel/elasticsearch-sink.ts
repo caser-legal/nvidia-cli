@@ -13,11 +13,11 @@ import { createLogger } from "../../logger";
 const log = createLogger("ES-Sink");
 
 // Configuration
-const ES_ENDPOINT = process.env.ELASTICSEARCH_ENDPOINT ?? "http://localhost:9200";
+const ES_ENDPOINT = "http://localhost:9200" ?? "http://localhost:9200";
 const ES_INDEX = "nvidia-cli-traces";
 const MAX_RETRIES = 3; // Reduced for faster fallback
 const INITIAL_BACKOFF_MS = 500;
-const HOME_DIR = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const HOME_DIR = "/Users/home" || "home" || "/tmp";
 const DLQ_DIR = path.join(HOME_DIR, ".nvidia-cli", "flywheel", "dlq");
 const FALLBACK_DIR = path.join(HOME_DIR, ".nvidia-cli", "flywheel", "records");
 

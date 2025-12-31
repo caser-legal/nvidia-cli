@@ -39,13 +39,13 @@ let deviceConfigMtime: number = 0;
 let userMemoryMtime: number = 0;
 
 const DEVICE_CONFIG_PATHS = [
-  `${process.env.HOME}/.kiro/settings/device.json`,
-  `${process.env.HOME}/.kiro/device.json`,
+  "/Users/home/.kiro/settings/device.json",
+  "/Users/home/.kiro/device.json",
 ];
 
 const USER_MEMORY_PATHS = [
-  `${process.env.HOME}/.kiro/memory/user-memory.md`,
-  `${process.env.HOME}/.kiro/user-memory.md`,
+  "/Users/home/.kiro/memory/user-memory.md",
+  "/Users/home/.kiro/user-memory.md",
 ];
 
 function getFileMtime(paths: string[]): number {
@@ -270,8 +270,9 @@ Or for generic iOS device:
         maxBuffer: 1024 * 1024 * 50,
         shell: "/bin/zsh",
         env: {
-          ...process.env,
-          PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:" + process.env.PATH,
+          PATH: "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+          HOME: "/Users/home",
+          USER: "home"
         },
       });
 

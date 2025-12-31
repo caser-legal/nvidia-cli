@@ -5,8 +5,8 @@ import OpenAI from "openai";
 import { NVIDIA_API_KEY } from "./api-key";
 
 // API Configuration - supports local Ollama or NVIDIA NIM
-const USE_LOCAL_LLM = process.env.USE_LOCAL_LLM === "true";
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://192.168.50.50:11434/v1";
+const USE_LOCAL_LLM = "false" === "true";
+const OLLAMA_BASE_URL = "http://localhost:11434" || "http://192.168.50.50:11434/v1";
 const NVIDIA_API_BASE = USE_LOCAL_LLM ? OLLAMA_BASE_URL : "https://integrate.api.nvidia.com/v1";
 
 // Model name mapping: NVIDIA API name -> Ollama name
