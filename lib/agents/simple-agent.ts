@@ -1,4 +1,4 @@
-// Simple Agent - Lightweight version without mandatory orchestration
+// Simple Agent - Lightweight version with nudge system for edit enforcement
 // Use this for simple tool-based tasks that don't need full pipeline
 
 import { NVIDIA_API_KEY } from "../api-key";
@@ -24,6 +24,7 @@ export class SimpleAgent {
   private systemPrompt: string;
   private onEvent?: (event: AgentEvent) => void;
   private abortSignal?: AbortSignal;
+  private toolCallRecords: Array<{ toolName: string; success: boolean }> = [];
 
   constructor(options: {
     apiKey?: string;
@@ -98,6 +99,8 @@ export class SimpleAgent {
   }
 
   async run(userMessage: string, conversationHistory?: AgentMessage[]): Promise<string> {
+    this.toolCallRecords = [];
+    
     this.emit({ type: "status", status: "running" });
     this.emit({ type: "message", role: "user", content: userMessage });
 
@@ -110,6 +113,8 @@ export class SimpleAgent {
     let iterations = 0;
     const maxIterations = 50;
     let finalResponse = "";
+    let nudgeCount = 0;
+    const MAX_NUDGES = 3;
 
     while (iterations < maxIterations) {
       if (this.abortSignal?.aborted) {
@@ -174,11 +179,31 @@ export class SimpleAgent {
             const result = await this.executeToolCall(tc);
             this.emit({ type: "tool_result", name: tc.function.name, result: result.content, is_error: result.is_error });
             results.push(result);
+            
+            // Track tool calls for nudge system
+            this.toolCallRecords.push({
+              toolName: tc.function.name,
+              success: !result.is_error,
+            });
           }
 
           for (const result of results) {
             this.messages.push({ role: "tool", content: result.content, tool_call_id: result.tool_call_id });
           }
+          continue;
+        }
+
+        // NUDGE SYSTEM - Enforce edits when requested
+        const madeEdits = this.toolCallRecords.some(r => r.toolName === 'file_write' && r.success);
+        const userRequestedEdits = /\b(edit|fix|implement|create|build|redesign|update|change|modify|add|remove|refactor|install|font|style|color|theme)\b/i.test(userMessage);
+        
+        if (userRequestedEdits && !madeEdits && nudgeCount < MAX_NUDGES) {
+          nudgeCount++;
+          log.debug(`Nudge ${nudgeCount}/${MAX_NUDGES}: User requested edits but none made`);
+          this.messages.push({
+            role: "user",
+            content: "You have not made any code changes yet. The user requested edits/changes. Use file_write to implement the requested changes NOW. Do not just analyze or summarize - WRITE the actual code changes to the files.",
+          });
           continue;
         }
 
@@ -197,6 +222,8 @@ export class SimpleAgent {
   }
 
   async *runStream(userMessage: string): AsyncGenerator<AgentEvent> {
+    this.toolCallRecords = [];
+    
     yield { type: "status", status: "running" };
     yield { type: "message", role: "user", content: userMessage };
 
@@ -204,6 +231,8 @@ export class SimpleAgent {
 
     let iterations = 0;
     const maxIterations = 50;
+    let nudgeCount = 0;
+    const MAX_NUDGES = 3;
 
     while (iterations < maxIterations) {
       if (this.abortSignal?.aborted) return;
@@ -279,7 +308,27 @@ export class SimpleAgent {
             const result = await this.executeToolCall(tc);
             yield { type: "tool_result", name: tc.function.name, result: result.content, is_error: result.is_error };
             this.messages.push({ role: "tool", content: result.content, tool_call_id: result.tool_call_id });
+            
+            // Track tool calls for nudge system
+            this.toolCallRecords.push({
+              toolName: tc.function.name,
+              success: !result.is_error,
+            });
           }
+          continue;
+        }
+
+        // NUDGE SYSTEM - Enforce edits when requested
+        const madeEdits = this.toolCallRecords.some(r => r.toolName === 'file_write' && r.success);
+        const userRequestedEdits = /\b(edit|fix|implement|create|build|redesign|update|change|modify|add|remove|refactor|install|font|style|color|theme)\b/i.test(this.messages[0]?.content || "");
+        
+        if (userRequestedEdits && !madeEdits && nudgeCount < MAX_NUDGES) {
+          nudgeCount++;
+          log.debug(`Nudge ${nudgeCount}/${MAX_NUDGES}: User requested edits but none made`);
+          this.messages.push({
+            role: "user",
+            content: "You have not made any code changes yet. The user requested edits/changes. Use file_write to implement the requested changes NOW. Do not just analyze or summarize - WRITE the actual code changes to the files.",
+          });
           continue;
         }
 

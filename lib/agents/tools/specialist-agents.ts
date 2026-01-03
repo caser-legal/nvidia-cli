@@ -4,8 +4,8 @@
 
 import { BaseTool } from "../base-tool";
 import { SimpleAgent as Agent } from "../simple-agent";
-import { GoogleSearchTool } from "./google-search";
-import { ParallelSearchTool, deduplicateCitations } from "./parallel-search";
+import { PerplexitySearchTool } from "./perplexity-search";
+// Removed parallel search - using Perplexity instead
 import { LocalDocsSearchTool } from "./local-docs-search";
 
 // Specialist agents use Nemotron 3 Nano for best reasoning and instruction following
@@ -26,12 +26,10 @@ const SEARCH_SPECIALIST_PROMPT = `You are a Search Specialist Agent with advance
 Your job is to gather comprehensive information using multiple search strategies:
 
 1. FIRST: Check local documentation (local_docs_search) for existing knowledge
-2. THEN: Use parallel_search for web research (multiple Google queries at once)
-3. FOLLOW UP: Use google_search for targeted single queries
 
 SEARCH STRATEGY:
 - Generate 3-5 different search queries for the topic (different angles)
-- Use parallel_search to run them all at once
+- Use Google or Preplexity Search to run them all at once
 - Review results and identify gaps
 - Do targeted follow-up searches if needed
 
@@ -85,8 +83,7 @@ Returns deduplicated findings with sources.`;
       systemPrompt: SEARCH_SPECIALIST_PROMPT,
       tools: [
         new LocalDocsSearchTool(),
-        new ParallelSearchTool(),
-        new GoogleSearchTool(),
+        new PerplexitySearchTool(),
       ],
       config: SPECIALIST_CONFIG,
     });
@@ -101,8 +98,7 @@ Returns deduplicated findings with sources.`;
       `Research this topic comprehensively: ${topic}
 
 ${depthInstruction}
-
-First check local docs, then use parallel_search for web sources.`
+`
     );
     return result;
   }
@@ -550,7 +546,7 @@ Deduplicates sources and adds consistent formatting.`;
 
     // Deduplicate sources
     const sourceLines = sources.split("\n").filter((l) => l.trim());
-    const unique = deduplicateCitations(sourceLines);
+    const unique = [...new Set(sourceLines)];
     const numbered = unique.map((s, i) => {
       const cleaned = s.replace(/^\[\d+\]\s*/, "");
       return `[${i + 1}] ${cleaned}`;
@@ -592,7 +588,7 @@ export class SourceDeduplicatorTool extends BaseTool {
   async execute(args: Record<string, unknown>): Promise<string> {
     const sourcesRaw = args.sources as string;
     const lines = sourcesRaw.split("\n").filter((l) => l.trim());
-    const unique = deduplicateCitations(lines);
+    const unique = [...new Set(lines)];
     const numbered = unique.map((s, i) => {
       const cleaned = s.replace(/^\[\d+\]\s*/, "").replace(/^\d+\.\s*/, "");
       return `[${i + 1}] ${cleaned}`;

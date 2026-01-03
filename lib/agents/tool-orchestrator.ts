@@ -43,8 +43,6 @@ export class ToolOrchestrator {
     
     // Search tools
     if (taskLower.includes("search") || taskLower.includes("find") || taskLower.includes("look up") || taskLower.includes("research")) {
-      selected.add("google_search");
-      selected.add("parallel_search");
       selected.add("local_docs_search");
       selected.add("rag_search");
       selected.add("rag_query");

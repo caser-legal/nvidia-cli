@@ -10,8 +10,7 @@ import { NVIDIA_API_KEY } from "../../api-key";
 import { BashTool } from "./bash";
 import { ThinkTool } from "./think";
 import { SetProjectTool, GetProjectTool } from "./project";
-import { GoogleSearchTool } from "./google-search";
-import { ParallelSearchTool } from "./parallel-search";
+import { PerplexitySearchTool } from "./perplexity-search";
 import { LocalDocsSearchTool } from "./local-docs-search";
 import { MemoryTool, EntityMemoryTool } from "./memory";
 import { UnifiedMemoryTool } from "./unified-memory";
@@ -64,8 +63,7 @@ export function createToolRegistry(config: ToolRegistryConfig = {}): Tool[] {
     new UnifiedMemoryTool(),
     
     // Search
-    new GoogleSearchTool(),
-    new ParallelSearchTool(),
+    new PerplexitySearchTool(),
     new LocalDocsSearchTool(),
     
     // GitHub

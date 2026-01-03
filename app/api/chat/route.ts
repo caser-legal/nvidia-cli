@@ -8,7 +8,7 @@ import { FileWriteTool } from "@/lib/agents/tools/file-write";
 import { BashTool } from "@/lib/agents/tools/bash";
 import { ThinkTool } from "@/lib/agents/tools/think";
 import { SetProjectTool, GetProjectTool } from "@/lib/agents/tools/project";
-import { GoogleSearchTool } from "@/lib/agents/tools/google-search";
+import { PerplexitySearchTool } from "@/lib/agents/tools/perplexity-search";
 import { ParallelSearchTool } from "@/lib/agents/tools/parallel-search";
 import { LocalDocsSearchTool } from "@/lib/agents/tools/local-docs-search";
 import {
@@ -127,9 +127,6 @@ Memory:
 - memory(operation: "remember"|"recall"|"list"|"summarize"|"promote"|"clear", content?, type?, storage?)
 - entity_memory(operation: "add"|"get"|"list"|"update", entity_name, entity_type?, info?)
 Search:
-- google_search(query, num?)
-- google_search(query)
-- parallel_search(queries[])
 - local_docs_search(query, max_results?)
 GitHub:
 - github_analyzer(repo_url)
@@ -356,7 +353,7 @@ function initializeTools(apiKey: string) {
     new UnifiedMemoryTool(),
     new EntityMemoryTool(),
     // Search
-    new GoogleSearchTool(),
+    new PerplexitySearchTool(),
     new ParallelSearchTool(),
     new LocalDocsSearchTool(),
     // GitHub

@@ -14,8 +14,7 @@ import { FileWriteTool } from "./tools/file-write";
 import { BashTool } from "./tools/bash";
 import { ThinkTool } from "./tools/think";
 import { SetProjectTool, GetProjectTool } from "./tools/project";
-import { GoogleSearchTool } from "./tools/google-search";
-import { ParallelSearchTool } from "./tools/parallel-search";
+import { PerplexitySearchTool } from "./tools/perplexity-search";
 import { LocalDocsSearchTool } from "./tools/local-docs-search";
 import { EntityMemoryTool, MemoryTool } from "./tools/memory";
 import { UnifiedMemoryTool } from "./tools/unified-memory";
@@ -180,8 +179,7 @@ function initializeSingletons(apiKey: string): void {
     new MockupComparisonTool(),
     new UnifiedMemoryTool(),
     new EntityMemoryTool(),
-    new GoogleSearchTool(),
-    new ParallelSearchTool(),
+    new PerplexitySearchTool(),
     new LocalDocsSearchTool(),
     new GitHubAnalyzerTool(),
     new GitHubFileReaderTool(),

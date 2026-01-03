@@ -255,7 +255,7 @@ export function SettingsModal() {
               <div className="space-y-2 pt-4 border-t">
                 <label className="text-sm font-medium">Available Tools (24)</label>
                 <div className="text-xs text-muted-foreground flex flex-wrap gap-1">
-                  {["set_project", "get_project", "file_read", "file_write", "bash", "think", "memory", "entity_memory", "google_search", "parallel_search", "local_docs_search", "github_analyzer", "github_file_reader", "code_documentation", "mermaid_generator", "quick_diagram", "rag_ingest", "rag_search", "rag_query", "rag_research", "rag_stats", "rag_clear"].map(tool => (
+                  {["set_project", "get_project", "file_read", "file_write", "bash", "think", "memory", "entity_memory", "local_docs_search", "github_analyzer", "github_file_reader", "code_documentation", "mermaid_generator", "quick_diagram", "rag_ingest", "rag_search", "rag_query", "rag_research", "rag_stats", "rag_clear"].map(tool => (
                     <span key={tool} className="px-1.5 py-0.5 bg-muted rounded">{tool}</span>
                   ))}
                 </div>

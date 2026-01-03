@@ -23,13 +23,17 @@ import { FileWriteTool } from "./lib/agents/tools/file-write.ts";
 import { ThinkTool } from "./lib/agents/tools/think.ts";
 import { MemoryTool, EntityMemoryTool } from "./lib/agents/tools/memory.ts";
 import { UnifiedMemoryTool } from "./lib/agents/tools/unified-memory.ts";
-import { GoogleSearchTool } from "./lib/agents/tools/google-search.ts";
-import { ParallelSearchTool } from "./lib/agents/tools/parallel-search.ts";
 import { LocalDocsSearchTool } from "./lib/agents/tools/local-docs-search.ts";
+import {
+  PerplexitySearchTool,
+  PerplexityAskTool,
+  PerplexityResearchTool,
+  PerplexityReasonTool,
+} from "./lib/agents/tools/perplexity-search.ts";
 import { SetProjectTool, GetProjectTool } from "./lib/agents/tools/project.ts";
-import { 
-  RAGIngestTool, RAGSearchTool, RAGQueryTool, RAGResearchTool, 
-  RAGClearTool, RAGStatsTool, RAGValidateTool, RAGUpdateTool 
+import {
+  RAGIngestTool, RAGSearchTool, RAGQueryTool, RAGResearchTool,
+  RAGClearTool, RAGStatsTool, RAGValidateTool, RAGUpdateTool
 } from "./lib/agents/tools/rag-tools.ts";
 import { CodeDocumentationTool, DocumentationSpecialistTool } from "./lib/agents/tools/code-documentation.ts";
 import { MermaidGeneratorTool, QuickDiagramTool } from "./lib/agents/tools/mermaid-generator.ts";
@@ -56,7 +60,7 @@ import { executeAgentSpawnHooks, resetHooksCache } from "./lib/agents/hooks.ts";
 // Import hardcoded API key as fallback (private repo, easily swappable)
 import { NVIDIA_API_KEY as HARDCODED_KEY } from "./lib/api-key.ts";
 
-const server = new McpServer({ name: "nvidia-cli", version: "2.1.0" });
+const server = new McpServer({ name: "nvidia-cli", version: "2.2.0" });
 
 // Use hardcoded API key
 const apiKey = "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";
@@ -69,8 +73,10 @@ const thinkTool = new ThinkTool();
 const memoryTool = new MemoryTool();
 const entityMemoryTool = new EntityMemoryTool();
 const unifiedMemoryTool = new UnifiedMemoryTool();
-const googleSearchTool = new GoogleSearchTool();
-const parallelSearchTool = new ParallelSearchTool();
+const perplexitySearchTool = new PerplexitySearchTool();
+const perplexityAskTool = new PerplexityAskTool();
+const perplexityResearchTool = new PerplexityResearchTool();
+const perplexityReasonTool = new PerplexityReasonTool();
 const localDocsSearchTool = new LocalDocsSearchTool();
 const setProjectTool = new SetProjectTool();
 const getProjectTool = new GetProjectTool();
@@ -95,7 +101,7 @@ const reportExtenderTool = new ReportExtenderTool(apiKey);
 const sourceDeduplicatorTool = new SourceDeduplicatorTool();
 
 // FLYWHEEL ENABLED - single instance for all MCP calls
-const flywheelLogger = getFlywheelLogger({ 
+const flywheelLogger = getFlywheelLogger({
   clientId: "nvidia-cli-mcp",
   workloadId: `mcp-session-${Date.now()}`,
   enabled: true  // ENABLED!
@@ -134,15 +140,12 @@ For simple tool calls, use individual tools directly.`,
   },
   async ({ message, conversation_history }) => {
     try {
-      const result = await runDoryAgent(message, {
-        apiKey,
-        conversationHistory: conversation_history || []
-      });
-      
+      const result = await runDoryAgent(message, conversation_history || []);
+
       const toolSummary = result.toolCalls.length > 0
         ? `\n\n---\nTools used: ${result.toolCalls.map(t => t.name).join(", ")}`
         : "";
-      
+
       return { content: [{ type: "text", text: result.response + toolSummary }] };
     } catch (error) {
       return { content: [{ type: "text", text: `Agent error: ${error instanceof Error ? error.message : String(error)}` }] };
@@ -154,7 +157,7 @@ For simple tool calls, use individual tools directly.`,
 // INDIVIDUAL TOOLS
 // ============================================================================
 
-server.tool("bash", "Execute shell command", 
+server.tool("bash", "Execute shell command",
   { command: z.string(), timeout: z.number().optional() },
   async ({ command, timeout }) => ({ content: [{ type: "text", text: await bashTool.execute({ command, timeout }) }] })
 );
@@ -189,15 +192,27 @@ server.tool("unified_memory", "Unified memory interface",
   async (args) => ({ content: [{ type: "text", text: await unifiedMemoryTool.execute(args) }] })
 );
 
-server.tool("google_search", "Search Google",
+// Perplexity Search Tools (replaced Google)
+server.tool("perplexity_search", "Search web with Perplexity AI",
   { query: z.string(), num: z.number().optional() },
-  async (args) => ({ content: [{ type: "text", text: await googleSearchTool.execute(args) }] })
+  async (args) => ({ content: [{ type: "text", text: await perplexitySearchTool.execute(args) }] })
 );
 
-server.tool("parallel_search", "Multiple searches in parallel",
-  { queries: z.array(z.string()), results_per_query: z.number().optional() },
-  async (args) => ({ content: [{ type: "text", text: await parallelSearchTool.execute(args) }] })
+server.tool("perplexity_ask", "Ask Perplexity with web context (sonar-pro)",
+  { question: z.string() },
+  async (args) => ({ content: [{ type: "text", text: await perplexityAskTool.execute(args) }] })
 );
+
+server.tool("perplexity_research", "Research a topic with Perplexity",
+  { topic: z.string() },
+  async (args) => ({ content: [{ type: "text", text: await perplexityResearchTool.execute(args) }] })
+);
+
+server.tool("perplexity_reason", "Reason through a problem with Perplexity",
+  { problem: z.string() },
+  async (args) => ({ content: [{ type: "text", text: await perplexityReasonTool.execute(args) }] })
+);
+
 
 server.tool("local_docs_search", "Search local documentation",
   { query: z.string(), directory: z.string().optional(), extensions: z.array(z.string()).optional() },
@@ -355,18 +370,18 @@ server.tool("deduplicate_sources", "Clean up source citations",
 
 // Flywheel Tools
 server.tool("flywheel_log", "Log interaction for continuous improvement",
-  { 
-    user_message: z.string(), 
-    assistant_response: z.string(), 
-    tool_calls: z.array(z.object({ 
-      toolName: z.string(), 
-      arguments: z.record(z.unknown()), 
-      result: z.string(), 
-      durationMs: z.number(), 
-      success: z.boolean() 
-    })).optional(), 
-    model: z.string().optional(), 
-    mode: z.string().optional() 
+  {
+    user_message: z.string(),
+    assistant_response: z.string(),
+    tool_calls: z.array(z.object({
+      toolName: z.string(),
+      arguments: z.record(z.unknown()),
+      result: z.string(),
+      durationMs: z.number(),
+      success: z.boolean()
+    })).optional(),
+    model: z.string().optional(),
+    mode: z.string().optional()
   },
   async ({ user_message, assistant_response, tool_calls, model, mode }) => {
     try {
@@ -405,7 +420,7 @@ server.tool("flywheel_export", "Export flywheel data for training",
   { include_tool_calls: z.boolean().optional() },
   async ({ include_tool_calls }) => {
     try {
-      const data = include_tool_calls 
+      const data = include_tool_calls
         ? flywheelLogger.exportWithToolCalls()
         : flywheelLogger.exportForTraining();
       return { content: [{ type: "text", text: data.join("\n") || "No records to export" }] };
@@ -442,7 +457,7 @@ server.tool("health_check", "Check MCP server health and component status", {},
     const trainingDirs = getTrainingDirs();
     const status = {
       server: "healthy",
-      version: "2.1.0",
+      version: "2.2.0",
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       apiKey: apiKey ? `${apiKey.slice(0, 10)}...` : "NOT SET",
@@ -461,7 +476,7 @@ server.tool("health_check", "Check MCP server health and component status", {},
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[nvidia-cli MCP v2.1] Server started - API key: ${apiKey ? apiKey.slice(0, 10) + "..." : "NOT SET"}`);
+  console.error(`[nvidia-cli MCP v2.2] Server started with Perplexity search - API key: ${apiKey ? apiKey.slice(0, 10) + "..." : "NOT SET"}`);
 }
 
 main().catch((error) => {

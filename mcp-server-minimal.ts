@@ -32,7 +32,7 @@ import { SetProjectTool, GetProjectTool } from "./lib/agents/tools/project.ts";
 import { ThinkTool } from "./lib/agents/tools/think.ts";
 import { MemoryTool, EntityMemoryTool } from "./lib/agents/tools/memory.ts";
 import { UnifiedMemoryTool } from "./lib/agents/tools/unified-memory.ts";
-import { GoogleSearchTool } from "./lib/agents/tools/google-search.ts";
+import { PerplexitySearchTool } from "./lib/agents/tools/perplexity-search.ts";
 
 // Instantiate tools
 const bashTool = new BashTool();
@@ -44,7 +44,7 @@ const thinkTool = new ThinkTool();
 const memoryTool = new MemoryTool();
 const entityMemoryTool = new EntityMemoryTool();
 const unifiedMemoryTool = new UnifiedMemoryTool();
-const googleSearchTool = new GoogleSearchTool();
+const googleSearchTool = new PerplexitySearchTool();
 
 // Register essential tools
 server.tool(

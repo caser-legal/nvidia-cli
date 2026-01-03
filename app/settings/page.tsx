@@ -98,14 +98,6 @@ const TOOLS = [
     example: 'google_search({ query: "Swift async await tutorial" })',
   },
   {
-    name: "parallel_search",
-    path: "lib/agents/tools/parallel-search.ts",
-    category: "Search",
-    description: "Runs multiple Google searches simultaneously.",
-    howItWorks: "Takes an array of queries and executes them in parallel using Promise.all(). Much faster than sequential searches for multi-topic research. Deduplicates results automatically.",
-    example: 'parallel_search({ queries: ["SwiftUI navigation", "UIKit navigation", "Combine framework"] })',
-  },
-  {
     name: "local_docs_search",
     path: "lib/agents/tools/local-docs-search.ts",
     category: "Search",
