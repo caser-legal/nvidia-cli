@@ -1,0 +1,150 @@
+# =============================================================================
+# NVIDIA CLI (Dory) - NeMo Agent Toolkit Workflow Configuration
+# Production-grade settings with retry, observability, and Data Flywheel
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# General Configuration
+# -----------------------------------------------------------------------------
+general:
+  max_iterations: 2000          # Higher for complex flows
+  timeout: 86400                # 24h (seconds)
+  telemetry:
+    logging:
+      console:
+        _type: console
+        level: INFO
+    tracing:
+      data_flywheel:
+        _type: data_flywheel
+        endpoint: ${ELASTICSEARCH_ENDPOINT}
+        index: nvidia-cli-traces
+        client_id: nvidia-cli
+        bulk:
+          size: 1000
+          timeout: 30s
+
+# -----------------------------------------------------------------------------
+# LLM Configuration - Using NVIDIA NIM
+# -----------------------------------------------------------------------------
+llms:
+  nim_nemotron:
+    _type: nim
+    model_name: nvidia/nemotron-3-nano-30b-a3b
+    temperature: 0.7
+    top_p: 0.9
+    max_tokens: 16384
+    do_auto_retry: true
+    num_retries: 7
+    retry_on_status_codes:
+      - "429"
+      - "5xx"
+    retry_on_errors:
+      - "network error"
+      - "timeout"
+
+  nim_nemotron_70b:
+    _type: nim
+    model_name: claude-opus-4.5
+    temperature: 0.7
+    max_tokens: 4096
+    do_auto_retry: true
+    num_retries: 5
+    retry_on_status_codes:
+      - "429"
+      - "5xx"
+
+# -----------------------------------------------------------------------------
+# Embedder Configuration - For RAG
+# -----------------------------------------------------------------------------
+embedders:
+  nv-embedqa:
+    _type: nim
+    model_name: nvidia/nv-embedqa-e5-v5
+
+# -----------------------------------------------------------------------------
+# Functions (Tools) - Custom dory tools + NAT built-ins
+# -----------------------------------------------------------------------------
+functions:
+  bash:
+    _type: dory_bash
+    description: "Execute bash commands on the local system."
+    timeout: 60
+
+  file_read:
+    _type: dory_file_read
+    description: "Read contents of files."
+    max_size_kb: 1000
+
+  file_write:
+    _type: dory_file_write
+    description: "Write or modify files."
+
+  memory:
+    _type: dory_memory
+    description: "Store and retrieve from persistent memory."
+    memory_path: "~/.nvidia-cli/memory.json"
+
+  think:
+    _type: dory_think
+    description: "Think through complex problems step by step."
+
+  current_datetime:
+    _type: current_datetime
+
+  tavily_search:
+    _type: tavily_internet_search
+
+# -----------------------------------------------------------------------------
+# Workflow Configuration - ReAct Agent
+# -----------------------------------------------------------------------------
+workflow:
+  _type: react_agent
+  llm_name: nim_nemotron
+  tool_names:
+    - bash
+    - file_read
+    - file_write
+    - memory
+    - think
+    - current_datetime
+    - tavily_search
+  verbose: true
+  max_iterations: 25
+
+# -----------------------------------------------------------------------------
+# Evaluation & Profiling
+# -----------------------------------------------------------------------------
+eval:
+  general:
+    profiler:
+      compute_llm_metrics: true
+      bottleneck_analysis:
+        enable_nested_stack: true
+        spike_threshold: 5
+      performance:
+        enable: true
+        sample_rate: 0.1
+
+# -----------------------------------------------------------------------------
+# Observability - Data Flywheel + Telemetry Exporters
+# -----------------------------------------------------------------------------
+telemetry_exporters:
+  flywheel:
+    _type: data_flywheel
+    endpoint: ${ELASTICSEARCH_ENDPOINT}
+    index: nvidia-cli-traces
+    client_id: nvidia-cli
+    output_dir: ~/.nvidia-cli/flywheel
+    bulk:
+      size: 1000
+      timeout: 30s
+
+# -----------------------------------------------------------------------------
+# Front-end Configuration - FastAPI Server
+# -----------------------------------------------------------------------------
+front_end:
+  _type: fastapi
+  host: 0.0.0.0
+  port: 8000
+  enable_websocket: true

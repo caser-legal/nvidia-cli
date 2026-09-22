@@ -1,0 +1,65 @@
+#!/bin/bash
+# =============================================================================
+# NVIDIA CLI (Dory) - NeMo Agent Toolkit Setup Script
+# =============================================================================
+# This script sets up the NAT Python environment and installs dependencies
+
+set -e
+
+echo "🚀 Setting up NeMo Agent Toolkit for nvidia-cli..."
+
+# Check Python version
+PYTHON_VERSION=$(python3 --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1,2)
+REQUIRED_VERSION="3.11"
+
+if [[ "$(printf '%s\n' "$REQUIRED_VERSION" "$PYTHON_VERSION" | sort -V | head -n1)" != "$REQUIRED_VERSION" ]]; then
+    echo "❌ Python 3.11+ required. Found: $PYTHON_VERSION"
+    echo "   Install Python 3.11+ or use: brew install python@3.13"
+    exit 1
+fi
+
+echo "✅ Python $PYTHON_VERSION detected"
+
+# Navigate to NAT directory
+cd "$(dirname "$0")/../nat"
+
+# Check if uv is installed
+if ! command -v uv &> /dev/null; then
+    echo "📦 Installing uv package manager..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
+
+echo "✅ uv package manager available"
+
+# Create virtual environment if it doesn't exist
+if [ ! -d ".venv" ]; then
+    echo "🐍 Creating Python virtual environment..."
+    uv venv --python 3.13 --seed .venv
+fi
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Install NAT with all required plugins
+echo "📦 Installing NeMo Agent Toolkit and plugins..."
+uv pip install -e .
+
+# Verify installation
+echo "🔍 Verifying installation..."
+nat --version
+
+echo ""
+echo "✅ NeMo Agent Toolkit setup complete!"
+echo ""
+echo "📋 Available commands:"
+echo "   nat run --config_file configs/dory_workflow.yml --input \"Your query\""
+echo "   nat serve --config_file configs/dory_workflow.yml"
+echo "   nat eval --config_file configs/eval_config.yml"
+echo "   nat mcp --config_file configs/mcp_server.yml"
+echo ""
+echo "🌐 To start the NAT API server:"
+echo "   cd nat && source .venv/bin/activate"
+echo "   nat serve --config_file configs/dory_workflow.yml"
+echo ""
+echo "   Then access the API at http://localhost:8000"

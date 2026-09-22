@@ -1,0 +1,95 @@
+# Dory - Project Context
+
+## What This Is
+
+iOS/SwiftUI coding agent for large codebases.
+Intended as a single-user local instance.
+
+## Primary Objective
+
+Eliminate traditional AI constraints on exceptionally large iOS SwiftUI projects:
+- No time limits on sessions
+- No context size restrictions (1M tokens via Nemotron 3 Nano)
+- No file count limitations (RAG indexes entire Xcode projects)
+
+## Target Use Case
+
+- 100k+ line iOS projects
+- 500+ Swift files
+- XIBs, storyboards, assets, plists
+- Full Xcode project comprehension
+
+## Architecture
+
+```
+iOS Project (100k+ lines)
+         │
+         ▼
+RAG Pipeline V2 (Hybrid BM25 + Vector)
+  • Index .swift, .xib, .storyboard, .plist
+  • Chunk by class/struct/extension boundaries
+  • BM25 for exact matches (function names)
+  • Vector for semantic similarity
+  • Rerank with NV-RerankQA 1B v2
+         │
+         ▼
+Nemotron 3 Nano (1M context)
+  • Load 50-100 relevant files at once
+  • Reason across entire feature/module
+```
+
+## NVIDIA Model Stack
+
+| Component | Model ID | Purpose |
+|-----------|----------|---------|
+| Main LLM | nvidia/nemotron-3-nano-30b-a3b | 1M context reasoning |
+| Vision LLM | nvidia/nemotron-nano-12b-v2-vl | UI analysis, mockup comparison |
+| Embeddings | nvidia/llama-3.2-nv-embedqa-1b-v2 | RAG vector search |
+| Reranker | nvidia/llama-3.2-nv-rerankqa-1b-v2 | RAG result ordering |
+
+## RAG V2 Features (NVIDIA Blueprint)
+
+Based on NVIDIA RAG Blueprint (Dec 2025):
+- **Hybrid Retrieval**: BM25 (lexical) + Vector (semantic) with RRF fusion
+- **ContextualCompressionRetriever**: Wide net (100) → Rerank → Narrow (10)
+- **Swift-Aware Chunking**: Respects class/struct/func/extension boundaries
+- **Query Decomposition**: Breaks complex queries into sub-queries
+- **Self-Correction Loop**: Rewrites queries if results aren't relevant
+- **Persistence**: Saves to .rag-store.json (survives restarts)
+
+## Vision Analysis Capabilities
+
+The vision model (Nemotron Nano VL 12B v2) can:
+- See misaligned buttons, spacing issues, centering problems
+- Compare mockup to implementation pixel-by-pixel
+- Check accessibility (touch targets, contrast, dynamic type)
+- Analyze up to 5 images or 1 video per request
+- Use /think mode for deeper reasoning on images
+
+## Tools (38 Total)
+
+- Project: set_project, get_project
+- File System: file_read, file_write
+- System: bash
+- Reasoning: think
+- Memory: memory, entity_memory
+- Search: google_search, Google or Preplexity Search, local_docs_search
+- Vision: vision_analyze, ios_ui_review, compare_mockup
+- RAG: rag_ingest, rag_search, rag_query, rag_research, rag_stats, rag_clear, rag_validate, rag_update
+- Code: github_analyzer, github_file_reader, code_documentation, documentation_specialist
+- Diagrams: mermaid_generator, quick_diagram
+- Specialists: search_specialist, report_planner, section_author, report_writer, quality_reviewer, report_extender, report_compiler, deduplicate_sources
+- Reflection: reflect_on_report, extend_report
+
+## Not Using (by design)
+
+- Nemotron Safety models (not wired into this local agent)
+- Nemotron Personas datasets (not a consumer chatbot)
+- RL/fine-tuning datasets (using base models)
+- MCP (tools built directly into agent)
+
+## Key Insight
+
+1M context + Hybrid RAG = load 20-50 most relevant files into single context,
+reason holistically across entire feature instead of file-by-file.
+BM25 catches exact function names, Vector catches semantic concepts.

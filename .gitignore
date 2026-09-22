@@ -1,0 +1,35 @@
+node_modules/
+.next/
+.env
+.env.local
+.env*.local
+*.log
+.DS_Store
+.kiro/
+
+# Sensitive files
+*.rtf
+nvidia-nim-keys*
+*.pem
+*.key
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# RAG store (regenerated)
+.rag-store.json
+
+# Memory store (user data)
+# Note: ~/.nvidia-cli/memory.json is outside repo
+elasticsearch-8.11.0/
+.gemini
+.codex
+.claude

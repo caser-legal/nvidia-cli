@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+
+import fs from 'fs';
+import path from 'path';
+
+// Parse arguments
+const args = process.argv.slice(2);
+const modeIndex = args.indexOf('--mode');
+const mode = modeIndex > -1 ? args[modeIndex + 1] : 'auto';
+const message = args.filter((_, i) => i !== modeIndex && i !== modeIndex + 1).join(' ');
+
+if (!message) {
+  console.log('Usage: dory <message> [--mode <chat|coder|research|...>]');
+  process.exit(1);
+}
+
+const API_URL = process.env.DORY_API_URL || 'http://localhost:3000/api/agent-chat';
+const API_KEY = process.env.NVIDIA_API_KEY;
+
+async function run() {
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-NVIDIA-API-Key': API_KEY || ''
+      },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: message }],
+        mode: mode
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    // Handle Server-Sent Events (SSE)
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const dataStr = line.slice(6);
+          try {
+            const event = JSON.parse(dataStr);
+            handleEvent(event);
+          } catch (e) {
+            // Ignore parse errors for partial chunks
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error:', error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+}
+
+function handleEvent(event) {
+  switch (event.type) {
+    case 'message':
+      if (event.role === 'assistant' && event.content) {
+        process.stdout.write(event.content);
+      }
+      break;
+    case 'tool_call':
+      console.log(`\n> Using tool: ${event.name}`);
+      break;
+    case 'status':
+      // console.log(`[Status: ${event.status}]`);
+      break;
+    case 'done':
+      console.log('\n');
+      break;
+    case 'error':
+      console.error(`\nError: ${event.message}`);
+      break;
+  }
+}
+
+run();
